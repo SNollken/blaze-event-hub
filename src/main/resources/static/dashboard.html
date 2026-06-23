@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>NollenBlaze - Painel MVP 1</title>
+	<link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+	<header class="topbar">
+		<div>
+			<p class="eyebrow">NollenBlaze</p>
+			<h1>Painel MVP 1</h1>
+			<p class="notice">Tela provisoria. O design final sera feito depois no OpenDesign/opencode.</p>
+		</div>
+		<button id="refreshStatus" type="button">Atualizar status</button>
+	</header>
+
+	<main>
+		<section class="grid" aria-label="Status do backend">
+			<article class="card">
+				<span class="label">Backend</span>
+				<strong id="backendStatus">verificando...</strong>
+			</article>
+			<article class="card">
+				<span class="label">App</span>
+				<strong id="appStatus">-</strong>
+				<small id="versionStatus">-</small>
+			</article>
+			<article class="card">
+				<span class="label">Java</span>
+				<strong id="javaStatus">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">OAuth configurado</span>
+				<strong id="oauthConfigured">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">Token presente</span>
+				<strong id="tokenStatus">-</strong>
+				<small id="refreshTokenStatus">-</small>
+			</article>
+			<article class="card">
+				<span class="label">Blaze API</span>
+				<strong id="apiConfigured">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">Events Socket</span>
+				<strong id="eventsConfigured">-</strong>
+				<small id="eventsRunning">-</small>
+			</article>
+			<article class="card">
+				<span class="label">SessionId</span>
+				<strong id="sessionStatus">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">Canal monitorado</span>
+				<strong id="channelStatus">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">Profiles</span>
+				<strong id="profilesCount">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">Overlays</span>
+				<strong id="overlaysCount">-</strong>
+			</article>
+			<article class="card">
+				<span class="label">Uptime</span>
+				<strong id="uptimeStatus">-</strong>
+			</article>
+		</section>
+
+		<section class="panel">
+			<h2>Acoes</h2>
+			<div class="actions">
+				<button id="startOAuth" type="button">Iniciar OAuth</button>
+				<button id="refreshEvents" type="button">Atualizar Events status</button>
+				<button id="startEvents" type="button">Start Events</button>
+				<button id="stopEvents" type="button">Stop Events</button>
+				<button id="syncSubscriptions" type="button">Sync subscriptions</button>
+				<a class="button-link" href="/api/overlay-profiles" target="_blank" rel="noreferrer">Ver overlay profiles</a>
+				<a class="button-link disabled" id="manifestLink" href="#" target="_blank" rel="noreferrer">Ver manifest demo</a>
+			</div>
+			<p id="oauthHelp" class="help"></p>
+		</section>
+
+		<section class="panel">
+			<h2>Endpoints uteis</h2>
+			<ul class="links">
+				<li><a href="/api/health" target="_blank" rel="noreferrer">GET /api/health</a></li>
+				<li><a href="/api/status" target="_blank" rel="noreferrer">GET /api/status</a></li>
+				<li><a href="/api/blaze/events/status" target="_blank" rel="noreferrer">GET /api/blaze/events/status</a></li>
+				<li><a href="/api/overlay-profiles" target="_blank" rel="noreferrer">GET /api/overlay-profiles</a></li>
+				<li><a id="manifestEndpoint" href="#" target="_blank" rel="noreferrer">GET /api/public/overlays/{publicToken}/manifest</a></li>
+			</ul>
+		</section>
+
+		<section class="panel">
+			<h2>Logs recentes</h2>
+			<pre id="logs" aria-live="polite">Aguardando primeira leitura...</pre>
+		</section>
+	</main>
+
+	<script src="/dashboard.js"></script>
+</body>
+</html>

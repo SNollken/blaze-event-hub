@@ -8,6 +8,7 @@ import com.nollen.blaze.common.ConfigurationMissingException;
 import com.nollen.blaze.common.IdGenerator;
 
 import org.springframework.stereotype.Service;
+import org.springframework.util.StringUtils;
 
 @Service
 public class EventSubscriptionService {
@@ -25,6 +26,15 @@ public class EventSubscriptionService {
 	}
 
 	public List<EventSubscriptionSnapshot> sync(EventSubscriptionRequest request) {
+		if (request == null) {
+			throw new IllegalArgumentException("Blaze Events subscription request is required");
+		}
+		if (request.type() == null) {
+			throw new IllegalArgumentException("Blaze Events subscription type is required");
+		}
+		if (!StringUtils.hasText(request.channelId())) {
+			throw new IllegalArgumentException("Blaze Events channelId is required");
+		}
 		String sessionId = runner.currentSessionId();
 		if (sessionId == null || sessionId.isBlank()) {
 			throw new ConfigurationMissingException("Blaze Events session is not available yet");

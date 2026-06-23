@@ -25,6 +25,20 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 Copie os nomes de variaveis de `.env.example` para um `.env` local se for testar Blaze real. Nunca commite `.env`.
 
+## MVP 1 - Painel provisorio
+
+O MVP 1 inclui uma tela funcional minima servida pelo proprio Spring Boot. Ela existe para testar fluxo, estados e endpoints; o design final sera feito depois no OpenDesign/opencode.
+
+- Tela inicial: `http://localhost:8080/`
+- Dashboard: `http://localhost:8080/dashboard`
+- Health usado pela tela: `GET /api/health`
+- Status seguro usado pela tela: `GET /api/status`
+- Events usados pela tela: `GET /api/blaze/events/status`, `POST /api/blaze/events/start`, `POST /api/blaze/events/stop`, `POST /api/blaze/events/subscriptions/sync`
+- OAuth usado pela tela: `POST /api/blaze/oauth/start`
+- Overlays usados pela tela: `GET /api/overlay-profiles`, `GET /api/overlay-profiles/{profileId}/overlays`, `GET /api/public/overlays/{publicToken}/manifest`
+
+A tela mostra apenas flags e respostas sanitizadas. Ela nao deve exibir `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais.
+
 ## Endpoints principais
 
 - `GET /api/health`

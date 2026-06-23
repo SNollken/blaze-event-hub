@@ -10,6 +10,8 @@ public record StatusResponse(
 		boolean tokenPresent,
 		boolean refreshTokenPresent,
 		boolean monitoredChannelConfigured,
+		boolean eventsRunning,
+		boolean sessionIdPresent,
 		long activeProfilesCount,
 		long overlaysCount,
 		long uptimeSeconds) {

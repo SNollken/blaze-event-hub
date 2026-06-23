@@ -10,4 +10,7 @@
 - Usar Maven Wrapper. Nao instalar Maven global para este projeto.
 - Microfeatures futuras devem ir para branch longa de feature e so integrar blocos completos e validados.
 - Manter historico Git limpo. Evitar merge commit desnecessario.
-- Frontend/dashboard fica fora desta base inicial, salvo smoke minimo solicitado explicitamente.
+- Tela MVP 1 de dashboard e provisoria e funcional. Nao gastar tempo refinando UI sem pedido explicito.
+- Design final do dashboard vira depois no OpenDesign/opencode.
+- Nao abrir PR automatico. Commits e pushes seguem a branch combinada.
+- Features devem usar `feature/*` e integrar direto em `dev` quando validadas.

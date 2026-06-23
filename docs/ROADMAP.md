@@ -12,8 +12,8 @@
 
 ## Fase 2: frontend/dashboard
 
-- Dashboard para configurar OAuth, canais e overlays.
-- UX de status e diagnostico sem segredos.
+- MVP 1 concluido: painel provisorio em `/` e `/dashboard` para health/status, OAuth start, Events noop/status, canal monitorado, overlay profiles e manifest demo.
+- Proximo incremento: evoluir configuracao OAuth/canais e UX de diagnostico sem segredos.
 
 ## Fase 3: overlay studio visual
 
