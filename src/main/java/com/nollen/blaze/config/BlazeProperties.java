@@ -17,7 +17,7 @@ public class BlazeProperties {
 	private String apiBaseUrl = "https://api.blaze.stream";
 	private String socketUrl = "https://blaze.stream";
 	private String socketPath = "/ws";
-	private List<String> scopes = new ArrayList<>(List.of("users.read", "offline.access", "channel.moderate", "users.bot"));
+	private List<String> scopes = new ArrayList<>(List.of("users.read", "offline.access"));
 	private String monitoredChannelId = "";
 
 	public String getClientId() {

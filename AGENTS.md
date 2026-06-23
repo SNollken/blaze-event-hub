@@ -11,7 +11,10 @@
 - Microfeatures futuras devem ir para branch longa de feature e so integrar blocos completos e validados.
 - Manter historico Git limpo. Evitar merge commit desnecessario.
 - Tela MVP 1 de dashboard e provisoria e funcional. Nao gastar tempo refinando UI sem pedido explicito.
-- Sempre validar `/`, `/dashboard`, `/api/health`, `/api/status`, `/api/blaze/events/status` e `/api/overlay-profiles` no smoke do MVP 1.
+- MVP 2 adiciona configuracao assistida da Blaze no mesmo dashboard provisorio e o endpoint `GET /api/blaze/setup`.
+- `/api/blaze/setup` deve devolver flags, checklist, scopes recomendados, proximos passos, links oficiais e exemplos com placeholders; nunca devolver valores reais nem campos publicos `clientSecret`, `client_secret`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `codeVerifier` ou `code_verifier`.
+- Scopes padrao devem ficar em privilegio minimo: `users.read,offline.access`. `channel.moderate` e `users.bot` so entram quando houver feature de chat/moderacao/bot validada.
+- Sempre validar `/`, `/dashboard`, `/api/health`, `/api/status`, `/api/blaze/setup`, `/api/blaze/events/status` e `/api/overlay-profiles` no smoke do dashboard.
 - A tela provisoria deve continuar resiliente sem credenciais reais, sem token e sem Events rodando.
 - Design final do dashboard vira depois no OpenDesign/opencode.
 - Nao abrir PR automatico. Commits e pushes seguem a branch combinada.

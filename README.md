@@ -39,6 +39,27 @@ O MVP 1 inclui uma tela funcional minima servida pelo proprio Spring Boot. Ela e
 
 A tela mostra apenas flags e respostas sanitizadas. Ela nao deve exibir `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais.
 
+## MVP 2 - Configuracao assistida da Blaze
+
+O MVP 2 adiciona uma area de configuracao no mesmo dashboard provisorio e o endpoint seguro `GET /api/blaze/setup`. O objetivo e orientar App Setup, OAuth, scopes, canal monitorado e Events sem exigir credenciais reais no repositorio.
+
+- Endpoint de setup: `GET /api/blaze/setup`
+- Botao para copiar Redirect URI: `http://localhost:8080/api/blaze/oauth/callback`
+- Botao para copiar scopes atuais: `users.read,offline.access`
+- Botao para copiar um exemplo `.env` com placeholders
+- Botao `Iniciar OAuth`, que continua falhando com erro amigavel quando `BLAZE_CLIENT_ID`, `BLAZE_CLIENT_SECRET` ou `BLAZE_REDIRECT_URI` nao estiverem configurados
+- Links oficiais usados pela tela: App Setup, OAuth, Scopes e Events em `https://dev.blaze.stream/docs`
+
+O contrato de `/api/blaze/setup` devolve flags, itens de checklist, scopes recomendados, proximos passos, links oficiais e valores mascarados. Ele nao devolve nomes ou valores de `clientSecret`, `accessToken`, `refreshToken`, `codeVerifier` nem variantes snake_case desses campos.
+
+Para o proximo MVP de OAuth/perfil, use privilegio minimo:
+
+```env
+BLAZE_SCOPES=users.read,offline.access
+```
+
+Scopes como `channel.moderate` e `users.bot` ficam reservados para fases futuras de chat/moderacao/bot, depois de haver necessidade real.
+
 Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `dev`, se o app foi reiniciado depois do checkout e se `src/main/resources/static/dashboard.html` esta empacotado. O smoke minimo do dashboard deve validar:
 
 ```powershell
@@ -46,6 +67,7 @@ Invoke-WebRequest http://localhost:8080/ -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/dashboard -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/status -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/blaze/setup -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/blaze/events/status -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/overlay-profiles -UseBasicParsing
 ```
@@ -54,6 +76,7 @@ Invoke-WebRequest http://localhost:8080/api/overlay-profiles -UseBasicParsing
 
 - `GET /api/health`
 - `GET /api/status`
+- `GET /api/blaze/setup`
 - `POST /api/blaze/oauth/start`
 - `GET /api/blaze/oauth/callback?code=...&state=...`
 - `POST /api/blaze/oauth/refresh`
@@ -106,4 +129,4 @@ A suite cobre health/status, propriedades seguras, OAuth, REST client, Events e 
 - Persistir tokens e overlays em banco seguro.
 - Integrar cliente Socket.IO real depois de validar biblioteca e reconexao.
 - Fazer smoke E2E com credenciais Blaze reais fora do repositorio.
-- Criar dashboard/frontend em fase separada.
+- Evoluir o dashboard/frontend final em fase separada.

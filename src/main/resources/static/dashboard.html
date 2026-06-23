@@ -3,14 +3,14 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>NollenBlaze - Painel MVP 1</title>
+	<title>NollenBlaze - Painel MVP 2</title>
 	<link rel="stylesheet" href="/dashboard.css">
 </head>
 <body>
 	<header class="topbar">
 		<div>
 			<p class="eyebrow">NollenBlaze</p>
-			<h1>Painel MVP 1</h1>
+			<h1>Painel MVP 2</h1>
 			<p class="notice">Tela provisoria. O design final sera feito depois no OpenDesign/opencode.</p>
 		</div>
 		<button id="refreshStatus" type="button">Atualizar status</button>
@@ -71,6 +71,82 @@
 			</article>
 		</section>
 
+		<section class="panel setup-panel" aria-labelledby="setupTitle">
+			<div class="panel-heading">
+				<div>
+					<h2 id="setupTitle">Configuracao Blaze</h2>
+					<p class="help">Checklist assistido para preparar App Setup, OAuth, scopes, canal e Events sem expor credenciais no navegador.</p>
+				</div>
+				<button id="refreshSetup" type="button">Atualizar setup</button>
+			</div>
+
+			<div class="setup-grid" aria-label="Checklist Blaze">
+				<article class="card setup-card">
+					<span class="label">Application Blaze</span>
+					<strong id="setupClientId">verificando...</strong>
+					<small id="setupClientIdMasked">-</small>
+					<small id="setupClientCredential">-</small>
+					<a id="appSetupDocs" href="https://dev.blaze.stream/docs/app-setup" target="_blank" rel="noreferrer">Docs App Setup</a>
+				</article>
+				<article class="card setup-card">
+					<span class="label">Redirect URI</span>
+					<strong id="setupRedirectStatus">-</strong>
+					<code id="setupRedirectValue">-</code>
+					<button id="copyRedirectUri" type="button">Copiar Redirect URI</button>
+				</article>
+				<article class="card setup-card">
+					<span class="label">OAuth</span>
+					<strong id="setupOAuthReady">-</strong>
+					<small id="setupToken">-</small>
+					<small id="setupRefreshCredential">-</small>
+					<button id="startOAuthFromSetup" type="button">Iniciar OAuth</button>
+					<a id="oauthDocs" href="https://dev.blaze.stream/docs/oauth" target="_blank" rel="noreferrer">Docs OAuth</a>
+				</article>
+				<article class="card setup-card">
+					<span class="label">Scopes</span>
+					<strong id="setupRequestedScopes">-</strong>
+					<small>Use privilegio minimo agora; chat e bot ficam para fases futuras.</small>
+					<button id="copyScopes" type="button">Copiar scopes</button>
+					<a id="scopesDocs" href="https://dev.blaze.stream/docs/scopes" target="_blank" rel="noreferrer">Docs Scopes</a>
+				</article>
+				<article class="card setup-card">
+					<span class="label">Canal monitorado</span>
+					<strong id="setupChannel">-</strong>
+					<small id="setupChannelMasked">-</small>
+				</article>
+				<article class="card setup-card">
+					<span class="label">Events</span>
+					<strong id="setupEvents">-</strong>
+					<small>Socket.IO real fica para MVP futuro depois de OAuth e canal.</small>
+					<a id="eventsDocs" href="https://dev.blaze.stream/docs/events" target="_blank" rel="noreferrer">Docs Events</a>
+				</article>
+			</div>
+
+			<div class="setup-columns">
+				<div>
+					<h3>Checklist</h3>
+					<ul id="setupChecklist" class="status-list"></ul>
+				</div>
+				<div>
+					<h3>Scopes recomendados</h3>
+					<ul id="setupScopes" class="status-list"></ul>
+				</div>
+				<div>
+					<h3>Proximos passos</h3>
+					<ol id="setupNextSteps" class="status-list"></ol>
+				</div>
+			</div>
+
+			<div class="env-block">
+				<div class="panel-heading compact">
+					<h3>Exemplo .env local</h3>
+					<button id="copyEnvExample" type="button">Copiar exemplo .env</button>
+				</div>
+				<pre id="setupEnvExample">Aguardando setup...</pre>
+			</div>
+			<p id="setupOAuthHelp" class="help"></p>
+		</section>
+
 		<section class="panel">
 			<h2>Acoes</h2>
 			<div class="actions">
@@ -90,6 +166,7 @@
 			<ul class="links">
 				<li><a href="/api/health" target="_blank" rel="noreferrer">GET /api/health</a></li>
 				<li><a href="/api/status" target="_blank" rel="noreferrer">GET /api/status</a></li>
+				<li><a href="/api/blaze/setup" target="_blank" rel="noreferrer">GET /api/blaze/setup</a></li>
 				<li><a href="/api/blaze/events/status" target="_blank" rel="noreferrer">GET /api/blaze/events/status</a></li>
 				<li><a href="/api/overlay-profiles" target="_blank" rel="noreferrer">GET /api/overlay-profiles</a></li>
 				<li><a id="manifestEndpoint" href="#" target="_blank" rel="noreferrer">GET /api/public/overlays/{publicToken}/manifest</a></li>

@@ -23,5 +23,5 @@ nollen:
     api-base-url: ${BLAZE_API_BASE_URL:https://api.blaze.stream}
     socket-url: ${BLAZE_SOCKET_URL:https://blaze.stream}
     socket-path: ${BLAZE_SOCKET_PATH:/ws}
-    scopes: ${BLAZE_SCOPES:users.read,offline.access,channel.moderate,users.bot}
+    scopes: ${BLAZE_SCOPES:users.read,offline.access}
     monitored-channel-id: ${BLAZE_MONITORED_CHANNEL_ID:}

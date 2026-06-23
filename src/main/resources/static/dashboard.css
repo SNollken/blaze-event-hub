@@ -34,6 +34,7 @@ body {
 
 h1,
 h2,
+h3,
 p {
 	margin-top: 0;
 }
@@ -47,6 +48,11 @@ h1 {
 h2 {
 	font-size: 18px;
 	margin-bottom: 14px;
+}
+
+h3 {
+	font-size: 15px;
+	margin-bottom: 10px;
 }
 
 .notice,
@@ -106,6 +112,26 @@ strong {
 	margin-bottom: 18px;
 }
 
+.panel-heading {
+	display: flex;
+	justify-content: space-between;
+	gap: 14px;
+	align-items: flex-start;
+	margin-bottom: 16px;
+}
+
+.panel-heading.compact {
+	align-items: center;
+	margin-top: 18px;
+	margin-bottom: 10px;
+}
+
+.panel-heading h2,
+.panel-heading h3,
+.panel-heading p {
+	margin-bottom: 0;
+}
+
 .actions {
 	display: flex;
 	flex-wrap: wrap;
@@ -147,6 +173,82 @@ button:hover,
 
 .links a {
 	color: #1f5d9d;
+}
+
+code {
+	display: block;
+	overflow-wrap: anywhere;
+	padding: 8px;
+	border-radius: 6px;
+	background: #eef3f8;
+	color: #10243d;
+	font-size: 13px;
+}
+
+.setup-grid {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(230px, 1fr));
+	gap: 12px;
+	margin-bottom: 18px;
+}
+
+.setup-card {
+	min-height: 190px;
+}
+
+.setup-card button,
+.setup-card .button-link {
+	margin-top: auto;
+	width: 100%;
+}
+
+.setup-card a:not(.button-link) {
+	color: #1f5d9d;
+	font-size: 14px;
+}
+
+.setup-columns {
+	display: grid;
+	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+	gap: 16px;
+}
+
+.status-list {
+	display: grid;
+	gap: 8px;
+	margin: 0;
+	padding-left: 18px;
+}
+
+.status-list li {
+	line-height: 1.35;
+	overflow-wrap: anywhere;
+}
+
+.status-pill {
+	display: inline-block;
+	min-width: 58px;
+	margin-right: 6px;
+	padding: 2px 6px;
+	border-radius: 999px;
+	background: #eef3f8;
+	color: #334155;
+	font-size: 12px;
+	font-weight: 700;
+	text-align: center;
+}
+
+.status-pill.ok {
+	background: #e3f8ed;
+}
+
+.status-pill.warn {
+	background: #fff3db;
+}
+
+.env-block pre {
+	min-height: 120px;
+	max-height: 260px;
 }
 
 pre {
@@ -195,5 +297,14 @@ pre {
 	.actions > * {
 		width: 100%;
 		text-align: center;
+	}
+
+	.panel-heading {
+		display: block;
+	}
+
+	.panel-heading button {
+		margin-top: 12px;
+		width: 100%;
 	}
 }
