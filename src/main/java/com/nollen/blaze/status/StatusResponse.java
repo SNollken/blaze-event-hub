@@ -8,7 +8,7 @@ public record StatusResponse(
 		boolean blazeApiConfigured,
 		boolean socketConfigured,
 		boolean tokenPresent,
-		boolean refreshTokenPresent,
+		boolean refreshCredentialPresent,
 		boolean monitoredChannelConfigured,
 		boolean eventsRunning,
 		boolean sessionIdPresent,

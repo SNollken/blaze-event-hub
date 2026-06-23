@@ -88,7 +88,7 @@ async function loadStatus() {
 	setText("javaStatus", status.javaVersion || "-");
 	setText("oauthConfigured", yesNo(status.blazeOAuthConfigured), tone(status.blazeOAuthConfigured));
 	setText("tokenStatus", yesNo(status.tokenPresent), tone(status.tokenPresent));
-	setText("refreshTokenStatus", `refresh token: ${yesNo(status.refreshTokenPresent)}`);
+	setText("refreshCredentialStatus", `refresh credential: ${yesNo(status.refreshCredentialPresent)}`);
 	setText("apiConfigured", yesNo(status.blazeApiConfigured), tone(status.blazeApiConfigured));
 	setText("eventsConfigured", yesNo(status.socketConfigured), tone(status.socketConfigured));
 	setText("eventsRunning", `runner: ${yesNo(status.eventsRunning)}`);
@@ -133,19 +133,58 @@ function disableManifestLink() {
 	$("manifestLink").classList.add("disabled");
 }
 
-async function loadAll() {
+function markStatusUnavailable() {
+	setText("appStatus", "indisponivel", "warn");
+	setText("versionStatus", "-");
+	setText("javaStatus", "-");
+	setText("oauthConfigured", "indisponivel", "warn");
+	setText("tokenStatus", "indisponivel", "warn");
+	setText("refreshCredentialStatus", "refresh credential: indisponivel");
+	setText("apiConfigured", "indisponivel", "warn");
+	setText("eventsConfigured", "indisponivel", "warn");
+	setText("channelStatus", "indisponivel", "warn");
+	setText("profilesCount", "indisponivel", "warn");
+	setText("overlaysCount", "indisponivel", "warn");
+	setText("uptimeStatus", "-");
+}
+
+function markEventsUnavailable() {
+	setText("eventsRunning", "runner: indisponivel", "warn");
+	setText("sessionStatus", "sem sessionId", "warn");
+}
+
+function markOverlayUnavailable() {
+	setText("profilesCount", "indisponivel", "warn");
+	setText("overlaysCount", "indisponivel", "warn");
+	disableManifestLink();
+}
+
+async function safeLoad(title, loader, fallback) {
 	try {
-		const [health, status, events, overlays] = await Promise.all([
-			loadHealth(),
-			loadStatus(),
-			loadEventsStatus(),
-			loadOverlayDemo()
-		]);
-		log("Status atualizado", {health, status, events, overlayProfiles: overlays.profiles.length, overlays: overlays.overlays.length});
+		return {ok: true, value: await loader()};
 	}
 	catch (error) {
-		log("Falha ao atualizar status", error.body || error.message, true);
+		fallback(error);
+		log(title, error.body || error.message, true);
+		return {ok: false, error};
 	}
+}
+
+async function loadAll() {
+	const [health, status, events, overlays] = await Promise.all([
+		safeLoad("Health indisponivel", loadHealth, () => setText("backendStatus", "offline", "bad")),
+		safeLoad("Status indisponivel", loadStatus, markStatusUnavailable),
+		safeLoad("Events indisponivel", loadEventsStatus, markEventsUnavailable),
+		safeLoad("Overlays indisponiveis", loadOverlayDemo, markOverlayUnavailable)
+	]);
+
+	log("Status atualizado", {
+		health: health.ok ? health.value : "indisponivel",
+		status: status.ok ? status.value : "indisponivel",
+		events: events.ok ? events.value : "indisponivel",
+		overlayProfiles: overlays.ok ? overlays.value.profiles.length : "indisponivel",
+		overlays: overlays.ok ? overlays.value.overlays.length : "indisponivel"
+	});
 }
 
 async function startOAuth() {

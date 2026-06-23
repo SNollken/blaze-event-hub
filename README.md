@@ -39,6 +39,17 @@ O MVP 1 inclui uma tela funcional minima servida pelo proprio Spring Boot. Ela e
 
 A tela mostra apenas flags e respostas sanitizadas. Ela nao deve exibir `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais.
 
+Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `dev`, se o app foi reiniciado depois do checkout e se `src/main/resources/static/dashboard.html` esta empacotado. O smoke minimo do dashboard deve validar:
+
+```powershell
+Invoke-WebRequest http://localhost:8080/ -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/dashboard -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/status -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/blaze/events/status -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/overlay-profiles -UseBasicParsing
+```
+
 ## Endpoints principais
 
 - `GET /api/health`

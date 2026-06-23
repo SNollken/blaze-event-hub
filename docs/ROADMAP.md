@@ -13,6 +13,7 @@
 ## Fase 2: frontend/dashboard
 
 - MVP 1 concluido: painel provisorio em `/` e `/dashboard` para health/status, OAuth start, Events noop/status, canal monitorado, overlay profiles e manifest demo.
+- Correcao de regressao: `/` e `/dashboard` devem servir a tela provisoria sem credenciais reais; o JS deve mostrar estados indisponiveis em vez de travar se algum endpoint de status falhar.
 - Proximo incremento: evoluir configuracao OAuth/canais e UX de diagnostico sem segredos.
 
 ## Fase 3: overlay studio visual

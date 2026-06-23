@@ -43,6 +43,33 @@ class DashboardMvpControllerTests {
 	}
 
 	@Test
+	void mvpRoutesWorkWithoutRealCredentials() throws Exception {
+		mockMvc.perform(get("/"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("NollenBlaze")));
+
+		mockMvc.perform(get("/dashboard"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("Tela provisoria")));
+
+		mockMvc.perform(get("/api/health"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("ok"));
+
+		mockMvc.perform(get("/api/status"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(not(containsString("clientSecret"))))
+				.andExpect(content().string(not(containsString("accessToken"))))
+				.andExpect(content().string(not(containsString("refreshToken"))));
+
+		mockMvc.perform(get("/api/blaze/events/status"))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/overlay-profiles"))
+				.andExpect(status().isOk());
+	}
+
+	@Test
 	void statusExposesSafeMvpFields() throws Exception {
 		mockMvc.perform(get("/api/status"))
 				.andExpect(status().isOk())
@@ -50,14 +77,14 @@ class DashboardMvpControllerTests {
 				.andExpect(jsonPath("$.javaVersion").exists())
 				.andExpect(jsonPath("$.blazeOAuthConfigured").value(false))
 				.andExpect(jsonPath("$.tokenPresent").value(false))
-				.andExpect(jsonPath("$.refreshTokenPresent").value(false))
+				.andExpect(jsonPath("$.refreshCredentialPresent").value(false))
 				.andExpect(jsonPath("$.eventsRunning").value(false))
 				.andExpect(jsonPath("$.sessionIdPresent").value(false))
 				.andExpect(jsonPath("$.activeProfilesCount").value(1))
 				.andExpect(jsonPath("$.overlaysCount").value(1))
 				.andExpect(content().string(not(containsString("clientSecret"))))
-				.andExpect(content().string(not(containsString("access-token-secret"))))
-				.andExpect(content().string(not(containsString("refresh-token-secret"))));
+				.andExpect(content().string(not(containsString("accessToken"))))
+				.andExpect(content().string(not(containsString("refreshToken"))));
 	}
 
 	@Test
