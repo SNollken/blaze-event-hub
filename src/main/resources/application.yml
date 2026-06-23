@@ -1,0 +1,27 @@
+spring:
+  application:
+    name: nollen-blaze
+
+server:
+  port: ${SERVER_PORT:8080}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+
+nollen:
+  blaze:
+    client-id: ${BLAZE_CLIENT_ID:}
+    client-secret: ${BLAZE_CLIENT_SECRET:}
+    redirect-uri: ${BLAZE_REDIRECT_URI:http://localhost:8080/api/blaze/oauth/callback}
+    auth-base-url: ${BLAZE_AUTH_BASE_URL:https://blaze.stream}
+    api-base-url: ${BLAZE_API_BASE_URL:https://api.blaze.stream}
+    socket-url: ${BLAZE_SOCKET_URL:https://blaze.stream}
+    socket-path: ${BLAZE_SOCKET_PATH:/ws}
+    scopes: ${BLAZE_SCOPES:users.read,offline.access,channel.moderate,users.bot}
+    monitored-channel-id: ${BLAZE_MONITORED_CHANNEL_ID:}
