@@ -5,10 +5,13 @@ import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import com.nollen.blaze.common.OAuthException;
 import com.nollen.blaze.config.BlazeProperties;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+
+import org.springframework.web.client.ResourceAccessException;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -142,9 +145,51 @@ class BlazeOAuthServiceTests {
 		assertThat(body).doesNotContain("codeVerifier");
 	}
 
+	@Test
+	void callbackWithOAuthErrorFromGatewayReturnsOAuthException() {
+		gateway.setThrowOAuthError();
+		OAuthStartResponse sr = service.start();
+
+		assertThatThrownBy(() -> service.callback("code-1", sr.state(), null, null))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("Blaze rejected code exchange");
+	}
+
+	@Test
+	void callbackWithNetworkErrorFromGatewayReturnsOAuthException() {
+		gateway.setThrowNetworkError();
+		OAuthStartResponse sr = service.start();
+
+		assertThatThrownBy(() -> service.callback("code-1", sr.state(), null, null))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("conectar a Blaze");
+	}
+
+	@Test
+	void callbackResponseNeverContainsSecrets() {
+		OAuthStartResponse startResponse = service.start();
+		OAuthCallbackResponse response = service.callback("code-1", startResponse.state(), null, null);
+
+		String body = response.toString();
+		assertThat(body).doesNotContain("client-secret");
+		assertThat(body).doesNotContain("access-token-1");
+		assertThat(body).doesNotContain("refresh-token-1");
+		assertThat(body).doesNotContain("codeVerifier");
+	}
+
 	private static class FakeOAuthGateway implements BlazeOAuthGateway {
 
 		private OAuthGenerateAuthUrlRequest lastGenerateRequest;
+		private boolean throwOAuthError = false;
+		private boolean throwNetworkError = false;
+
+		void setThrowOAuthError() {
+			this.throwOAuthError = true;
+		}
+
+		void setThrowNetworkError() {
+			this.throwNetworkError = true;
+		}
 
 		@Override
 		public GeneratedAuthUrl generateAuthUrl(OAuthGenerateAuthUrlRequest request) {
@@ -154,12 +199,24 @@ class BlazeOAuthServiceTests {
 
 		@Override
 		public OAuthTokenResponse exchangeCode(OAuthTokenExchangeRequest request) {
+			if (throwOAuthError) {
+				throw new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED", "Blaze rejected code exchange");
+			}
+			if (throwNetworkError) {
+				throw new ResourceAccessException("I/O error on POST request: connection refused");
+			}
 			return new OAuthTokenResponse("user", "user-1", "Bearer", "access-token-1", "refresh-token-1",
 					86400L, List.of("users.read", "offline.access"));
 		}
 
 		@Override
 		public OAuthTokenResponse refresh(OAuthRefreshRequest request) {
+			if (throwOAuthError) {
+				throw new OAuthException(400, "BLAZE_TOKEN_REFRESH_REJECTED", "Blaze rejected refresh");
+			}
+			if (throwNetworkError) {
+				throw new ResourceAccessException("I/O error on POST request: connection refused");
+			}
 			return new OAuthTokenResponse("user", "user-1", "Bearer", "access-token-2", "refresh-token-2",
 					86400L, List.of("users.read", "offline.access"));
 		}
