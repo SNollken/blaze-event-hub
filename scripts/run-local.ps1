@@ -17,6 +17,7 @@ if (-not (Test-Path $envFile)) {
 }
 
 # Carrega .env e seta variaveis no processo
+$envLoaded = @{}
 Get-Content $envFile | ForEach-Object {
     $line = $_.Trim()
     if ($line -ne "" -and $line -notmatch '^\s*#') {
@@ -25,8 +26,18 @@ Get-Content $envFile | ForEach-Object {
             $key = $line.Substring(0, $idx).Trim()
             $val = $line.Substring($idx + 1).Trim()
             Set-Item -Path "env:$key" -Value $val
+            $envLoaded[$key] = $true
         }
     }
+}
+
+# Valida se as variaveis essenciais foram carregadas
+$requiredKeys = @("BLAZE_CLIENT_ID", "BLAZE_CLIENT_SECRET")
+$missing = $requiredKeys | Where-Object { -not $envLoaded.ContainsKey($_) }
+if ($missing.Count -gt 0) {
+    Write-Host "ERRO: .env carregado mas as chaves obrigatorias estao ausentes: $($missing -join ', ')" -ForegroundColor Red
+    Write-Host "Verifique se o .env existe em $envFile e tem o formato CHAVE=VALOR." -ForegroundColor Yellow
+    exit 1
 }
 
 Write-Host ""
