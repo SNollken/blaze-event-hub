@@ -22,7 +22,6 @@ class BlazeOAuthServiceTests {
 	private InMemoryOAuthStateStore stateStore;
 	private InMemoryTokenStore tokenStore;
 	private FakeOAuthGateway gateway;
-	private LocalAuthorizationUrlGenerator urlGenerator;
 	private Clock clock;
 
 	@BeforeEach
@@ -36,37 +35,59 @@ class BlazeOAuthServiceTests {
 		stateStore = new InMemoryOAuthStateStore(clock);
 		tokenStore = new InMemoryTokenStore();
 		gateway = new FakeOAuthGateway();
-		urlGenerator = new LocalAuthorizationUrlGenerator();
-		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, urlGenerator, clock);
+		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, clock);
 	}
 
 	@Test
-	void startCreatesState() {
+	void startCallsGenerateAuthUrl() {
+		OAuthStartResponse response = service.start();
+
+		assertThat(gateway.lastGenerateRequest).isNotNull();
+		assertThat(gateway.lastGenerateRequest.clientId()).isEqualTo("client-id");
+		assertThat(gateway.lastGenerateRequest.clientSecret()).isEqualTo("client-secret");
+		assertThat(gateway.lastGenerateRequest.redirectUri()).isEqualTo("http://localhost:8080/api/blaze/oauth/callback");
+		assertThat(gateway.lastGenerateRequest.scopes()).containsExactly("users.read", "offline.access");
+		assertThat(response.authorizationUrl()).startsWith("https://blaze.stream/oauth2/authorize");
+		assertThat(response.state()).isEqualTo("blaze-state-1");
+		assertThat(stateStore.size()).isEqualTo(1);
+	}
+
+	@Test
+	void startReturnsAuthorizationUrl() {
 		OAuthStartResponse response = service.start();
 
 		assertThat(response.authorizationUrl()).isNotNull();
-		assertThat(response.authorizationUrl()).startsWith("https://blaze.stream/oauth2/authorize?");
-		assertThat(response.authorizationUrl()).contains("response_type=code");
-		assertThat(response.authorizationUrl()).contains("client_id=client-id");
-		assertThat(response.authorizationUrl()).contains("redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fapi%2Fblaze%2Foauth%2Fcallback");
-		assertThat(response.authorizationUrl()).contains("scope=users.read+offline.access");
-		assertThat(response.authorizationUrl()).contains("code_challenge_method=S256");
-		assertThat(response.authorizationUrl()).contains("code_challenge=");
+		assertThat(response.authorizationUrl()).isNotEmpty();
 		assertThat(response.state()).isNotNull();
-		assertThat(response.state()).hasSizeGreaterThan(10);
-		assertThat(stateStore.size()).isEqualTo(1);
+		assertThat(response.state()).hasSizeGreaterThan(5);
+		assertThat(response.scopes()).containsExactly("users.read", "offline.access");
+	}
 
-		// The URL should not contain clientSecret or raw tokens
-		assertThat(response.authorizationUrl()).doesNotContain("client-secret");
-		assertThat(response.authorizationUrl()).doesNotContain("accessToken");
-		assertThat(response.authorizationUrl()).doesNotContain("refreshToken");
+	@Test
+	void startDoesNotContainSecrets() {
+		OAuthStartResponse response = service.start();
+
+		String body = response.toString();
+		assertThat(body).doesNotContain("client-secret");
+		assertThat(body).doesNotContain("secret");
+		assertThat(body).doesNotContain("accessToken");
+		assertThat(body).doesNotContain("refreshToken");
+		assertThat(body).doesNotContain("codeVerifier");
+		assertThat(body).doesNotContain("verifier-1");
+	}
+
+	@Test
+	void startPersistsState() {
+		service.start();
+
+		assertThat(stateStore.size()).isEqualTo(1);
+		assertThat(stateStore.consume("blaze-state-1")).isPresent();
 	}
 
 	@Test
 	void callbackRejectsInvalidState() {
 		OAuthStartResponse sr = service.start();
-		String validCode = "code-1";
-		assertThatThrownBy(() -> service.callback(validCode, "wrong-state", null, null))
+		assertThatThrownBy(() -> service.callback("code-1", "wrong-state", null, null))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("Invalid or expired OAuth state");
 	}
@@ -90,7 +111,7 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackRejectsOAuthError() {
 		assertThatThrownBy(() -> service.callback(null, null, "access_denied", "User denied authorization"))
-				.isInstanceOf(com.nollen.blaze.common.OAuthException.class)
+				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("access_denied");
 	}
 
@@ -98,7 +119,7 @@ class BlazeOAuthServiceTests {
 	void callbackStoresTokenWithoutReturningRawToken() {
 		OAuthStartResponse startResponse = service.start();
 
-		OAuthCallbackResponse response = service.callback("code-1", startResponse.state(), null, null);
+		OAuthCallbackResponse response = service.callback("auth-code-1", startResponse.state(), null, null);
 
 		assertThat(response.status()).isEqualTo("stored");
 		assertThat(response.refreshTokenPresent()).isTrue();
@@ -108,41 +129,25 @@ class BlazeOAuthServiceTests {
 	}
 
 	@Test
+	void callbackUsesCodeVerifierFromBlaze() {
+		OAuthStartResponse startResponse = service.start();
+
+		service.callback("auth-code-1", startResponse.state(), null, null);
+
+		// The token exchange should have used verifier-1 from the fake gateway
+		assertThat(gateway.lastTokenRequest).isNotNull();
+		assertThat(gateway.lastTokenRequest.codeVerifier()).isEqualTo("verifier-1");
+	}
+
+	@Test
 	void refreshReplacesRefreshToken() {
 		OAuthStartResponse startResponse = service.start();
-		service.callback("code-1", startResponse.state(), null, null);
+		service.callback("auth-code-1", startResponse.state(), null, null);
 
 		OAuthCallbackResponse response = service.refresh();
 
 		assertThat(response.refreshTokenPresent()).isTrue();
 		assertThat(tokenStore.current().orElseThrow().refreshToken()).isEqualTo("refresh-token-2");
-	}
-
-	@Test
-	void startAuthorizationUrlContainsCodeChallenge() {
-		OAuthStartResponse response = service.start();
-
-		// Verify the URL is a valid OAuth authorization URL with PKCE
-		String url = response.authorizationUrl();
-		assertThat(url).contains("code_challenge=");
-		assertThat(url).contains("code_challenge_method=S256");
-		assertThat(url).contains("state=" + response.state());
-
-		// The state must be savable and consumable
-		assertThat(stateStore.size()).isEqualTo(1);
-		assertThat(stateStore.consume(response.state())).isPresent();
-	}
-
-	@Test
-	void startDoesNotContainClientSecretOrTokens() {
-		OAuthStartResponse response = service.start();
-
-		String body = response.toString();
-		assertThat(body).doesNotContain("client-secret");
-		assertThat(body).doesNotContain("secret");
-		assertThat(body).doesNotContain("accessToken");
-		assertThat(body).doesNotContain("refreshToken");
-		assertThat(body).doesNotContain("codeVerifier");
 	}
 
 	@Test
@@ -168,18 +173,20 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackResponseNeverContainsSecrets() {
 		OAuthStartResponse startResponse = service.start();
-		OAuthCallbackResponse response = service.callback("code-1", startResponse.state(), null, null);
+		OAuthCallbackResponse response = service.callback("auth-code-1", startResponse.state(), null, null);
 
 		String body = response.toString();
 		assertThat(body).doesNotContain("client-secret");
 		assertThat(body).doesNotContain("access-token-1");
 		assertThat(body).doesNotContain("refresh-token-1");
 		assertThat(body).doesNotContain("codeVerifier");
+		assertThat(body).doesNotContain("verifier-1");
 	}
 
 	private static class FakeOAuthGateway implements BlazeOAuthGateway {
 
 		private OAuthGenerateAuthUrlRequest lastGenerateRequest;
+		private OAuthTokenExchangeRequest lastTokenRequest;
 		private boolean throwOAuthError = false;
 		private boolean throwNetworkError = false;
 
@@ -194,11 +201,15 @@ class BlazeOAuthServiceTests {
 		@Override
 		public GeneratedAuthUrl generateAuthUrl(OAuthGenerateAuthUrlRequest request) {
 			this.lastGenerateRequest = request;
-			return new GeneratedAuthUrl("https://blaze.stream/oauth2/authorize?state=state-1", "state-1", "verifier-1");
+			return new GeneratedAuthUrl(
+					"https://blaze.stream/oauth2/authorize?response_type=code&client_id=client-id&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fapi%2Fblaze%2Foauth%2Fcallback&scope=users.read+offline.access&state=blaze-state-1&code_challenge_method=S256&code_challenge=blaze-challenge",
+					"blaze-state-1",
+					"verifier-1");
 		}
 
 		@Override
 		public OAuthTokenResponse exchangeCode(OAuthTokenExchangeRequest request) {
+			this.lastTokenRequest = request;
 			if (throwOAuthError) {
 				throw new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED", "Blaze rejected code exchange");
 			}
