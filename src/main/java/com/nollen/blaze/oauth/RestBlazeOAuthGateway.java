@@ -6,8 +6,6 @@ import com.nollen.blaze.config.BlazeProperties;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
-import org.springframework.util.LinkedMultiValueMap;
-import org.springframework.util.MultiValueMap;
 import org.springframework.web.client.RestClient;
 
 @Component
@@ -26,8 +24,19 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 		GenerateAuthUrlResponse response = restClient.post()
 				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/generate-auth-url")
 				.contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
 				.body(request)
 				.retrieve()
+				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
+					String body = new String(res.getBody().readAllBytes());
+					throw new OAuthException(res.getStatusCode().value(), "BLAZE_AUTH_URL_REJECTED",
+							"Blaze rejeitou a geracao da URL de autorizacao: " + truncate(body, 200));
+				})
+				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
+					String body = new String(res.getBody().readAllBytes());
+					throw new OAuthException(res.getStatusCode().value(), "BLAZE_AUTH_URL_ERROR",
+							"Blaze retornou erro interno ao gerar URL: " + truncate(body, 200));
+				})
 				.body(GenerateAuthUrlResponse.class);
 		if (response == null) {
 			throw new IllegalStateException("Empty Blaze OAuth generate-auth-url response");
@@ -37,56 +46,62 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 
 	@Override
 	public OAuthTokenResponse exchangeCode(OAuthTokenExchangeRequest request) {
-		// OAuth2 token exchange must use application/x-www-form-urlencoded
-		MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-		form.add("grant_type", request.grantType());
-		form.add("code", request.code());
-		form.add("redirect_uri", request.redirectUri());
-		form.add("client_id", request.clientId());
-		form.add("client_secret", request.clientSecret());
-		form.add("code_verifier", request.codeVerifier());
+		// OAuth2 token exchange — JSON camelCase conforme docs Blaze
+		TokenRequestBody body = new TokenRequestBody(
+				request.clientId(),
+				request.clientSecret(),
+				request.code(),
+				request.codeVerifier(),
+				request.redirectUri(),
+				request.grantType());
 
 		return restClient.post()
 				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/token")
-				.contentType(MediaType.APPLICATION_FORM_URLENCODED)
-				.body(form)
+				.contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.body(body)
 				.retrieve()
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-					String body = new String(res.getBody().readAllBytes());
+					String responseBody = new String(res.getBody().readAllBytes());
+					int status = res.getStatusCode().value();
+					if (status == 401) {
+						throw new OAuthException(401, "BLAZE_TOKEN_EXCHANGE_REJECTED",
+								"Blaze rejeitou as credenciais. Verifique Client Secret e Redirect URI.");
+					}
 					throw new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
-							"Blaze rejeitou a troca do codigo por token: " + truncate(body, 200));
+							"Blaze rejeitou a troca do codigo por token: " + truncate(responseBody, 200));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					String body = new String(res.getBody().readAllBytes());
+					String responseBody = new String(res.getBody().readAllBytes());
 					throw new OAuthException(502, "BLAZE_TOKEN_SERVER_ERROR",
-							"Blaze retornou erro interno durante troca de token: " + truncate(body, 200));
+							"Blaze retornou erro interno durante troca de token: " + truncate(responseBody, 200));
 				})
 				.body(OAuthTokenResponse.class);
 	}
 
 	@Override
 	public OAuthTokenResponse refresh(OAuthRefreshRequest request) {
-		// OAuth2 refresh must use application/x-www-form-urlencoded
-		MultiValueMap<String, String> form = new LinkedMultiValueMap<>();
-		form.add("grant_type", "refresh_token");
-		form.add("refresh_token", request.refreshToken());
-		form.add("client_id", request.clientId());
-		form.add("client_secret", request.clientSecret());
+		// OAuth2 refresh — JSON camelCase conforme docs Blaze
+		RefreshRequestBody body = new RefreshRequestBody(
+				request.clientId(),
+				request.clientSecret(),
+				request.refreshToken());
 
 		return restClient.post()
 				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/refresh")
-				.contentType(MediaType.APPLICATION_FORM_URLENCODED)
-				.body(form)
+				.contentType(MediaType.APPLICATION_JSON)
+				.accept(MediaType.APPLICATION_JSON)
+				.body(body)
 				.retrieve()
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-					String body = new String(res.getBody().readAllBytes());
+					String responseBody = new String(res.getBody().readAllBytes());
 					throw new OAuthException(400, "BLAZE_TOKEN_REFRESH_REJECTED",
-							"Blaze rejeitou a renovacao do token: " + truncate(body, 200));
+							"Blaze rejeitou a renovacao do token: " + truncate(responseBody, 200));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					String body = new String(res.getBody().readAllBytes());
+					String responseBody = new String(res.getBody().readAllBytes());
 					throw new OAuthException(502, "BLAZE_TOKEN_SERVER_ERROR",
-							"Blaze retornou erro interno durante renovacao de token: " + truncate(body, 200));
+							"Blaze retornou erro interno durante renovacao de token: " + truncate(responseBody, 200));
 				})
 				.body(OAuthTokenResponse.class);
 	}
@@ -97,5 +112,21 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 	}
 
 	private record GenerateAuthUrlResponse(String url, String state, String codeVerifier) {
+	}
+
+	// JSON camelCase bodies conforme documentacao oficial Blaze
+	private record TokenRequestBody(
+			String clientId,
+			String clientSecret,
+			String code,
+			String codeVerifier,
+			String redirectUri,
+			String grantType) {
+	}
+
+	private record RefreshRequestBody(
+			String clientId,
+			String clientSecret,
+			String refreshToken) {
 	}
 }
