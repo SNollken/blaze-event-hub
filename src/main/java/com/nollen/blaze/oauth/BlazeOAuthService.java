@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 
 import com.nollen.blaze.common.ConfigurationMissingException;
+import com.nollen.blaze.common.OAuthException;
 import com.nollen.blaze.config.BlazeProperties;
 
 import org.springframework.stereotype.Service;
@@ -44,21 +45,37 @@ public class BlazeOAuthService {
 		return new OAuthStartResponse(generated.authorizationUrl(), generated.state(), properties.getScopes());
 	}
 
-	public OAuthCallbackResponse callback(String code, String state) {
+	public OAuthCallbackResponse callback(String code, String state, String error, String errorDescription) {
+		// Blaze rejeitou a autorizacao
+		if (error != null && !error.isBlank()) {
+			String desc = errorDescription != null && !errorDescription.isBlank()
+					? errorDescription
+					: "OAuth authorization was denied or failed";
+			throw new OAuthException(400, "OAUTH_AUTHORIZATION_ERROR",
+					"Blaze OAuth error: " + error + ". " + desc);
+		}
 		requireOAuthConfiguration();
 		if (!StringUtils.hasText(code)) {
 			throw new IllegalArgumentException("OAuth callback code is required");
 		}
+		if (!StringUtils.hasText(state)) {
+			throw new IllegalArgumentException("OAuth callback state is required");
+		}
 		OAuthState stored = stateStore.consume(state)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid OAuth state"));
-		OAuthTokenResponse response = gateway.exchangeCode(new OAuthTokenExchangeRequest(
-				properties.getClientId(),
-				properties.getClientSecret(),
-				code,
-				stored.codeVerifier(),
-				properties.getRedirectUri(),
-				"authorization_code"));
-		return saveAndSanitize(response);
+				.orElseThrow(() -> new IllegalArgumentException("Invalid or expired OAuth state"));
+		try {
+			OAuthTokenResponse response = gateway.exchangeCode(new OAuthTokenExchangeRequest(
+					properties.getClientId(),
+					properties.getClientSecret(),
+					code,
+					stored.codeVerifier(),
+					properties.getRedirectUri(),
+					"authorization_code"));
+			return saveAndSanitize(response);
+		} catch (Exception e) {
+			throw new OAuthException(503, "BLAZE_TOKEN_EXCHANGE_UNAVAILABLE",
+					"Nao foi possivel conectar a Blaze para trocar o codigo por token. Verifique rede/firewall e tente novamente.");
+		}
 	}
 
 	public OAuthCallbackResponse refresh() {

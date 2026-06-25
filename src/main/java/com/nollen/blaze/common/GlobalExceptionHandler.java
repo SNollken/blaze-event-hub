@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.stream.Collectors;
 
 import com.nollen.blaze.blaze.BlazeApiException;
+import com.nollen.blaze.common.OAuthException;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.ConstraintViolationException;
@@ -67,6 +68,12 @@ public class GlobalExceptionHandler {
 	ResponseEntity<ApiErrorResponse> handleBlaze(BlazeApiException ex, HttpServletRequest request) {
 		HttpStatus status = HttpStatus.resolve(ex.status());
 		return error(status == null ? HttpStatus.BAD_GATEWAY : status, "BLAZE_API_ERROR", ex.safeMessage(), request);
+	}
+
+	@ExceptionHandler(OAuthException.class)
+	ResponseEntity<ApiErrorResponse> handleOAuth(OAuthException ex, HttpServletRequest request) {
+		HttpStatus status = HttpStatus.resolve(ex.getHttpStatus());
+		return error(status == null ? HttpStatus.BAD_REQUEST : status, ex.getErrorCode(), ex.getMessage(), request);
 	}
 
 	@ExceptionHandler(Exception.class)

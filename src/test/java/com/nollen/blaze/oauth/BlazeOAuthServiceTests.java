@@ -61,25 +61,41 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void callbackRejectsInvalidState() {
-		assertThatThrownBy(() -> service.callback("code-1", "wrong-state"))
+		OAuthStartResponse sr = service.start();
+		String validCode = "code-1";
+		assertThatThrownBy(() -> service.callback(validCode, "wrong-state", null, null))
 				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("Invalid OAuth state");
+				.hasMessageContaining("Invalid or expired OAuth state");
 	}
 
 	@Test
 	void callbackRejectsMissingCode() {
 		OAuthStartResponse startResponse = service.start();
 
-		assertThatThrownBy(() -> service.callback("", startResponse.state()))
+		assertThatThrownBy(() -> service.callback("", startResponse.state(), null, null))
 				.isInstanceOf(IllegalArgumentException.class)
 				.hasMessageContaining("code is required");
+	}
+
+	@Test
+	void callbackRejectsMissingState() {
+		assertThatThrownBy(() -> service.callback("code-1", null, null, null))
+				.isInstanceOf(IllegalArgumentException.class)
+				.hasMessageContaining("state is required");
+	}
+
+	@Test
+	void callbackRejectsOAuthError() {
+		assertThatThrownBy(() -> service.callback(null, null, "access_denied", "User denied authorization"))
+				.isInstanceOf(com.nollen.blaze.common.OAuthException.class)
+				.hasMessageContaining("access_denied");
 	}
 
 	@Test
 	void callbackStoresTokenWithoutReturningRawToken() {
 		OAuthStartResponse startResponse = service.start();
 
-		OAuthCallbackResponse response = service.callback("code-1", startResponse.state());
+		OAuthCallbackResponse response = service.callback("code-1", startResponse.state(), null, null);
 
 		assertThat(response.status()).isEqualTo("stored");
 		assertThat(response.refreshTokenPresent()).isTrue();
@@ -91,7 +107,7 @@ class BlazeOAuthServiceTests {
 	@Test
 	void refreshReplacesRefreshToken() {
 		OAuthStartResponse startResponse = service.start();
-		service.callback("code-1", startResponse.state());
+		service.callback("code-1", startResponse.state(), null, null);
 
 		OAuthCallbackResponse response = service.refresh();
 
