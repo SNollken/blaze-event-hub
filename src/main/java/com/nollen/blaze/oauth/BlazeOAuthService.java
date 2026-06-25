@@ -10,6 +10,7 @@ import com.nollen.blaze.config.BlazeProperties;
 
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
+import org.springframework.web.client.ResourceAccessException;
 
 @Service
 public class BlazeOAuthService {
@@ -72,9 +73,15 @@ public class BlazeOAuthService {
 					properties.getRedirectUri(),
 					"authorization_code"));
 			return saveAndSanitize(response);
-		} catch (Exception e) {
+		} catch (OAuthException e) {
+			// Erros do gateway (4xx/5xx da Blaze) — deixa propagar com codigo especifico
+			throw e;
+		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_EXCHANGE_UNAVAILABLE",
 					"Nao foi possivel conectar a Blaze para trocar o codigo por token. Verifique rede/firewall e tente novamente.");
+		} catch (Exception e) {
+			throw new OAuthException(502, "BLAZE_TOKEN_EXCHANGE_ERROR",
+					"Erro inesperado ao trocar codigo por token: " + e.getMessage());
 		}
 	}
 
