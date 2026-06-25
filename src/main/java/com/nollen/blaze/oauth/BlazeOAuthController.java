@@ -22,8 +22,11 @@ public class BlazeOAuthController {
 	}
 
 	@GetMapping("/callback")
-	OAuthCallbackResponse callback(@RequestParam String code, @RequestParam String state) {
-		return oAuthService.callback(code, state);
+	OAuthCallbackResponse callback(@RequestParam(value = "code", required = false) String code,
+			@RequestParam(value = "state", required = false) String state,
+			@RequestParam(value = "error", required = false) String error,
+			@RequestParam(value = "error_description", required = false) String errorDescription) {
+		return oAuthService.callback(code, state, error, errorDescription);
 	}
 
 	@PostMapping("/refresh")
