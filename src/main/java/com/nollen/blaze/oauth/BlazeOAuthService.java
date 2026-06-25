@@ -17,27 +17,28 @@ public class BlazeOAuthService {
 	private final BlazeOAuthGateway gateway;
 	private final OAuthStateStore stateStore;
 	private final TokenStore tokenStore;
+	private final LocalAuthorizationUrlGenerator urlGenerator;
 	private final Clock clock;
 
 	public BlazeOAuthService(BlazeProperties properties, BlazeOAuthGateway gateway, OAuthStateStore stateStore,
-			TokenStore tokenStore, Clock clock) {
+			TokenStore tokenStore, LocalAuthorizationUrlGenerator urlGenerator, Clock clock) {
 		this.properties = properties;
 		this.gateway = gateway;
 		this.stateStore = stateStore;
 		this.tokenStore = tokenStore;
+		this.urlGenerator = urlGenerator;
 		this.clock = clock;
 	}
 
 	public OAuthStartResponse start() {
 		requireOAuthConfiguration();
-		GeneratedAuthUrl generated = gateway.generateAuthUrl(new OAuthGenerateAuthUrlRequest(
+		GeneratedAuthUrl generated = urlGenerator.generate(
 				properties.getClientId(),
-				properties.getClientSecret(),
 				properties.getRedirectUri(),
-				properties.getScopes()));
+				properties.getScopes());
 		if (!StringUtils.hasText(generated.authorizationUrl()) || !StringUtils.hasText(generated.state())
 				|| !StringUtils.hasText(generated.codeVerifier())) {
-			throw new IllegalStateException("Blaze OAuth generate-auth-url returned an incomplete response");
+			throw new IllegalStateException("Local authorization URL generation returned an incomplete response");
 		}
 		stateStore.save(new OAuthState(generated.state(), generated.codeVerifier(), Instant.now(clock)));
 		return new OAuthStartResponse(generated.authorizationUrl(), generated.state(), properties.getScopes());
