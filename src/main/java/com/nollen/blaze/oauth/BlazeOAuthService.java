@@ -42,7 +42,7 @@ public class BlazeOAuthService {
 			throw new IllegalStateException("Blaze OAuth generate-auth-url returned an incomplete response");
 		}
 		stateStore.save(new OAuthState(generated.state(), generated.codeVerifier(), Instant.now(clock)));
-		return new OAuthStartResponse(generated.authorizationUrl(), generated.state(), properties.getScopes());
+		return new OAuthStartResponse(generated.authorizationUrl(), properties.getScopes());
 	}
 
 	public OAuthCallbackResponse callback(String code, String state, String error, String errorDescription) {
@@ -56,13 +56,16 @@ public class BlazeOAuthService {
 		}
 		requireOAuthConfiguration();
 		if (!StringUtils.hasText(code)) {
-			throw new IllegalArgumentException("OAuth callback code is required");
+			throw new OAuthException(400, "OAUTH_CALLBACK_MISSING_CODE",
+					"OAuth callback sem codigo. Volte ao dashboard e clique em Iniciar OAuth novamente.");
 		}
 		if (!StringUtils.hasText(state)) {
-			throw new IllegalArgumentException("OAuth callback state is required");
+			throw new OAuthException(400, "OAUTH_CALLBACK_MISSING_STATE",
+					"OAuth callback sem state. Volte ao dashboard e clique em Iniciar OAuth novamente.");
 		}
-		OAuthState stored = stateStore.consume(state)
-				.orElseThrow(() -> new IllegalArgumentException("Invalid or expired OAuth state"));
+		OAuthState stored = stateStore.find(state)
+				.orElseThrow(() -> new OAuthException(400, "OAUTH_STATE_INVALID",
+						"OAuth state expirou, ja foi usado ou foi perdido pelo reinicio do backend. Volte ao dashboard e clique em Iniciar OAuth novamente."));
 		try {
 			OAuthTokenResponse response = gateway.exchangeCode(new OAuthTokenExchangeRequest(
 					properties.getClientId(),
@@ -71,7 +74,9 @@ public class BlazeOAuthService {
 					stored.codeVerifier(),
 					properties.getRedirectUri(),
 					"authorization_code"));
-			return saveAndSanitize(response);
+			OAuthCallbackResponse callbackResponse = saveAndSanitize(response);
+			stateStore.consume(state);
+			return callbackResponse;
 		} catch (OAuthException e) {
 			// Erros do gateway (4xx/5xx da Blaze) — deixa propagar com codigo especifico
 			throw e;

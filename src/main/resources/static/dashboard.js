@@ -8,7 +8,10 @@ const sensitiveKeys = new Set([
 	"clientSecret",
 	"client_secret",
 	"codeVerifier",
-	"code_verifier"
+	"code_verifier",
+	"code",
+	"state",
+	"authorizationUrl"
 ]);
 
 let currentSetup = null;
@@ -314,6 +317,15 @@ function setOAuthHelp(message, href) {
 	}
 }
 
+function setOAuthButtonsDisabled(disabled) {
+	for (const id of ["startOAuth", "startOAuthFromSetup"]) {
+		const button = $(id);
+		if (button) {
+			button.disabled = disabled;
+		}
+	}
+}
+
 function markStatusUnavailable() {
 	setText("appStatus", "indisponivel", "warn");
 	setText("versionStatus", "-");
@@ -371,13 +383,18 @@ async function loadAll() {
 }
 
 async function startOAuth() {
+	setOAuthButtonsDisabled(true);
+	setOAuthHelp("Iniciando OAuth...");
 	try {
 		const response = await request("/api/blaze/oauth/start", {method: "POST"});
 		if (response.authorizationUrl) {
-			setOAuthHelp("OAuth iniciado.", response.authorizationUrl);
+			setOAuthHelp("OAuth iniciado, conclua a autorizacao na janela da Blaze.", response.authorizationUrl);
 			window.open(response.authorizationUrl, "_blank", "noopener,noreferrer");
 		}
-		log("OAuth start", response);
+		log("OAuth start", {
+			authorizationUrlPresent: Boolean(response.authorizationUrl),
+			scopes: response.scopes || []
+		});
 	}
 	catch (error) {
 		const message = error.status === 503
@@ -385,6 +402,9 @@ async function startOAuth() {
 			: error.message;
 		setOAuthHelp(message);
 		log("OAuth start", error.body || message, true);
+	}
+	finally {
+		setOAuthButtonsDisabled(false);
 	}
 }
 
