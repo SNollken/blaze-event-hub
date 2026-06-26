@@ -41,14 +41,18 @@ class DashboardMvpControllerTests {
 				.andExpect(content().string(containsString("Painel MVP 2")))
 				.andExpect(content().string(containsString("Tela provisoria")))
 				.andExpect(content().string(containsString("Configuracao Blaze")))
+				.andExpect(content().string(containsString("Conta Blaze")))
 				.andExpect(content().string(containsString("Copiar Redirect URI")))
-				.andExpect(content().string(containsString("Copiar scopes")));
+				.andExpect(content().string(containsString("Copiar scopes")))
+				.andExpect(content().string(containsString("Atualizar sessao")))
+				.andExpect(content().string(containsString("Desconectar Blaze")));
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
 				.andExpect(content().string(containsString("OpenDesign/opencode")))
-				.andExpect(content().string(containsString("Iniciar OAuth")));
+				.andExpect(content().string(containsString("Iniciar OAuth")))
+				.andExpect(content().string(containsString("Conta Blaze")));
 	}
 
 	@Test
@@ -80,6 +84,14 @@ class DashboardMvpControllerTests {
 				.andExpect(content().string(not(containsString("refreshToken"))))
 				.andExpect(content().string(not(containsString("refresh_token"))));
 
+		mockMvc.perform(get("/api/blaze/oauth/session"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.connected").value(false))
+				.andExpect(jsonPath("$.tokenPresent").value(false))
+				.andExpect(jsonPath("$.profilePresent").value(false))
+				.andExpect(content().string(not(containsString("accessToken"))))
+				.andExpect(content().string(not(containsString("refreshToken"))));
+
 		mockMvc.perform(get("/api/blaze/events/status"))
 				.andExpect(status().isOk());
 
@@ -96,6 +108,9 @@ class DashboardMvpControllerTests {
 				.andExpect(jsonPath("$.blazeOAuthConfigured").value(false))
 				.andExpect(jsonPath("$.tokenPresent").value(false))
 				.andExpect(jsonPath("$.refreshCredentialPresent").value(false))
+				.andExpect(jsonPath("$.oauthConnected").value(false))
+				.andExpect(jsonPath("$.profilePresent").value(false))
+				.andExpect(jsonPath("$.nextRecommendedAction").value("CONNECT_BLAZE"))
 				.andExpect(jsonPath("$.eventsRunning").value(false))
 				.andExpect(jsonPath("$.sessionIdPresent").value(false))
 				.andExpect(jsonPath("$.activeProfilesCount").value(1))

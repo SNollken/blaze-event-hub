@@ -41,6 +41,11 @@
 				<small id="refreshCredentialStatus">-</small>
 			</article>
 			<article class="card">
+				<span class="label">Conta Blaze</span>
+				<strong id="oauthAccountStatus">-</strong>
+				<small id="oauthProfileStatus">-</small>
+			</article>
+			<article class="card">
 				<span class="label">Blaze API</span>
 				<strong id="apiConfigured">-</strong>
 			</article>
@@ -147,6 +152,45 @@
 			<p id="setupOAuthHelp" class="help"></p>
 		</section>
 
+		<section class="panel account-panel" aria-labelledby="accountTitle">
+			<div class="panel-heading">
+				<div>
+					<h2 id="accountTitle">Conta Blaze</h2>
+					<p class="help">Sessao OAuth local, perfil seguro sincronizado e acoes de manutencao.</p>
+				</div>
+				<button id="refreshOAuthSession" type="button">Atualizar sessao</button>
+			</div>
+			<div class="account-layout">
+				<article class="card account-card">
+					<div id="oauthAvatar" class="avatar" aria-hidden="true">NB</div>
+					<div>
+						<span class="label">Estado</span>
+						<strong id="oauthConnectedLabel">verificando...</strong>
+						<small id="oauthAccountName">-</small>
+						<small id="oauthAccountId">-</small>
+					</div>
+				</article>
+				<article class="card account-card">
+					<span class="label">Sessao</span>
+					<strong id="oauthTokenLabel">-</strong>
+					<small id="oauthRefreshLabel">-</small>
+					<small id="oauthExpiresAt">-</small>
+				</article>
+				<article class="card account-card">
+					<span class="label">Perfil</span>
+					<strong id="oauthProfileLabel">-</strong>
+					<small id="oauthLastProfileSync">-</small>
+					<small id="oauthNextAction">-</small>
+				</article>
+			</div>
+			<div class="actions account-actions">
+				<button id="startOAuthFromAccount" type="button">Conectar Blaze</button>
+				<button id="refreshOAuthSessionSecondary" type="button">Atualizar sessao</button>
+				<button id="disconnectOAuth" class="danger-button" type="button">Desconectar Blaze</button>
+			</div>
+			<p id="oauthAccountHelp" class="help"></p>
+		</section>
+
 		<section class="panel">
 			<h2>Acoes</h2>
 			<div class="actions">
@@ -167,6 +211,7 @@
 				<li><a href="/api/health" target="_blank" rel="noreferrer">GET /api/health</a></li>
 				<li><a href="/api/status" target="_blank" rel="noreferrer">GET /api/status</a></li>
 				<li><a href="/api/blaze/setup" target="_blank" rel="noreferrer">GET /api/blaze/setup</a></li>
+				<li><a href="/api/blaze/oauth/session" target="_blank" rel="noreferrer">GET /api/blaze/oauth/session</a></li>
 				<li><a href="/api/blaze/events/status" target="_blank" rel="noreferrer">GET /api/blaze/events/status</a></li>
 				<li><a href="/api/overlay-profiles" target="_blank" rel="noreferrer">GET /api/overlay-profiles</a></li>
 				<li><a id="manifestEndpoint" href="#" target="_blank" rel="noreferrer">GET /api/public/overlays/{publicToken}/manifest</a></li>

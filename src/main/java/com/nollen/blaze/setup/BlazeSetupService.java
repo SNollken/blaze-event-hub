@@ -8,6 +8,8 @@ import java.util.List;
 import com.nollen.blaze.config.BlazeProperties;
 import com.nollen.blaze.events.BlazeEventsRunner;
 import com.nollen.blaze.events.BlazeEventsStatusResponse;
+import com.nollen.blaze.oauth.OAuthProfileStore;
+import com.nollen.blaze.oauth.OAuthProfileSummary;
 import com.nollen.blaze.oauth.TokenSnapshot;
 import com.nollen.blaze.oauth.TokenStore;
 
@@ -34,23 +36,28 @@ public class BlazeSetupService {
 
 	private final BlazeProperties properties;
 	private final TokenStore tokenStore;
+	private final OAuthProfileStore profileStore;
 	private final BlazeEventsRunner eventsRunner;
 	private final Clock clock;
 
-	public BlazeSetupService(BlazeProperties properties, TokenStore tokenStore, BlazeEventsRunner eventsRunner, Clock clock) {
+	public BlazeSetupService(BlazeProperties properties, TokenStore tokenStore, OAuthProfileStore profileStore,
+			BlazeEventsRunner eventsRunner, Clock clock) {
 		this.properties = properties;
 		this.tokenStore = tokenStore;
+		this.profileStore = profileStore;
 		this.eventsRunner = eventsRunner;
 		this.clock = clock;
 	}
 
 	public BlazeSetupStatusResponse currentStatus() {
 		TokenSnapshot token = tokenStore.current().orElse(null);
+		OAuthProfileSummary profile = profileStore.current().orElse(null);
 		boolean clientIdConfigured = hasText(properties.getClientId());
 		boolean clientCredentialConfigured = hasText(properties.getClientSecret());
 		boolean redirectUriConfigured = hasText(properties.getRedirectUri());
 		boolean tokenPresent = token != null && !token.accessTokenBlank();
 		boolean refreshCredentialPresent = token != null && !token.refreshTokenBlank();
+		boolean profilePresent = profile != null;
 		boolean monitoredChannelConfigured = properties.isMonitoredChannelConfigured();
 		BlazeEventsStatusResponse eventsStatus = eventsRunner.status();
 		boolean eventsConfigReady = properties.isSocketConfigured() && monitoredChannelConfigured && tokenPresent;
@@ -69,6 +76,8 @@ public class BlazeSetupService {
 				"Inicie OAuth somente depois de preencher a configuracao local.");
 		addItem(checklist, "refresh_credential", "Credencial de renovacao", refreshCredentialPresent,
 				"Ela deve existir apenas depois do OAuth e nunca aparecer no frontend.");
+		addItem(checklist, "profile", "Perfil Blaze", profilePresent,
+				"Depois do OAuth, sincronize um resumo seguro do perfil com users.read.");
 		addItem(checklist, "monitored_channel", "Canal monitorado", monitoredChannelConfigured,
 				"Preencha BLAZE_MONITORED_CHANNEL_ID quando for testar canal real.");
 		addItem(checklist, "events", "Events", eventsConfigReady,
@@ -91,6 +100,12 @@ public class BlazeSetupService {
 				tokenPresent,
 				tokenExpiredOrUnknown(token),
 				refreshCredentialPresent,
+				tokenPresent,
+				profilePresent,
+				profile == null ? null : displayName(profile),
+				profile == null ? null : profile.id(),
+				profile == null ? null : profile.syncedAt(),
+				nextRecommendedAction(token, profile),
 				monitoredChannelConfigured,
 				monitoredChannelConfigured ? mask(properties.getMonitoredChannelId()) : null,
 				eventsConfigReady,
@@ -98,7 +113,7 @@ public class BlazeSetupService {
 				checklist,
 				missingItems,
 				nextSteps(clientIdConfigured, clientCredentialConfigured, redirectUriConfigured, tokenPresent,
-						monitoredChannelConfigured, eventsStatus),
+						refreshCredentialPresent, profilePresent, monitoredChannelConfigured, eventsStatus),
 				DOCS_LINKS,
 				envExample(properties.getRedirectUri()));
 	}
@@ -108,7 +123,8 @@ public class BlazeSetupService {
 	}
 
 	private List<String> nextSteps(boolean clientIdConfigured, boolean clientCredentialConfigured,
-			boolean redirectUriConfigured, boolean tokenPresent, boolean monitoredChannelConfigured,
+			boolean redirectUriConfigured, boolean tokenPresent, boolean refreshCredentialPresent,
+			boolean profilePresent, boolean monitoredChannelConfigured,
 			BlazeEventsStatusResponse eventsStatus) {
 		List<String> steps = new ArrayList<>();
 		if (!clientIdConfigured || !clientCredentialConfigured) {
@@ -120,6 +136,12 @@ public class BlazeSetupService {
 		steps.add("Use os scopes minimos users.read,offline.access para o proximo MVP de OAuth/perfil.");
 		if (!tokenPresent) {
 			steps.add("Reinicie o backend depois do .env e clique em Iniciar OAuth.");
+		}
+		if (tokenPresent && !profilePresent) {
+			steps.add("Use Atualizar sessao para tentar sincronizar o perfil Blaze seguro.");
+		}
+		if (tokenPresent && !refreshCredentialPresent) {
+			steps.add("Refaca o OAuth com offline.access para habilitar renovacao de sessao.");
 		}
 		if (!monitoredChannelConfigured) {
 			steps.add("Preencha BLAZE_MONITORED_CHANNEL_ID antes de testar canal e Events.");
@@ -135,6 +157,26 @@ public class BlazeSetupService {
 			return true;
 		}
 		return token.expiresAt() == null || token.expiresAt().isBefore(Instant.now(clock));
+	}
+
+	private String nextRecommendedAction(TokenSnapshot token, OAuthProfileSummary profile) {
+		if (token == null || token.accessTokenBlank()) {
+			return "CONNECT_BLAZE";
+		}
+		if (tokenExpiredOrUnknown(token)) {
+			return token.refreshTokenBlank() ? "RECONNECT_WITH_OFFLINE_ACCESS" : "REFRESH_SESSION";
+		}
+		if (profile == null) {
+			return "SYNC_PROFILE_OR_REFRESH_SESSION";
+		}
+		return token.refreshTokenBlank() ? "RECONNECT_WITH_OFFLINE_ACCESS" : "READY_FOR_EVENTS";
+	}
+
+	private static String displayName(OAuthProfileSummary profile) {
+		if (profile.displayName() != null && !profile.displayName().isBlank()) {
+			return profile.displayName();
+		}
+		return profile.username();
 	}
 
 	private static String environment(String redirectUri) {

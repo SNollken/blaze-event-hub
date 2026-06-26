@@ -59,6 +59,11 @@ public class InMemoryOAuthStateStore implements OAuthStateStore {
 	}
 
 	@Override
+	public void clear() {
+		states.clear();
+	}
+
+	@Override
 	public int size() {
 		removeExpiredStates();
 		return states.size();

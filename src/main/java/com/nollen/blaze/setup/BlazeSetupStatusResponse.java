@@ -1,5 +1,6 @@
 package com.nollen.blaze.setup;
 
+import java.time.Instant;
 import java.util.List;
 
 public record BlazeSetupStatusResponse(
@@ -15,6 +16,12 @@ public record BlazeSetupStatusResponse(
 		boolean tokenPresent,
 		boolean tokenExpiredOrUnknown,
 		boolean refreshCredentialPresent,
+		boolean oauthConnected,
+		boolean profilePresent,
+		String connectedAccountDisplayName,
+		String connectedAccountId,
+		Instant lastProfileSyncAt,
+		String nextRecommendedAction,
 		boolean monitoredChannelConfigured,
 		String monitoredChannel,
 		boolean eventsConfigReady,

@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.List;
+import java.util.Map;
 
 import com.nollen.blaze.common.OAuthException;
 import com.nollen.blaze.config.BlazeProperties;
@@ -21,7 +22,9 @@ class BlazeOAuthServiceTests {
 	private BlazeOAuthService service;
 	private InMemoryOAuthStateStore stateStore;
 	private InMemoryTokenStore tokenStore;
+	private InMemoryOAuthProfileStore profileStore;
 	private FakeOAuthGateway gateway;
+	private FakeOAuthProfileClient profileClient;
 	private Clock clock;
 
 	@BeforeEach
@@ -34,8 +37,11 @@ class BlazeOAuthServiceTests {
 		clock = Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC);
 		stateStore = new InMemoryOAuthStateStore(clock);
 		tokenStore = new InMemoryTokenStore();
+		profileStore = new InMemoryOAuthProfileStore();
 		gateway = new FakeOAuthGateway();
-		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, clock);
+		profileClient = new FakeOAuthProfileClient();
+		OAuthProfileService profileService = new OAuthProfileService(profileClient, profileStore, clock);
+		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, profileService, clock);
 	}
 
 	@Test
@@ -87,7 +93,7 @@ class BlazeOAuthServiceTests {
 		service.start();
 		assertThatThrownBy(() -> service.callback("code-1", "wrong-state", null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("OAuth state expirou");
+				.hasMessageContaining("Autorizacao OAuth expirada");
 	}
 
 	@Test
@@ -96,14 +102,14 @@ class BlazeOAuthServiceTests {
 
 		assertThatThrownBy(() -> service.callback("", gateway.lastGeneratedState, null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("sem codigo");
+				.hasMessageContaining("callback incompleto");
 	}
 
 	@Test
 	void callbackRejectsMissingState() {
 		assertThatThrownBy(() -> service.callback("code-1", null, null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("sem state");
+				.hasMessageContaining("callback incompleto");
 	}
 
 	@Test
@@ -121,9 +127,12 @@ class BlazeOAuthServiceTests {
 
 		assertThat(response.status()).isEqualTo("stored");
 		assertThat(response.refreshTokenPresent()).isTrue();
+		assertThat(response.profilePresent()).isTrue();
+		assertThat(response.profile().displayName()).isEqualTo("Sofia Blaze");
 		assertThat(response.toString()).doesNotContain("access-token-1", "refresh-token-1");
 		assertThat(tokenStore.current()).isPresent();
 		assertThat(tokenStore.current().orElseThrow().accessToken()).isEqualTo("access-token-1");
+		assertThat(profileStore.current()).isPresent();
 	}
 
 	@Test
@@ -143,10 +152,81 @@ class BlazeOAuthServiceTests {
 		service.start();
 		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
 
-		OAuthCallbackResponse response = service.refresh();
+		OAuthActionResponse response = service.refresh();
 
-		assertThat(response.refreshTokenPresent()).isTrue();
+		assertThat(response.refreshed()).isTrue();
+		assertThat(response.refreshCredentialPresent()).isTrue();
 		assertThat(tokenStore.current().orElseThrow().refreshToken()).isEqualTo("refresh-token-2");
+	}
+
+	@Test
+	void refreshPreservesRefreshTokenWhenBlazeDoesNotReturnANewOne() {
+		service.start();
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		gateway.refreshTokenOnRefresh = null;
+
+		OAuthActionResponse response = service.refresh();
+
+		assertThat(response.refreshed()).isTrue();
+		assertThat(response.refreshCredentialPresent()).isTrue();
+		assertThat(tokenStore.current().orElseThrow().refreshToken()).isEqualTo("refresh-token-1");
+	}
+
+	@Test
+	void sessionWithoutTokenIsDisconnected() {
+		OAuthSessionResponse session = service.session();
+
+		assertThat(session.connected()).isFalse();
+		assertThat(session.tokenPresent()).isFalse();
+		assertThat(session.refreshCredentialPresent()).isFalse();
+		assertThat(session.profilePresent()).isFalse();
+		assertThat(session.nextRecommendedAction()).isEqualTo("CONNECT_BLAZE");
+	}
+
+	@Test
+	void sessionWithTokenAndProfileIsReadyForEvents() {
+		service.start();
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+
+		OAuthSessionResponse session = service.session();
+
+		assertThat(session.connected()).isTrue();
+		assertThat(session.profilePresent()).isTrue();
+		assertThat(session.profile().rawAvailable()).isFalse();
+		assertThat(session.profile().displayName()).isEqualTo("Sofia Blaze");
+		assertThat(session.nextRecommendedAction()).isEqualTo("READY_FOR_EVENTS");
+		assertThat(session.toString()).doesNotContain("access-token-1", "refresh-token-1", "client-secret", "verifier-1");
+	}
+
+	@Test
+	void callbackProfileFailureKeepsTokenConnected() {
+		profileClient.throwError = true;
+		service.start();
+
+		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+
+		assertThat(response.profilePresent()).isFalse();
+		assertThat(response.profileSyncStatus()).isEqualTo("unavailable");
+		assertThat(tokenStore.current()).isPresent();
+		assertThat(service.session().connected()).isTrue();
+		assertThat(service.session().nextRecommendedAction()).isEqualTo("SYNC_PROFILE_OR_REFRESH_SESSION");
+	}
+
+	@Test
+	void disconnectClearsTokenProfileAndPendingStates() {
+		service.start();
+		String secondState;
+		service.start();
+		secondState = gateway.lastGeneratedState;
+		service.callback("auth-code-1", "blaze-state-1", null, null);
+
+		OAuthActionResponse response = service.disconnect();
+
+		assertThat(response.disconnected()).isTrue();
+		assertThat(tokenStore.current()).isEmpty();
+		assertThat(profileStore.current()).isEmpty();
+		assertThat(stateStore.find(secondState)).isEmpty();
+		assertThat(service.session().connected()).isFalse();
 	}
 
 	@Test
@@ -219,6 +299,7 @@ class BlazeOAuthServiceTests {
 		private int generatedCount = 0;
 		private boolean throwOAuthError = false;
 		private boolean throwNetworkError = false;
+		private String refreshTokenOnRefresh = "refresh-token-2";
 
 		void setThrowOAuthError() {
 			this.throwOAuthError = true;
@@ -261,8 +342,26 @@ class BlazeOAuthServiceTests {
 			if (throwNetworkError) {
 				throw new ResourceAccessException("I/O error on POST request: connection refused");
 			}
-			return new OAuthTokenResponse("user", "user-1", "Bearer", "access-token-2", "refresh-token-2",
+			return new OAuthTokenResponse("user", "user-1", "Bearer", "access-token-2", refreshTokenOnRefresh,
 					86400L, List.of("users.read", "offline.access"));
+		}
+	}
+
+	private static class FakeOAuthProfileClient implements OAuthProfileClient {
+
+		private boolean throwError = false;
+
+		@Override
+		public Map<String, Object> getCurrentUserProfile() {
+			if (throwError) {
+				throw new IllegalStateException("profile unavailable");
+			}
+			return Map.of(
+					"id", "user-1",
+					"username", "sofia",
+					"displayName", "Sofia Blaze",
+					"avatarUrl", "https://cdn.example.test/avatar.png",
+					"accessToken", "must-not-be-used");
 		}
 	}
 }

@@ -79,6 +79,18 @@ class InMemoryOAuthStateStoreTests {
 		assertThat(store.consume("state-1")).isEmpty();
 	}
 
+	@Test
+	void clearRemovesPendingStates() {
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
+		store.save(new OAuthState("state-2", "verifier-2", clock.instant()));
+
+		store.clear();
+
+		assertThat(store.size()).isZero();
+		assertThat(store.find("state-1")).isEmpty();
+		assertThat(store.find("state-2")).isEmpty();
+	}
+
 	private static final class MutableClock extends Clock {
 
 		private Instant instant;

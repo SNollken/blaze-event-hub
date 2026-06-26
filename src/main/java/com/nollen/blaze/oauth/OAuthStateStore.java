@@ -10,5 +10,7 @@ public interface OAuthStateStore {
 
 	Optional<OAuthState> consume(String state);
 
+	void clear();
+
 	int size();
 }
