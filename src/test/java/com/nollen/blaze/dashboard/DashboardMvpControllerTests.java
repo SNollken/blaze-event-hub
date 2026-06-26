@@ -166,6 +166,6 @@ class DashboardMvpControllerTests {
 		mockMvc.perform(get("/api/public/overlays/{publicToken}/manifest", publicToken))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.name").value("Overlay de Teste"))
-				.andExpect(jsonPath("$.layers[0].text").value("NollenBlaze"));
+				.andExpect(jsonPath("$.layers[0].text").value("NollenBlaze Overlay Demo"));
 	}
 }

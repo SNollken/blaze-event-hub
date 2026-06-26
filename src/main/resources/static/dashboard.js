@@ -274,9 +274,13 @@ async function loadOverlayDemo() {
 	const demo = overlays.find((overlay) => overlay.publicToken) || overlays[0];
 	if (demo && demo.publicToken) {
 		const href = `/api/public/overlays/${encodeURIComponent(demo.publicToken)}/manifest`;
+		const runtimeHref = `/overlay/${encodeURIComponent(demo.publicToken)}`;
 		$("manifestLink").href = href;
 		$("manifestEndpoint").href = href;
+		$("overlayRuntimeLink").href = runtimeHref;
+		$("overlayRuntimeEndpoint").href = runtimeHref;
 		$("manifestLink").classList.remove("disabled");
+		$("overlayRuntimeLink").classList.remove("disabled");
 	}
 	else {
 		disableManifestLink();
@@ -287,7 +291,10 @@ async function loadOverlayDemo() {
 function disableManifestLink() {
 	$("manifestLink").href = "#";
 	$("manifestEndpoint").href = "#";
+	$("overlayRuntimeLink").href = "#";
+	$("overlayRuntimeEndpoint").href = "#";
 	$("manifestLink").classList.add("disabled");
+	$("overlayRuntimeLink").classList.add("disabled");
 }
 
 async function loadSetup() {

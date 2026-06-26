@@ -21,6 +21,8 @@
 - Se smoke de overlay runtime falhar durante tarefa OAuth, registrar como fora de escopo e nao mexer em `feature/overlay-runtime-obs` nem em arquivos `overlay-runtime.*`.
 - A tela provisoria deve continuar resiliente sem credenciais reais, sem token e sem Events rodando.
 - Se houver trabalho paralelo em overlay ou WIP de outra sessao, usar worktree separado para `feature/oauth-blaze`; nao trocar branch do working tree ocupado.
+- Runtime publico de overlay OBS deve ser servido em `/overlay/{publicToken}`, sem dashboard, sem navbar, com fundo transparente e sem expor secrets/tokens.
+- Ao testar runtime local, fechar o backend iniciado pela tarefa e confirmar porta 8080 livre ao final.
 - Design final do dashboard vira depois no OpenDesign/opencode.
 - Nao abrir PR automatico. Commits e pushes seguem a branch combinada.
 - Features devem usar `feature/*` e integrar direto em `dev` quando validadas.
