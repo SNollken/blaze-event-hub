@@ -26,7 +26,24 @@ public class InMemoryOAuthStateStore implements OAuthStateStore {
 
 	@Override
 	public void save(OAuthState state) {
+		removeExpiredStates();
 		states.put(state.state(), state);
+	}
+
+	@Override
+	public Optional<OAuthState> find(String state) {
+		if (state == null || state.isBlank()) {
+			return Optional.empty();
+		}
+		OAuthState stored = states.get(state);
+		if (stored == null) {
+			return Optional.empty();
+		}
+		if (isExpired(stored)) {
+			states.remove(state, stored);
+			return Optional.empty();
+		}
+		return Optional.of(stored);
 	}
 
 	@Override
@@ -35,7 +52,7 @@ public class InMemoryOAuthStateStore implements OAuthStateStore {
 			return Optional.empty();
 		}
 		OAuthState stored = states.remove(state);
-		if (stored == null || stored.createdAt().plus(STATE_TTL).isBefore(Instant.now(clock))) {
+		if (stored == null || isExpired(stored)) {
 			return Optional.empty();
 		}
 		return Optional.of(stored);
@@ -43,6 +60,15 @@ public class InMemoryOAuthStateStore implements OAuthStateStore {
 
 	@Override
 	public int size() {
+		removeExpiredStates();
 		return states.size();
+	}
+
+	private boolean isExpired(OAuthState state) {
+		return state.createdAt().plus(STATE_TTL).isBefore(Instant.now(clock));
+	}
+
+	private void removeExpiredStates() {
+		states.entrySet().removeIf(entry -> isExpired(entry.getValue()));
 	}
 }

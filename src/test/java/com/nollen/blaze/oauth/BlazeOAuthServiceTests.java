@@ -48,7 +48,7 @@ class BlazeOAuthServiceTests {
 		assertThat(gateway.lastGenerateRequest.redirectUri()).isEqualTo("http://localhost:8080/api/blaze/oauth/callback");
 		assertThat(gateway.lastGenerateRequest.scopes()).containsExactly("users.read", "offline.access");
 		assertThat(response.authorizationUrl()).startsWith("https://blaze.stream/oauth2/authorize");
-		assertThat(response.state()).isEqualTo("blaze-state-1");
+		assertThat(stateStore.find("blaze-state-1")).isPresent();
 		assertThat(stateStore.size()).isEqualTo(1);
 	}
 
@@ -58,8 +58,6 @@ class BlazeOAuthServiceTests {
 
 		assertThat(response.authorizationUrl()).isNotNull();
 		assertThat(response.authorizationUrl()).isNotEmpty();
-		assertThat(response.state()).isNotNull();
-		assertThat(response.state()).hasSizeGreaterThan(5);
 		assertThat(response.scopes()).containsExactly("users.read", "offline.access");
 	}
 
@@ -86,26 +84,26 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void callbackRejectsInvalidState() {
-		OAuthStartResponse sr = service.start();
+		service.start();
 		assertThatThrownBy(() -> service.callback("code-1", "wrong-state", null, null))
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("Invalid or expired OAuth state");
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("OAuth state expirou");
 	}
 
 	@Test
 	void callbackRejectsMissingCode() {
-		OAuthStartResponse startResponse = service.start();
+		service.start();
 
-		assertThatThrownBy(() -> service.callback("", startResponse.state(), null, null))
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("code is required");
+		assertThatThrownBy(() -> service.callback("", gateway.lastGeneratedState, null, null))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("sem codigo");
 	}
 
 	@Test
 	void callbackRejectsMissingState() {
 		assertThatThrownBy(() -> service.callback("code-1", null, null, null))
-				.isInstanceOf(IllegalArgumentException.class)
-				.hasMessageContaining("state is required");
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("sem state");
 	}
 
 	@Test
@@ -117,9 +115,9 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void callbackStoresTokenWithoutReturningRawToken() {
-		OAuthStartResponse startResponse = service.start();
+		service.start();
 
-		OAuthCallbackResponse response = service.callback("auth-code-1", startResponse.state(), null, null);
+		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
 
 		assertThat(response.status()).isEqualTo("stored");
 		assertThat(response.refreshTokenPresent()).isTrue();
@@ -130,19 +128,20 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void callbackUsesCodeVerifierFromBlaze() {
-		OAuthStartResponse startResponse = service.start();
+		service.start();
+		String expectedVerifier = gateway.lastGeneratedVerifier;
 
-		service.callback("auth-code-1", startResponse.state(), null, null);
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
 
-		// The token exchange should have used verifier-1 from the fake gateway
+		// The token exchange must use the verifier paired with the returned state.
 		assertThat(gateway.lastTokenRequest).isNotNull();
-		assertThat(gateway.lastTokenRequest.codeVerifier()).isEqualTo("verifier-1");
+		assertThat(gateway.lastTokenRequest.codeVerifier()).isEqualTo(expectedVerifier);
 	}
 
 	@Test
 	void refreshReplacesRefreshToken() {
-		OAuthStartResponse startResponse = service.start();
-		service.callback("auth-code-1", startResponse.state(), null, null);
+		service.start();
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
 
 		OAuthCallbackResponse response = service.refresh();
 
@@ -153,9 +152,9 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackWithOAuthErrorFromGatewayReturnsOAuthException() {
 		gateway.setThrowOAuthError();
-		OAuthStartResponse sr = service.start();
+		service.start();
 
-		assertThatThrownBy(() -> service.callback("code-1", sr.state(), null, null))
+		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("Blaze rejected code exchange");
 	}
@@ -163,17 +162,17 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackWithNetworkErrorFromGatewayReturnsOAuthException() {
 		gateway.setThrowNetworkError();
-		OAuthStartResponse sr = service.start();
+		service.start();
 
-		assertThatThrownBy(() -> service.callback("code-1", sr.state(), null, null))
+		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("conectar a Blaze");
 	}
 
 	@Test
 	void callbackResponseNeverContainsSecrets() {
-		OAuthStartResponse startResponse = service.start();
-		OAuthCallbackResponse response = service.callback("auth-code-1", startResponse.state(), null, null);
+		service.start();
+		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
 
 		String body = response.toString();
 		assertThat(body).doesNotContain("client-secret");
@@ -183,10 +182,41 @@ class BlazeOAuthServiceTests {
 		assertThat(body).doesNotContain("verifier-1");
 	}
 
+	@Test
+	void twoStartsKeepBothStatesPending() {
+		service.start();
+		String firstState = gateway.lastGeneratedState;
+		String firstVerifier = gateway.lastGeneratedVerifier;
+		service.start();
+		String secondState = gateway.lastGeneratedState;
+
+		service.callback("auth-code-1", firstState, null, null);
+
+		assertThat(gateway.lastTokenRequest.codeVerifier()).isEqualTo(firstVerifier);
+		assertThat(stateStore.find(firstState)).isEmpty();
+		assertThat(stateStore.find(secondState)).isPresent();
+	}
+
+	@Test
+	void tokenExchangeFailureDoesNotDiscardValidState() {
+		service.start();
+		String state = gateway.lastGeneratedState;
+		gateway.setThrowOAuthError();
+
+		assertThatThrownBy(() -> service.callback("code-1", state, null, null))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("Blaze rejected code exchange");
+
+		assertThat(stateStore.find(state)).isPresent();
+	}
+
 	private static class FakeOAuthGateway implements BlazeOAuthGateway {
 
 		private OAuthGenerateAuthUrlRequest lastGenerateRequest;
 		private OAuthTokenExchangeRequest lastTokenRequest;
+		private String lastGeneratedState;
+		private String lastGeneratedVerifier;
+		private int generatedCount = 0;
 		private boolean throwOAuthError = false;
 		private boolean throwNetworkError = false;
 
@@ -201,10 +231,13 @@ class BlazeOAuthServiceTests {
 		@Override
 		public GeneratedAuthUrl generateAuthUrl(OAuthGenerateAuthUrlRequest request) {
 			this.lastGenerateRequest = request;
+			generatedCount++;
+			lastGeneratedState = "blaze-state-" + generatedCount;
+			lastGeneratedVerifier = "verifier-" + generatedCount;
 			return new GeneratedAuthUrl(
-					"https://blaze.stream/oauth2/authorize?response_type=code&client_id=client-id&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fapi%2Fblaze%2Foauth%2Fcallback&scope=users.read+offline.access&state=blaze-state-1&code_challenge_method=S256&code_challenge=blaze-challenge",
-					"blaze-state-1",
-					"verifier-1");
+					"https://blaze.stream/oauth2/authorize?response_type=code&client_id=client-id&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fapi%2Fblaze%2Foauth%2Fcallback&scope=users.read+offline.access&state=" + lastGeneratedState + "&code_challenge_method=S256&code_challenge=blaze-challenge",
+					lastGeneratedState,
+					lastGeneratedVerifier);
 		}
 
 		@Override
