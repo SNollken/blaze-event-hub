@@ -10,6 +10,7 @@ logs/
 .hermes/
 test-results/
 screenshots/
+frontend-audit/screenshots-overlay-runtime-obs/
 tmp/
 *.tmp
 *.bak

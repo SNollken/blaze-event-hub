@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import com.nollen.blaze.common.IdGenerator;
@@ -26,6 +27,7 @@ public class OverlayService {
 	private static final long MAX_ASSET_BYTES = 10 * 1024 * 1024;
 	private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/png", "image/gif", "image/webp");
 	private static final Set<String> BLOCKED_EXTENSIONS = Set.of("exe", "bat", "cmd", "html", "js", "svg");
+	static final String DEMO_PUBLIC_TOKEN = "demo-overlay-obs-mvp";
 
 	private final OverlayRepository repository;
 	private final OverlayAssetStorage assetStorage;
@@ -45,19 +47,31 @@ public class OverlayService {
 			return;
 		}
 		OverlayProfile profile = createProfile(new CreateOverlayProfileRequest("Demo", "Perfil de demonstracao local"));
-		Overlay overlay = createOverlay(profile.id(), new CreateOverlayRequest("Overlay de Teste", "demo", true, OverlayConfig.defaultConfig()));
+		Instant now = Instant.now(clock);
+		Overlay overlay = repository.saveOverlay(new Overlay(
+				idGenerator.newId(),
+				profile.id(),
+				"Overlay de Teste",
+				"demo",
+				DEMO_PUBLIC_TOKEN,
+				true,
+				OverlayConfig.defaultConfig(),
+				List.of(),
+				List.of(),
+				now,
+				now));
 		createLayer(overlay.id(), new CreateOverlayLayerRequest(
 				OverlayLayerType.TEXT,
 				80,
 				80,
-				640,
+				760,
 				120,
 				1,
 				true,
 				1.0,
-				"NollenBlaze",
+				"NollenBlaze Overlay Demo",
 				null,
-				null));
+				Map.of("fontSize", 56, "fontWeight", "700", "color", "#ffffff", "textAlign", "left")));
 	}
 
 	public List<OverlayProfile> listProfiles() {
