@@ -75,7 +75,7 @@ Invoke-WebRequest http://localhost:8080/api/public/overlays/demo-overlay-obs-mvp
 Invoke-WebRequest http://localhost:8080/overlay/demo-overlay-obs-mvp -UseBasicParsing
 ```
 
-## Overlay Runtime OBS MVP
+## Overlay Runtime OBS
 
 O runtime publico de overlay e servido em `GET /overlay/{publicToken}`. A pagina e HTML/CSS/JS estatico, nao tem dashboard, navbar, botoes visiveis nem dependencia de OAuth. Ela busca `GET /api/public/overlays/{publicToken}/manifest`, renderiza camadas em um canvas 16:9 e mantem fundo transparente para OBS Browser Source.
 
@@ -84,7 +84,29 @@ Demo local:
 - Overlay: `http://localhost:8080/overlay/demo-overlay-obs-mvp`
 - Manifest: `http://localhost:8080/api/public/overlays/demo-overlay-obs-mvp/manifest`
 
-No OBS, adicione uma Browser Source apontando para a URL da overlay, com resolucao 1920x1080 ou 1280x720. O runtime MVP suporta texto, imagens quando o manifest trouxer URL publica, shapes simples, visibilidade, posicao, tamanho, opacidade, z-index e estilos basicos. Ele nao e o Overlay Studio visual: editor, drag and drop, animacoes e assets avancados ficam para fases futuras.
+### Modo debug
+
+Adicione `?debug=1` na URL para ativar o modo debug:
+
+- `http://localhost:8080/overlay/demo-overlay-obs-mvp?debug=1`
+
+No modo debug, o runtime mostra bordas tracejadas no canvas e camadas, painel de informacoes (token mascarado, quantidade de layers, canvas, status) e borda vermelha em mensagens de erro. O modo debug nunca expoe secrets ou tokens.
+
+### Query params
+
+- `?debug=1` ou `?debug=true` — ativa modo debug
+- `?fit=contain` — modo de ajuste (futuro)
+
+### OBS Browser Source
+
+No OBS, adicione uma Browser Source apontando para a URL da overlay, com resolucao 1920x1080 ou 1280x720. O runtime suporta texto, imagens (quando o manifest trouxer URL publica), shapes simples, visibilidade, posicao, tamanho, opacidade, z-index e estilos basicos. Fundo transparente, sem scroll, sem interacao obrigatoria, reload seguro.
+
+Limitacoes atuais:
+
+- Sem realtime/polling — manifest e carregado uma vez no boot
+- Sem animacoes
+- Sem editor visual (Overlay Studio e futuro)
+- Sem autenticacao na URL publica
 
 ## Endpoints principais
 
@@ -115,13 +137,14 @@ No OBS, adicione uma Browser Source apontando para a URL da overlay, com resoluc
 - `DELETE /api/overlays/{overlayId}/layers/{layerId}`
 - `POST /api/overlays/{overlayId}/assets`
 - `GET /api/public/overlays/{publicToken}/manifest`
+- `GET /api/public/overlays/{publicToken}/assets/{assetId}`
 - `GET /overlay/{publicToken}`
 
 ## Arquitetura de overlays
 
 Perfil e apenas um grupo organizacional. Overlay e a entidade de runtime, tem `publicToken` unico, config, layers e assets. O runtime publico consome `GET /api/public/overlays/{publicToken}/manifest` pela pagina `GET /overlay/{publicToken}`.
 
-Overlay desativada retorna manifesto seguro com `enabled=false` e listas vazias. Atualizacoes comuns preservam o `publicToken`.
+Overlay desativada retorna manifesto seguro com `enabled=false` e listas vazias. Atualizacoes comuns preservam o `publicToken`. O manifesto inclui `publicUrl` para cada asset, permitindo que camadas de imagem carreguem uploads diretamente.
 
 O runtime publico nao deve expor credenciais, tokens OAuth, stack traces ou JSON bruto grande. Estados de erro mostram mensagem discreta no navegador e ficam transparentes no OBS.
 
