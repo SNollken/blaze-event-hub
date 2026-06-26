@@ -91,4 +91,85 @@ class OverlayServiceTests {
 		assertThat(service.manifest(first.publicToken()).layers()).hasSize(1);
 		assertThat(service.manifest(second.publicToken()).layers()).isEmpty();
 	}
+
+	@Test
+	void visibleFalseLayerStillAppearsInManifest() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+		service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 300, 80, 1, false, 1.0, "Hidden", null, null));
+
+		OverlayManifestResponse manifest = service.manifest(overlay.publicToken());
+		assertThat(manifest.layers()).hasSize(1);
+		assertThat(manifest.layers().get(0).visible()).isFalse();
+	}
+
+	@Test
+	void opacityZeroLayerRendersInManifest() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+		service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 300, 80, 1, true, 0.0, "Invisible", null, null));
+
+		OverlayManifestResponse manifest = service.manifest(overlay.publicToken());
+		assertThat(manifest.layers()).hasSize(1);
+		assertThat(manifest.layers().get(0).opacity()).isEqualTo(0.0);
+	}
+
+	@Test
+	void negativeZIndexIsAccepted() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+		service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 300, 80, -5, true, 1.0, "Back", null, null));
+
+		OverlayManifestResponse manifest = service.manifest(overlay.publicToken());
+		assertThat(manifest.layers()).hasSize(1);
+		assertThat(manifest.layers().get(0).zIndex()).isEqualTo(-5);
+	}
+
+	@Test
+	void zeroWidthLayerIsRejected() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+
+		assertThatThrownBy(() -> service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 0, 80, 1, true, 1.0, "Bad", null, null)))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void zeroHeightLayerIsRejected() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+
+		assertThatThrownBy(() -> service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 300, 0, 1, true, 1.0, "Bad", null, null)))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void negativeOpacityIsRejected() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+
+		assertThatThrownBy(() -> service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 300, 80, 1, true, -0.5, "Bad", null, null)))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void opacityAboveOneIsRejected() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+
+		assertThatThrownBy(() -> service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, 10, 300, 80, 1, true, 1.5, "Bad", null, null)))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
+
+	@Test
+	void negativeXOrYIsRejected() {
+		OverlayProfile profile = service.createProfile(new CreateOverlayProfileRequest("Demo", null));
+		Overlay overlay = service.createOverlay(profile.id(), new CreateOverlayRequest("Overlay A", "chat", true, null));
+
+		assertThatThrownBy(() -> service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, -1, 10, 300, 80, 1, true, 1.0, "Bad", null, null)))
+				.isInstanceOf(IllegalArgumentException.class);
+
+		assertThatThrownBy(() -> service.createLayer(overlay.id(), new CreateOverlayLayerRequest(OverlayLayerType.TEXT, 10, -1, 300, 80, 1, true, 1.0, "Bad", null, null)))
+				.isInstanceOf(IllegalArgumentException.class);
+	}
 }
