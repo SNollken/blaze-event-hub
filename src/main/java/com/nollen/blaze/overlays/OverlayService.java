@@ -72,6 +72,18 @@ public class OverlayService {
 				"NollenBlaze Overlay Demo",
 				null,
 				Map.of("fontSize", 56, "fontWeight", "700", "color", "#ffffff", "textAlign", "left")));
+		createLayer(overlay.id(), new CreateOverlayLayerRequest(
+				OverlayLayerType.SHAPE,
+				80,
+				800,
+				400,
+				8,
+				0,
+				true,
+				0.6,
+				null,
+				null,
+				Map.of("backgroundColor", "#00d4ff", "borderRadius", "4")));
 	}
 
 	public List<OverlayProfile> listProfiles() {
