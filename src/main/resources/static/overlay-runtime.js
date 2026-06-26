@@ -137,9 +137,14 @@
 		});
 
 		for (var i = 0; i < sorted.length; i++) {
-			var node = renderLayer(sorted[i], config, assets);
-			if (node) {
-				stage.appendChild(node);
+			try {
+				var node = renderLayer(sorted[i], config, assets);
+				if (node) {
+					stage.appendChild(node);
+				}
+			}
+			catch (layerError) {
+				// skip broken layer silently
 			}
 		}
 
@@ -204,6 +209,9 @@
 		img.alt = "";
 		img.decoding = "async";
 		img.src = src;
+		img.onerror = function () {
+			img.style.display = "none";
+		};
 		var style = styleObject(layer.style);
 		img.style.objectFit = objectFit(style.objectFit);
 		node.appendChild(img);
@@ -229,8 +237,10 @@
 		node.style.top = top + "%";
 		node.style.width = width + "%";
 		node.style.height = height + "%";
-		node.style.zIndex = String(Math.trunc(number(layer.zIndex, 0)));
-		node.style.opacity = String(clamp(number(layer.opacity, 1), 0, 1));
+		var zi = number(layer.zIndex, 0);
+		node.style.zIndex = String(Number.isFinite(zi) ? Math.trunc(zi) : 0);
+		var op = number(layer.opacity, 1);
+		node.style.opacity = String(Number.isFinite(op) ? clamp(op, 0, 1) : 1);
 		return node;
 	}
 
