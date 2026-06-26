@@ -31,6 +31,9 @@ body {
 	height: 100vh;
 	overflow: hidden;
 	background: transparent;
+	pointer-events: none;
+	user-select: none;
+	-webkit-user-select: none;
 }
 
 .overlay-stage {
