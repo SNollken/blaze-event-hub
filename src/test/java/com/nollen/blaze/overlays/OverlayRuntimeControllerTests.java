@@ -173,4 +173,86 @@ class OverlayRuntimeControllerTests {
 		mockMvc.perform(get("/api/overlay-profiles"))
 				.andExpect(status().isOk());
 	}
+
+	@Test
+	void runtimeHtmlDoesNotExposeInternalIds() throws Exception {
+		mockMvc.perform(get("/overlay/demo-overlay-obs-mvp"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(not(containsString("profileId"))))
+				.andExpect(content().string(not(containsString("overlayId"))))
+				.andExpect(content().string(not(containsString("codeVerifier"))))
+				.andExpect(content().string(not(containsString("authorization_code"))));
+	}
+
+	@Test
+	void manifestDoesNotExposeInternalIds() throws Exception {
+		mockMvc.perform(get("/api/public/overlays/{publicToken}/manifest", OverlayService.DEMO_PUBLIC_TOKEN))
+				.andExpect(status().isOk())
+				.andExpect(content().string(not(containsString("profileId"))))
+				.andExpect(content().string(not(containsString("codeVerifier"))))
+				.andExpect(content().string(not(containsString("authorization_code"))))
+				.andExpect(content().string(not(containsString("stackTrace"))))
+				.andExpect(content().string(not(containsString("stack_trace"))));
+	}
+
+	@Test
+	void runtimeHtmlHasObsCompatMeta() throws Exception {
+		mockMvc.perform(get("/overlay/demo-overlay-obs-mvp"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("width=device-width")))
+				.andExpect(content().string(containsString("overlay-runtime.css")));
+		mockMvc.perform(get("/overlay-runtime.css"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("pointer-events: none")))
+				.andExpect(content().string(containsString("overflow: hidden")));
+	}
+
+	@Test
+	void runtimeJsHasImageErrorHandling() throws Exception {
+		mockMvc.perform(get("/overlay-runtime.js"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("onerror")))
+				.andExpect(content().string(containsString("try")))
+				.andExpect(content().string(containsString("catch")));
+	}
+
+	@Test
+	void runtimeJsHasNaNGuards() throws Exception {
+		mockMvc.perform(get("/overlay-runtime.js"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("Number.isFinite")));
+	}
+
+	@Test
+	void overlayRouteWithoutTokenDoesNotLeakInternalData() throws Exception {
+		mockMvc.perform(get("/overlay/"))
+				.andExpect(content().string(not(containsString("clientSecret"))))
+				.andExpect(content().string(not(containsString("accessToken"))));
+	}
+
+	@Test
+	void runtimeResponseDoesNotContainStackTrace() throws Exception {
+		mockMvc.perform(get("/overlay/demo-overlay-obs-mvp"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(not(containsString("Stacktrace"))))
+				.andExpect(content().string(not(containsString("java.lang."))))
+				.andExpect(content().string(not(containsString("at org.springframework"))));
+	}
+
+	@Test
+	void manifestResponseHasCacheControlOnAssets() throws Exception {
+		// Assets endpoint should have cache headers
+		mockMvc.perform(get("/api/public/overlays/token-inexistente/assets/fake-id"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void runtimeHtmlDoesNotHaveDashboardElements() throws Exception {
+		mockMvc.perform(get("/overlay/demo-overlay-obs-mvp"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(not(containsString("navbar"))))
+				.andExpect(content().string(not(containsString("dashboard"))))
+				.andExpect(content().string(not(containsString("admin"))))
+				.andExpect(content().string(not(containsString("config-btn"))));
+	}
 }
