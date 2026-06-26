@@ -73,7 +73,9 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(OAuthException.class)
 	ResponseEntity<ApiErrorResponse> handleOAuth(OAuthException ex, HttpServletRequest request) {
 		HttpStatus status = HttpStatus.resolve(ex.getHttpStatus());
-		return error(status == null ? HttpStatus.BAD_REQUEST : status, ex.getErrorCode(), ex.getMessage(), request);
+		return error(status == null ? HttpStatus.BAD_REQUEST : status, ex.getErrorCode(),
+				(ex.getHttpStatus() == 401 ? ex.getMessage() + " Verifique se o Client ID, Client Secret e Redirect URI do .env pertencem ao mesmo app Blaze e se a Redirect URI esta cadastrada exatamente no console." : ex.getMessage()),
+				request);
 	}
 
 	@ExceptionHandler(Exception.class)
