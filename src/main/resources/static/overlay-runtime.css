@@ -102,3 +102,35 @@ body {
 [hidden] {
 	display: none !important;
 }
+
+/* Debug mode */
+.overlay-runtime.debug .overlay-stage {
+  outline: 1px dashed rgba(0, 212, 255, 0.5);
+  outline-offset: -1px;
+}
+
+.overlay-runtime.debug .overlay-layer {
+  outline: 1px dashed rgba(0, 212, 255, 0.3);
+}
+
+.debug-info {
+  position: fixed;
+  top: 8px;
+  left: 8px;
+  padding: 4px 8px;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.7);
+  color: #00d4ff;
+  font-size: 11px;
+  font-family: monospace;
+  line-height: 1.5;
+  pointer-events: none;
+  z-index: 99999;
+  max-width: min(360px, calc(100vw - 16px));
+  white-space: pre-wrap;
+}
+
+/* Error state */
+.overlay-message--error {
+  border-left: 3px solid #ff4444;
+}
