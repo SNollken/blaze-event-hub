@@ -117,8 +117,12 @@ public class OverlayService {
 	}
 
 	public void deleteProfile(String profileId) {
-		getProfile(profileId);
-		repository.deleteProfile(profileId);
+		OverlayProfile profile = getProfile(profileId);
+		List<Overlay> overlays = repository.listOverlays(profile.id());
+		for (Overlay overlay : overlays) {
+			overlay.assets().forEach(asset -> assetStorage.delete(asset.id()));
+		}
+		repository.deleteProfile(profile.id());
 	}
 
 	public List<Overlay> listOverlays(String profileId) {
@@ -240,6 +244,30 @@ public class OverlayService {
 		repository.saveOverlay(copyWithLayers(overlay, overlay.layers().stream()
 				.filter(layer -> !layer.id().equals(layerId))
 				.toList()));
+	}
+
+	public byte[] readPublicAsset(String publicToken, String assetId) {
+		if (!StringUtils.hasText(publicToken) || !StringUtils.hasText(assetId)) {
+			throw new NotFoundException("Asset not found");
+		}
+		Overlay overlay = repository.findByPublicToken(publicToken)
+				.orElseThrow(() -> new NotFoundException("Overlay not found"));
+		boolean owns = overlay.assets().stream().anyMatch(a -> a.id().equals(assetId));
+		if (!owns) {
+			throw new NotFoundException("Asset not found");
+		}
+		return assetStorage.read(assetId)
+				.orElseThrow(() -> new NotFoundException("Asset not found"));
+	}
+
+	public String assetMimeType(String publicToken, String assetId) {
+		Overlay overlay = repository.findByPublicToken(publicToken)
+				.orElseThrow(() -> new NotFoundException("Overlay not found"));
+		return overlay.assets().stream()
+				.filter(a -> a.id().equals(assetId))
+				.map(OverlayAsset::mimeType)
+				.findFirst()
+				.orElse("application/octet-stream");
 	}
 
 	public OverlayManifestResponse manifest(String publicToken) {

@@ -9,9 +9,17 @@ public record OverlayManifestResponse(
 		String publicToken,
 		OverlayConfig config,
 		List<OverlayLayer> layers,
-		List<OverlayAsset> assets) {
+		List<ManifestAsset> assets) {
+
+	public record ManifestAsset(String id, String mimeType, String publicUrl) {}
 
 	public static OverlayManifestResponse from(Overlay overlay) {
+		List<ManifestAsset> assets = overlay.enabled()
+				? overlay.assets().stream()
+						.map(a -> new ManifestAsset(a.id(), a.mimeType(),
+								"/api/public/overlays/" + overlay.publicToken() + "/assets/" + a.id()))
+						.toList()
+				: List.of();
 		return new OverlayManifestResponse(
 				overlay.enabled(),
 				overlay.id(),
@@ -19,6 +27,6 @@ public record OverlayManifestResponse(
 				overlay.publicToken(),
 				overlay.config(),
 				overlay.enabled() ? overlay.layers() : List.of(),
-				overlay.enabled() ? overlay.assets() : List.of());
+				assets);
 	}
 }
