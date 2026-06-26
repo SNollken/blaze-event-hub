@@ -86,6 +86,36 @@ class OverlayRuntimeControllerTests {
 	}
 
 	@Test
+	void manifestIncludesAssetUrls() throws Exception {
+		mockMvc.perform(get("/api/public/overlays/{publicToken}/manifest", OverlayService.DEMO_PUBLIC_TOKEN))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.assets").isArray())
+				.andExpect(content().string(not(containsString("clientSecret"))));
+	}
+
+	@Test
+	void unknownTokenAssetReturnsNotFound() throws Exception {
+		mockMvc.perform(get("/api/public/overlays/token-inexistente/assets/fake-id"))
+				.andExpect(status().isNotFound());
+	}
+
+	@Test
+	void runtimeJsSupportsDebugMode() throws Exception {
+		mockMvc.perform(get("/overlay-runtime.js"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("debugMode")))
+				.andExpect(content().string(containsString("debug-info")));
+	}
+
+	@Test
+	void overlayRuntimeHasObsCompatCss() throws Exception {
+		mockMvc.perform(get("/overlay-runtime.css"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("pointer-events: none")))
+				.andExpect(content().string(containsString("overflow: hidden")));
+	}
+
+	@Test
 	void requiredDashboardSmokeRoutesStillReturnOk() throws Exception {
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk());
