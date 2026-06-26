@@ -36,6 +36,7 @@ O MVP 1 inclui uma tela funcional minima servida pelo proprio Spring Boot. Ela e
 - Events usados pela tela: `GET /api/blaze/events/status`, `POST /api/blaze/events/start`, `POST /api/blaze/events/stop`, `POST /api/blaze/events/subscriptions/sync`
 - OAuth usado pela tela: `POST /api/blaze/oauth/start`, `GET /api/blaze/oauth/session`, `POST /api/blaze/oauth/refresh`, `POST /api/blaze/oauth/disconnect`
 - Overlays usados pela tela: `GET /api/overlay-profiles`, `GET /api/overlay-profiles/{profileId}/overlays`, `GET /api/public/overlays/{publicToken}/manifest`
+- Runtime publico OBS: `GET /overlay/{publicToken}`
 
 A tela mostra apenas flags e respostas sanitizadas. Ela nao deve exibir `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais.
 
@@ -71,6 +72,8 @@ Invoke-WebRequest http://localhost:8080/api/blaze/setup -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/blaze/oauth/session -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/blaze/events/status -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/overlay-profiles -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/public/overlays/demo-overlay-obs-mvp/manifest -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/overlay/demo-overlay-obs-mvp -UseBasicParsing
 ```
 
 ## OAuth produto
@@ -86,6 +89,17 @@ O modulo OAuth finaliza a experiencia de conta conectada no dashboard provisorio
 Depois do token exchange, o backend tenta chamar `GET /v1/users/profile` na Blaze com `users.read` para salvar apenas um resumo seguro: `id`, `username`, `displayName`, `avatarUrl` e data de sincronizacao. Payload bruto, headers e tokens nao sao persistidos nem expostos.
 
 Limites atuais: storage in-memory, sem revoke remoto confirmado e sem criptografia definitiva de token. Esses pontos ficam para persistencia segura.
+
+## Overlay Runtime OBS MVP
+
+O runtime publico de overlay e servido em `GET /overlay/{publicToken}`. A pagina e HTML/CSS/JS estatico, nao tem dashboard, navbar, botoes visiveis nem dependencia de OAuth. Ela busca `GET /api/public/overlays/{publicToken}/manifest`, renderiza camadas em um canvas 16:9 e mantem fundo transparente para OBS Browser Source.
+
+Demo local:
+
+- Overlay: `http://localhost:8080/overlay/demo-overlay-obs-mvp`
+- Manifest: `http://localhost:8080/api/public/overlays/demo-overlay-obs-mvp/manifest`
+
+No OBS, adicione uma Browser Source apontando para a URL da overlay, com resolucao 1920x1080 ou 1280x720. O runtime MVP suporta texto, imagens quando o manifest trouxer URL publica, shapes simples, visibilidade, posicao, tamanho, opacidade, z-index e estilos basicos. Ele nao e o Overlay Studio visual: editor, drag and drop, animacoes e assets avancados ficam para fases futuras.
 
 ## Endpoints principais
 
@@ -118,12 +132,15 @@ Limites atuais: storage in-memory, sem revoke remoto confirmado e sem criptograf
 - `DELETE /api/overlays/{overlayId}/layers/{layerId}`
 - `POST /api/overlays/{overlayId}/assets`
 - `GET /api/public/overlays/{publicToken}/manifest`
+- `GET /overlay/{publicToken}`
 
 ## Arquitetura de overlays
 
-Perfil e apenas um grupo organizacional. Overlay e a entidade de runtime, tem `publicToken` unico, config, layers e assets. O runtime publico consome `GET /api/public/overlays/{publicToken}/manifest`.
+Perfil e apenas um grupo organizacional. Overlay e a entidade de runtime, tem `publicToken` unico, config, layers e assets. O runtime publico consome `GET /api/public/overlays/{publicToken}/manifest` pela pagina `GET /overlay/{publicToken}`.
 
 Overlay desativada retorna manifesto seguro com `enabled=false` e listas vazias. Atualizacoes comuns preservam o `publicToken`.
+
+O runtime publico nao deve expor credenciais, tokens OAuth, stack traces ou JSON bruto grande. Estados de erro mostram mensagem discreta no navegador e ficam transparentes no OBS.
 
 ## Blaze OAuth, REST e Events
 
