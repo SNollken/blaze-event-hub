@@ -251,7 +251,7 @@
 		if (!asset) {
 			return "";
 		}
-		return safeUrl(asset.url || asset.publicUrl || asset.src || asset.href || "");
+		return safeUrl(asset.publicUrl || asset.url || asset.src || asset.href || "");
 	}
 
 	function safeUrl(value) {
