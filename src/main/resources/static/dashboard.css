@@ -207,6 +207,49 @@ code {
 	font-size: 14px;
 }
 
+.account-layout {
+	display: grid;
+	grid-template-columns: 1.4fr 1fr 1fr;
+	gap: 12px;
+	margin-bottom: 14px;
+}
+
+.account-card {
+	min-height: 132px;
+}
+
+.account-card:first-child {
+	display: grid;
+	grid-template-columns: 56px 1fr;
+	align-items: center;
+}
+
+.avatar {
+	width: 48px;
+	height: 48px;
+	border-radius: 50%;
+	display: grid;
+	place-items: center;
+	background: #e8f2ff;
+	color: #194b7d;
+	font-weight: 700;
+	background-size: cover;
+	background-position: center;
+}
+
+.account-actions {
+	margin-bottom: 10px;
+}
+
+.danger-button {
+	border-color: #b42318;
+	background: #b42318;
+}
+
+.danger-button:hover {
+	background: #8f1d15;
+}
+
 .setup-columns {
 	display: grid;
 	grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
@@ -306,5 +349,9 @@ pre {
 	.panel-heading button {
 		margin-top: 12px;
 		width: 100%;
+	}
+
+	.account-layout {
+		grid-template-columns: 1fr;
 	}
 }

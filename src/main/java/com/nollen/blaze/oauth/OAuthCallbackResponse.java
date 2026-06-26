@@ -9,5 +9,10 @@ public record OAuthCallbackResponse(
 		String userId,
 		List<String> scopes,
 		Instant expiresAt,
-		boolean refreshTokenPresent) {
+		boolean refreshTokenPresent,
+		boolean profilePresent,
+		OAuthProfileResponse profile,
+		String profileSyncStatus,
+		String nextRecommendedAction,
+		String message) {
 }

@@ -1,20 +1,20 @@
 const $ = (id) => document.getElementById(id);
 
 const sensitiveKeys = new Set([
-	"accessToken",
-	"access_token",
-	"refreshToken",
-	"refresh_token",
-	"clientSecret",
-	"client_secret",
-	"codeVerifier",
-	"code_verifier",
+	"accesstoken",
+	"refreshtoken",
+	"clientsecret",
+	"codeverifier",
 	"code",
 	"state",
-	"authorizationUrl"
+	"authorizationurl",
+	"authorization"
 ]);
 
 let currentSetup = null;
+let currentOAuthSession = null;
+let disconnectConfirmationPending = false;
+let disconnectConfirmationAt = 0;
 
 function setText(id, value, tone) {
 	const node = $(id);
@@ -42,16 +42,31 @@ function scrub(value) {
 	}
 	if (value && typeof value === "object") {
 		return Object.fromEntries(Object.entries(value).map(([key, item]) => [
-			key,
-			sensitiveKeys.has(key) ? "[redacted]" : scrub(item)
+			isSensitiveKey(key) ? "[redacted]" : key,
+			isSensitiveKey(key) ? "[redacted]" : scrub(item)
 		]));
+	}
+	if (typeof value === "string") {
+		return scrubString(value);
 	}
 	return value;
 }
 
+function isSensitiveKey(key) {
+	const normalized = String(key).replace(/[_-]/g, "").toLowerCase();
+	return sensitiveKeys.has(normalized);
+}
+
+function scrubString(value) {
+	return value
+		.replace(/bearer\s+[A-Za-z0-9._~+/=-]+/gi, "Bearer [redacted]")
+		.replace(/https?:\/\/[^\s"']*oauth[^\s"']*/gi, "[redacted-url]")
+		.replace(/\b(clientSecret|client_secret|accessToken|access_token|refreshToken|refresh_token|codeVerifier|code_verifier|authorizationUrl|authorization_url|code|state)\s*[=:]\s*[^\s,}&]+/gi, "[redacted]");
+}
+
 function log(title, payload, isError = false) {
 	const now = new Date().toLocaleTimeString();
-	const safePayload = typeof payload === "string" ? payload : JSON.stringify(scrub(payload), null, 2);
+	const safePayload = typeof payload === "string" ? scrubString(payload) : JSON.stringify(scrub(payload), null, 2);
 	const entry = `[${now}] ${isError ? "ERRO" : "OK"} - ${title}\n${safePayload}\n\n`;
 	const logs = $("logs");
 	logs.textContent = entry + (logs.textContent === "Aguardando primeira leitura..." ? "" : logs.textContent);
@@ -97,6 +112,8 @@ async function loadStatus() {
 	setText("oauthConfigured", yesNo(status.blazeOAuthConfigured), tone(status.blazeOAuthConfigured));
 	setText("tokenStatus", yesNo(status.tokenPresent), tone(status.tokenPresent));
 	setText("refreshCredentialStatus", `refresh credential: ${yesNo(status.refreshCredentialPresent)}`);
+	setText("oauthAccountStatus", status.oauthConnected ? "conectada" : "desconectada", tone(status.oauthConnected));
+	setText("oauthProfileStatus", status.profilePresent ? "perfil sincronizado" : "perfil ausente", tone(status.profilePresent));
 	setText("apiConfigured", yesNo(status.blazeApiConfigured), tone(status.blazeApiConfigured));
 	setText("eventsConfigured", yesNo(status.socketConfigured), tone(status.socketConfigured));
 	setText("eventsRunning", `runner: ${yesNo(status.eventsRunning)}`);
@@ -113,6 +130,138 @@ async function loadEventsStatus() {
 	setText("eventsRunning", `runner: ${yesNo(events.runnerRunning)} / client: ${yesNo(events.clientRunning)}`);
 	setText("sessionStatus", events.sessionId || "sem sessionId", events.sessionId ? "ok" : "warn");
 	return events;
+}
+
+async function loadOAuthSession() {
+	const session = await request("/api/blaze/oauth/session");
+	renderOAuthSession(session);
+	return session;
+}
+
+function renderOAuthSession(session) {
+	currentOAuthSession = session;
+	disconnectConfirmationPending = false;
+	const connected = Boolean(session.connected);
+	const profile = session.profile || {};
+	const display = profile.displayName || profile.username || session.userId || "Conta Blaze";
+	const accountId = profile.id || session.userId;
+
+	setText("oauthAccountStatus", connected ? "conectada" : "desconectada", connected ? "ok" : "warn");
+	setText("oauthProfileStatus", session.profilePresent ? "perfil sincronizado" : "perfil ausente", session.profilePresent ? "ok" : "warn");
+	setText("oauthConnectedLabel", connected ? "Blaze conectada" : "Blaze nao conectada", connected ? "ok" : "warn");
+	setText("oauthAccountName", connected ? `Conectado como: ${display}` : "Use Conectar Blaze para iniciar OAuth.");
+	setText("oauthAccountId", accountId ? `id: ${maskIdentifier(accountId)}` : "id nao sincronizado");
+	setText("oauthTokenLabel", session.tokenPresent ? "token: presente" : "token: ausente", tone(session.tokenPresent));
+	setText("oauthRefreshLabel", `renovacao: ${yesNo(session.refreshCredentialPresent)}`);
+	setText("oauthExpiresAt", session.expiresAt ? `expira: ${formatDate(session.expiresAt)}` : "expiracao desconhecida");
+	setText("oauthProfileLabel", session.profilePresent ? "sincronizado" : "nao sincronizado", tone(session.profilePresent));
+	setText("oauthLastProfileSync", session.lastProfileSyncAt ? `ultima sync: ${formatDate(session.lastProfileSyncAt)}` : "sem sync de perfil");
+	setText("oauthNextAction", `proxima acao: ${translateNextAction(session.nextRecommendedAction)}`);
+	setText("oauthAccountHelp", accountHelp(session));
+	renderAvatar(profile, display);
+	updateOAuthActionButtons(session);
+}
+
+function accountHelp(session) {
+	if (!session.connected) {
+		return "Conecte a Blaze para liberar perfil seguro e preparar Events real.";
+	}
+	if (!session.profilePresent) {
+		return "Sessao conectada. Use Atualizar sessao para tentar sincronizar o perfil.";
+	}
+	if (!session.refreshCredentialPresent) {
+		return "Conta conectada, mas sem credencial de renovacao. Refaca OAuth com offline.access quando necessario.";
+	}
+	return "Conta conectada e pronta para o proximo passo de Events real.";
+}
+
+function translateNextAction(action) {
+	const labels = {
+		CONNECT_BLAZE: "conectar Blaze",
+		REFRESH_SESSION: "atualizar sessao",
+		SYNC_PROFILE_OR_REFRESH_SESSION: "sincronizar perfil",
+		RECONNECT_WITH_OFFLINE_ACCESS: "reconectar com offline.access",
+		READY_FOR_EVENTS: "pronta para Events"
+	};
+	return labels[action] || "verificar setup";
+}
+
+function formatDate(value) {
+	try {
+		return new Date(value).toLocaleString();
+	}
+	catch (error) {
+		return "-";
+	}
+}
+
+function maskIdentifier(value) {
+	const text = String(value);
+	if (text.length <= 10) {
+		return text;
+	}
+	return `${text.slice(0, 4)}...${text.slice(-4)}`;
+}
+
+function initials(display) {
+	const text = String(display || "NB").trim();
+	if (!text) {
+		return "NB";
+	}
+	return text.split(/\s+/).slice(0, 2).map((part) => part[0]).join("").toUpperCase();
+}
+
+function renderAvatar(profile, display) {
+	const avatar = $("oauthAvatar");
+	if (!avatar) {
+		return;
+	}
+	if (profile && profile.avatarUrl) {
+		avatar.style.backgroundImage = `url("${profile.avatarUrl}")`;
+		avatar.textContent = "";
+	}
+	else {
+		avatar.style.backgroundImage = "";
+		avatar.textContent = initials(display);
+	}
+}
+
+function updateOAuthActionButtons(session) {
+	const connected = Boolean(session && session.connected);
+	for (const id of ["refreshOAuthSession", "refreshOAuthSessionSecondary"]) {
+		const button = $(id);
+		if (button) {
+			button.disabled = !connected || !session.refreshCredentialPresent;
+		}
+	}
+	const start = $("startOAuthFromAccount");
+	if (start) {
+		start.disabled = connected;
+	}
+	const disconnect = $("disconnectOAuth");
+	if (disconnect) {
+		disconnect.disabled = !connected;
+		if (!disconnectConfirmationPending) {
+			disconnect.textContent = "Desconectar Blaze";
+		}
+	}
+}
+
+function markOAuthSessionUnavailable() {
+	currentOAuthSession = null;
+	setText("oauthAccountStatus", "indisponivel", "warn");
+	setText("oauthProfileStatus", "perfil indisponivel", "warn");
+	setText("oauthConnectedLabel", "sessao indisponivel", "warn");
+	setText("oauthAccountName", "-");
+	setText("oauthAccountId", "-");
+	setText("oauthTokenLabel", "-");
+	setText("oauthRefreshLabel", "-");
+	setText("oauthExpiresAt", "-");
+	setText("oauthProfileLabel", "-");
+	setText("oauthLastProfileSync", "-");
+	setText("oauthNextAction", "-");
+	setText("oauthAccountHelp", "Nao foi possivel ler a sessao OAuth local.");
+	updateOAuthActionButtons({connected: false, refreshCredentialPresent: false});
 }
 
 async function loadOverlayDemo() {
@@ -161,6 +310,7 @@ function renderSetup(setup) {
 	setText("setupOAuthReady", setup.oauthStartReady ? "pronto para iniciar" : "configuracao incompleta", tone(setup.oauthStartReady));
 	setText("setupToken", tokenLabel, tone(setup.tokenPresent));
 	setText("setupRefreshCredential", `credencial renovacao: ${yesNo(setup.refreshCredentialPresent)}`);
+	setText("oauthProfileStatus", setup.profilePresent ? "perfil sincronizado" : "perfil ausente", tone(setup.profilePresent));
 	setText("setupRequestedScopes", scopes.length ? scopes.join(", ") : "nenhum", scopes.length ? "ok" : "warn");
 	setText("setupChannel", setup.monitoredChannelConfigured ? "configurado" : "nao configurado", tone(setup.monitoredChannelConfigured));
 	setText("setupChannelMasked", setup.monitoredChannel ? `canal: ${setup.monitoredChannel}` : "preencha quando testar canal real");
@@ -247,6 +397,9 @@ function setupSummary(setup) {
 		requestedScopes: setup.requestedScopes,
 		tokenPresent: setup.tokenPresent,
 		refreshCredentialPresent: setup.refreshCredentialPresent,
+		oauthConnected: setup.oauthConnected,
+		profilePresent: setup.profilePresent,
+		nextRecommendedAction: setup.nextRecommendedAction,
 		monitoredChannelConfigured: setup.monitoredChannelConfigured,
 		eventsConfigReady: setup.eventsConfigReady,
 		oauthStartReady: setup.oauthStartReady,
@@ -318,7 +471,7 @@ function setOAuthHelp(message, href) {
 }
 
 function setOAuthButtonsDisabled(disabled) {
-	for (const id of ["startOAuth", "startOAuthFromSetup"]) {
+	for (const id of ["startOAuth", "startOAuthFromSetup", "startOAuthFromAccount"]) {
 		const button = $(id);
 		if (button) {
 			button.disabled = disabled;
@@ -333,6 +486,8 @@ function markStatusUnavailable() {
 	setText("oauthConfigured", "indisponivel", "warn");
 	setText("tokenStatus", "indisponivel", "warn");
 	setText("refreshCredentialStatus", "refresh credential: indisponivel");
+	setText("oauthAccountStatus", "indisponivel", "warn");
+	setText("oauthProfileStatus", "perfil indisponivel", "warn");
 	setText("apiConfigured", "indisponivel", "warn");
 	setText("eventsConfigured", "indisponivel", "warn");
 	setText("channelStatus", "indisponivel", "warn");
@@ -364,12 +519,13 @@ async function safeLoad(title, loader, fallback) {
 }
 
 async function loadAll() {
-	const [health, status, events, overlays, setup] = await Promise.all([
+	const [health, status, events, overlays, setup, oauthSession] = await Promise.all([
 		safeLoad("Health indisponivel", loadHealth, () => setText("backendStatus", "offline", "bad")),
 		safeLoad("Status indisponivel", loadStatus, markStatusUnavailable),
 		safeLoad("Events indisponivel", loadEventsStatus, markEventsUnavailable),
 		safeLoad("Overlays indisponiveis", loadOverlayDemo, markOverlayUnavailable),
-		safeLoad("Setup indisponivel", loadSetup, markSetupUnavailable)
+		safeLoad("Setup indisponivel", loadSetup, markSetupUnavailable),
+		safeLoad("OAuth session indisponivel", loadOAuthSession, markOAuthSessionUnavailable)
 	]);
 
 	log("Status atualizado", {
@@ -378,8 +534,20 @@ async function loadAll() {
 		events: events.ok ? events.value : "indisponivel",
 		overlayProfiles: overlays.ok ? overlays.value.profiles.length : "indisponivel",
 		overlays: overlays.ok ? overlays.value.overlays.length : "indisponivel",
-		setup: setup.ok ? setupSummary(setup.value) : "indisponivel"
+		setup: setup.ok ? setupSummary(setup.value) : "indisponivel",
+		oauthSession: oauthSession.ok ? oauthSessionSummary(oauthSession.value) : "indisponivel"
 	});
+}
+
+function oauthSessionSummary(session) {
+	return {
+		connected: session.connected,
+		tokenPresent: session.tokenPresent,
+		refreshCredentialPresent: session.refreshCredentialPresent,
+		profilePresent: session.profilePresent,
+		accountId: session.profile && session.profile.id ? maskIdentifier(session.profile.id) : null,
+		nextRecommendedAction: session.nextRecommendedAction
+	};
 }
 
 async function startOAuth() {
@@ -388,7 +556,7 @@ async function startOAuth() {
 	try {
 		const response = await request("/api/blaze/oauth/start", {method: "POST"});
 		if (response.authorizationUrl) {
-			setOAuthHelp("OAuth iniciado, conclua a autorizacao na janela da Blaze.", response.authorizationUrl);
+			setOAuthHelp("OAuth iniciado. Finalize a autorizacao na janela da Blaze.");
 			window.open(response.authorizationUrl, "_blank", "noopener,noreferrer");
 		}
 		log("OAuth start", {
@@ -405,6 +573,63 @@ async function startOAuth() {
 	}
 	finally {
 		setOAuthButtonsDisabled(false);
+	}
+}
+
+async function refreshOAuthSessionAction() {
+	for (const id of ["refreshOAuthSession", "refreshOAuthSessionSecondary"]) {
+		const button = $(id);
+		if (button) {
+			button.disabled = true;
+		}
+	}
+	setText("oauthAccountHelp", "Atualizando sessao Blaze...");
+	try {
+		const response = await request("/api/blaze/oauth/refresh", {method: "POST"});
+		log("OAuth refresh", response);
+		setText("oauthAccountHelp", response.message || "Sessao atualizada.");
+		await loadAll();
+	}
+	catch (error) {
+		const message = error.status === 503
+			? "Nao ha credencial de renovacao disponivel ou a configuracao esta incompleta."
+			: error.message;
+		setText("oauthAccountHelp", message);
+		log("OAuth refresh", error.body || message, true);
+	}
+	finally {
+		updateOAuthActionButtons(currentOAuthSession || {connected: false, refreshCredentialPresent: false});
+	}
+}
+
+async function disconnectOAuthAction() {
+	if (!currentOAuthSession || !currentOAuthSession.connected) {
+		return;
+	}
+	const now = Date.now();
+	if (!disconnectConfirmationPending || now - disconnectConfirmationAt > 8000) {
+		disconnectConfirmationPending = true;
+		disconnectConfirmationAt = now;
+		$("disconnectOAuth").textContent = "Confirmar desconexao";
+		setText("oauthAccountHelp", "Clique novamente para desconectar a conta Blaze deste backend local.");
+		return;
+	}
+	disconnectConfirmationPending = false;
+	$("disconnectOAuth").disabled = true;
+	setText("oauthAccountHelp", "Desconectando Blaze...");
+	try {
+		const response = await request("/api/blaze/oauth/disconnect", {method: "POST"});
+		log("OAuth disconnect", response);
+		setText("oauthAccountHelp", response.message || "Conta Blaze desconectada.");
+		await loadAll();
+	}
+	catch (error) {
+		const message = error.message || "Nao foi possivel desconectar.";
+		setText("oauthAccountHelp", message);
+		log("OAuth disconnect", error.body || message, true);
+	}
+	finally {
+		updateOAuthActionButtons(currentOAuthSession || {connected: false, refreshCredentialPresent: false});
 	}
 }
 
@@ -431,6 +656,10 @@ $("refreshSetup").addEventListener("click", async () => {
 });
 $("startOAuth").addEventListener("click", startOAuth);
 $("startOAuthFromSetup").addEventListener("click", startOAuth);
+$("startOAuthFromAccount").addEventListener("click", startOAuth);
+$("refreshOAuthSession").addEventListener("click", refreshOAuthSessionAction);
+$("refreshOAuthSessionSecondary").addEventListener("click", refreshOAuthSessionAction);
+$("disconnectOAuth").addEventListener("click", disconnectOAuthAction);
 $("copyRedirectUri").addEventListener("click", () => copyText("Redirect URI", currentSetup && currentSetup.redirectUri));
 $("copyScopes").addEventListener("click", () => {
 	const scopes = currentSetup && Array.isArray(currentSetup.requestedScopes) ? currentSetup.requestedScopes.join(",") : "";

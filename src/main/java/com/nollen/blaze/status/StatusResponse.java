@@ -1,5 +1,7 @@
 package com.nollen.blaze.status;
 
+import java.time.Instant;
+
 public record StatusResponse(
 		String appName,
 		String version,
@@ -14,5 +16,11 @@ public record StatusResponse(
 		boolean sessionIdPresent,
 		long activeProfilesCount,
 		long overlaysCount,
-		long uptimeSeconds) {
+		long uptimeSeconds,
+		boolean oauthConnected,
+		boolean profilePresent,
+		String connectedAccountDisplayName,
+		String connectedAccountId,
+		Instant lastProfileSyncAt,
+		String nextRecommendedAction) {
 }

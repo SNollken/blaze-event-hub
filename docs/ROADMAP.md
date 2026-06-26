@@ -18,14 +18,17 @@
 
 ## Fase 3: OAuth real e perfil
 
-- Preencher credenciais reais somente fora do repositorio.
-- Executar OAuth completo com `users.read,offline.access`.
-- Validar callback, armazenamento seguro de token e leitura inicial de perfil.
+- OAuth real bruto validado com `users.read,offline.access`.
+- OAuth produto concluido no backend/dashboard provisorio: sessao segura, callback amigavel, refresh manual, disconnect local e resumo seguro de perfil.
+- `GET /api/blaze/oauth/session` reflete conta conectada, perfil, datas e proxima acao recomendada sem retornar tokens ou segredos.
+- `GET /v1/users/profile` e a chamada REST usada para sincronizar resumo seguro do usuario conectado.
 - Manter scopes de chat/moderacao/bot fora ate existir feature correspondente.
+- Limite atual: token e perfil seguem em storage in-memory ate a fase de persistencia segura.
 
 ## Fase 4: Events real e canais
 
 - Configurar canal monitorado real.
+- Usar a conta conectada e `READY_FOR_EVENTS` como pre-condicao operacional.
 - Validar biblioteca Socket.IO Java e reconexao.
 - Capturar `session_welcome`, obter `sessionId` e sincronizar subscriptions reais.
 - Auditar erros 401/403 sem expor tokens.

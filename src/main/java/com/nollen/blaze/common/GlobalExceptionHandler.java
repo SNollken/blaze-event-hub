@@ -94,6 +94,8 @@ public class GlobalExceptionHandler {
 		}
 		return message
 				.replaceAll("(?i)bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [REDACTED]")
-				.replaceAll("(?i)(clientSecret|client_secret|accessToken|access_token|refreshToken|refresh_token)=?[^\\s,}]+", "$1=[REDACTED]");
+				.replaceAll("(?i)https?://[^\\s\"'}]+oauth[^\\s\"'}]+", "[REDACTED_URL]")
+				.replaceAll("(?i)(clientSecret|client_secret|accessToken|access_token|refreshToken|refresh_token|codeVerifier|code_verifier|authorizationUrl|authorization_url|code|state)\\s*[=:]\\s*[^\\s,}&]+", "[REDACTED]")
+				.replaceAll("(?i)\"(?:clientSecret|client_secret|accessToken|access_token|refreshToken|refresh_token|codeVerifier|code_verifier|authorizationUrl|authorization_url|code|state)\"\\s*:\\s*\"[^\"]+\"", "\"[REDACTED]\"");
 	}
 }
