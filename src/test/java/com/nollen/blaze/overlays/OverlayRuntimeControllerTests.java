@@ -49,13 +49,54 @@ class OverlayRuntimeControllerTests {
 				.andExpect(jsonPath("$.name").value("Overlay de Teste"))
 				.andExpect(jsonPath("$.publicToken").value(OverlayService.DEMO_PUBLIC_TOKEN))
 				.andExpect(jsonPath("$.config.transparent").value(true))
+				.andExpect(jsonPath("$.config.canvasWidth").value(1920))
+				.andExpect(jsonPath("$.config.canvasHeight").value(1080))
+				.andExpect(jsonPath("$.layers.length()").value(2))
+				.andExpect(jsonPath("$.layers[0].type").value("TEXT"))
 				.andExpect(jsonPath("$.layers[0].text").value("NollenBlaze Overlay Demo"))
+				.andExpect(jsonPath("$.layers[1].type").value("SHAPE"))
+				.andExpect(jsonPath("$.layers[1].style.backgroundColor").value("#00d4ff"))
 				.andExpect(content().string(not(containsString("clientSecret"))))
 				.andExpect(content().string(not(containsString("client_secret"))))
 				.andExpect(content().string(not(containsString("accessToken"))))
 				.andExpect(content().string(not(containsString("access_token"))))
 				.andExpect(content().string(not(containsString("refreshToken"))))
 				.andExpect(content().string(not(containsString("refresh_token"))));
+	}
+
+	@Test
+	void oversizedTokenReturnsNotFound() throws Exception {
+		String longToken = "a".repeat(161);
+		mockMvc.perform(get("/overlay/{publicToken}", longToken))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("NOT_FOUND"));
+
+		mockMvc.perform(get("/api/public/overlays/{publicToken}/manifest", longToken))
+				.andExpect(status().isNotFound())
+				.andExpect(jsonPath("$.code").value("NOT_FOUND"));
+	}
+
+	@Test
+	void tokenExactly160CharsReturnsOk() throws Exception {
+		String maxToken = "a".repeat(160);
+		mockMvc.perform(get("/overlay/{publicToken}", maxToken))
+				.andExpect(status().isOk());
+	}
+
+	@Test
+	void tokenWithSpecialCharactersRuntimeStillServesShell() throws Exception {
+		String[] tokens = {
+				"token\u00e7\u00e3o",
+				"token-hash",
+				"token.underscore"
+		};
+		for (String token : tokens) {
+			mockMvc.perform(get("/overlay/{publicToken}", token))
+					.andExpect(status().isOk());
+			mockMvc.perform(get("/api/public/overlays/{publicToken}/manifest", token))
+					.andExpect(status().isNotFound())
+					.andExpect(jsonPath("$.code").value("NOT_FOUND"));
+		}
 	}
 
 	@Test
