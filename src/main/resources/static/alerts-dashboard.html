@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>NollenBlaze - Alert Engine</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+body{font-family:'Segoe UI',sans-serif;background:#0d1117;color:#c9d1d9;min-height:100vh}
+.header{background:#161b22;border-bottom:1px solid #30363d;padding:16px 24px;display:flex;align-items:center;justify-content:space-between}
+.header h1{font-size:20px;color:#f0883e}
+.header a{color:#58a6ff;text-decoration:none;font-size:14px}
+.container{max-width:1200px;margin:0 auto;padding:24px}
+.stats-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:16px;margin-bottom:24px}
+.stat-card{background:#161b22;border:1px solid #30363d;border-radius:8px;padding:16px;text-align:center}
+.stat-card .value{font-size:28px;font-weight:700;color:#f0883e}
+.stat-card .label{font-size:12px;color:#8b949e;margin-top:4px}
+.section{background:#161b22;border:1px solid #30363d;border-radius:8px;margin-bottom:24px;overflow:hidden}
+.section-header{padding:12px 16px;border-bottom:1px solid #30363d;display:flex;align-items:center;justify-content:space-between}
+.section-header h2{font-size:16px;color:#c9d1d9}
+table{width:100%;border-collapse:collapse}
+th,td{padding:10px 16px;text-align:left;border-bottom:1px solid #21262d;font-size:13px}
+th{color:#8b949e;font-weight:600;font-size:12px;text-transform:uppercase}
+tr:hover{background:#1c2128}
+.badge{display:inline-block;padding:2px 8px;border-radius:12px;font-size:11px;font-weight:600}
+.badge-active{background:#1a3a1a;color:#3fb950;border:1px solid #238636}
+.badge-ack{background:#1a2a3a;color:#58a6ff;border:1px solid #1f6feb}
+.badge-rule{background:#2a2a1a;color:#f0883e;border:1px solid #9e6a03}
+.badge-disabled{background:#1a1a1a;color:#8b949e;border:1px solid #30363d}
+.btn{padding:6px 14px;border-radius:6px;border:1px solid #30363d;background:#21262d;color:#c9d1d9;cursor:pointer;font-size:13px}
+.btn:hover{background:#30363d}
+.btn-danger{border-color:#da3633;color:#f85149}
+.btn-danger:hover{background:#3d1f1f}
+.btn-primary{border-color:#f0883e;color:#f0883e}
+.btn-primary:hover{background:#2a2010}
+.form-row{display:flex;gap:12px;padding:16px;flex-wrap:wrap;align-items:end}
+.form-group{display:flex;flex-direction:column;gap:4px}
+.form-group label{font-size:12px;color:#8b949e}
+.form-group input,.form-group select{padding:6px 10px;border-radius:6px;border:1px solid #30363d;background:#0d1117;color:#c9d1d9;font-size:13px}
+.empty{text-align:center;padding:32px;color:#8b949e}
+.tab-bar{display:flex;border-bottom:1px solid #30363d;background:#0d1117}
+.tab{padding:10px 20px;cursor:pointer;color:#8b949e;border-bottom:2px solid transparent;font-size:14px}
+.tab.active{color:#f0883e;border-bottom-color:#f0883e}
+.tab:hover{color:#c9d1d9}
+.toast{position:fixed;top:16px;right:16px;background:#161b22;border:1px solid #30363d;border-radius:8px;padding:12px 20px;font-size:13px;z-index:100;display:none}
+.toast.success{border-color:#238636;color:#3fb950}
+.toast.error{border-color:#da3633;color:#f85149}
+</style>
+</head>
+<body>
+<div class="header">
+<h1>Alert Engine</h1>
+<a href="/dashboard">Dashboard</a>
+</div>
+<div class="container">
+<div class="stats-grid" id="stats"></div>
+<div class="tab-bar">
+<div class="tab active" data-tab="active">Alertas Ativos</div>
+<div class="tab" data-tab="rules">Regras</div>
+<div class="tab" data-tab="history">Historico</div>
+</div>
+<div id="tab-active" class="section">
+<div class="section-header"><h2>Alertas Ativos</h2><button class="btn btn-primary" onclick="loadActive()">Atualizar</button></div>
+<div id="active-table"></div>
+</div>
+<div id="tab-rules" class="section" style="display:none">
+<div class="section-header"><h2>Gerenciar Regras</h2></div>
+<div class="form-row" id="rule-form">
+<div class="form-group"><label>Nome</label><input id="rf-name" placeholder="Nome da regra"></div>
+<div class="form-group"><label>Evento</label><select id="rf-event"></select></div>
+<div class="form-group"><label>Condicao</label><select id="rf-condition"><option value="ALWAYS">Sempre</option><option value="MIN_AMOUNT">Valor Minimo</option><option value="RAID_MIN_SIZE">Raid Minima</option></select></div>
+<div class="form-group"><label>Threshold</label><input id="rf-threshold" type="number" value="0" min="0"></div>
+<div class="form-group"><label>Template</label><input id="rf-template" placeholder="Template da mensagem"></div>
+<div class="form-group"><label>Cooldown (ms)</label><input id="rf-cooldown" type="number" value="0" min="0"></div>
+<div class="form-group"><label>Ativo</label><input id="rf-enabled" type="checkbox" checked></div>
+<div class="form-group"><label>&nbsp;</label><button class="btn btn-primary" onclick="createRule()">Criar Regra</button></div>
+</div>
+<div id="rules-table"></div>
+</div>
+<div id="tab-history" class="section" style="display:none">
+<div class="section-header"><h2>Historico de Alertas</h2><button class="btn btn-primary" onclick="loadHistory()">Atualizar</button></div>
+<div id="history-table"></div>
+</div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const API='';
+async function fetchJson(url){const r=await fetch(API+url);return r.json()}
+function $(id){return document.getElementById(id)}
+function showToast(msg,ok){const t=$('toast');t.textContent=msg;t.className='toast '+(ok?'success':'error');t.style.display='block';setTimeout(()=>t.style.display='none',3000)}
+
+// Tabs
+document.querySelectorAll('.tab').forEach(t=>{
+t.addEventListener('click',()=>{
+document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+t.classList.add('active');
+['active','rules','history'].forEach(k=>{ $('tab-'+k).style.display=(k===t.dataset.tab)?'':'none'});
+})
+});
+
+// Stats
+async function loadStats(){
+try{
+const s=await fetchJson('/api/alerts/stats');
+$('stats').innerHTML=[
+{v:s.totalRules,l:'Regras'},{v:s.enabledRules,l:'Ativas'},
+{v:s.totalAlerts,l:'Alertas Total'},{v:s.unacknowledgedAlerts,l:'Nao Ack'},
+{v:s.acknowledgedAlerts,l:'Ack'}
+].map(x=>'<div class="stat-card"><div class="value">'+x.v+'</div><div class="label">'+x.l+'</div></div>').join('');
+}catch(e){console.error(e)}
+}
+
+// Event types for select
+async function loadEventTypes(){
+try{
+const caps=await fetchJson('/api/alerts/capabilities');
+const sel=$('rf-event');
+sel.innerHTML='';
+caps.eventTypes.forEach(et=>{const o=document.createElement('option');o.value=et.id||et;o.textContent=et.id||et;sel.appendChild(o)});
+}catch(e){console.error(e)}
+}
+
+// Active alerts
+async function loadActive(){
+try{
+const alerts=await fetchJson('/api/alerts/active');
+if(!alerts.length){$('active-table').innerHTML='<div class="empty">Nenhum alerta ativo</div>';return}
+$('active-table').innerHTML='<table><tr><th>ID</th><th>Regra</th><th>Tipo</th><th>Mensagem</th><th>Acao</th></tr>'
++alerts.map(a=>'<tr><td>'+a.id.substring(0,8)+'...</td><td>'+a.ruleName+'</td><td><span class="badge badge-active">'+a.eventType+'</span></td><td>'+a.message+'</td><td><button class="btn" onclick="ackAlert(\''+a.id+'\')">Acknowledge</button></td></tr>').join('')+'</table>';
+}catch(e){$('active-table').innerHTML='<div class="empty">Erro ao carregar</div>'}
+}
+
+async function ackAlert(id){
+try{await fetch(API+'/api/alerts/acknowledge/'+id,{method:'POST'});showToast('Alerta reconhecido!',true);loadActive();loadStats()}catch(e){showToast('Erro ao reconhecer',false)}
+}
+
+// Rules
+async function loadRules(){
+try{
+const rules=await fetchJson('/api/alerts/rules');
+if(!rules.length){$('rules-table').innerHTML='<div class="empty">Nenhuma regra configurada</div>';return}
+$('rules-table').innerHTML='<table><tr><th>ID</th><th>Nome</th><th>Evento</th><th>Condicao</th><th>Threshold</th><th>Status</th><th>Acao</th></tr>'
++rules.map(r=>'<tr><td>'+r.id.substring(0,8)+'...</td><td>'+r.name+'</td><td><span class="badge badge-rule">'+r.eventType+'</span></td><td>'+r.condition+'</td><td>'+r.threshold+'</td><td>'+(r.enabled?'<span class="badge badge-active">Ativo</span>':'<span class="badge badge-disabled">Desativado</span>')+'</td><td><button class="btn btn-danger" onclick="deleteRule(\''+r.id+'\')">Excluir</button></td></tr>').join('')+'</table>';
+}catch(e){$('rules-table').innerHTML='<div class="empty">Erro ao carregar</div>'}
+}
+
+async function createRule(){
+try{
+const body={
+name:$('rf-name').value,
+eventType:$('rf-event').value,
+condition:$('rf-condition').value,
+threshold:parseFloat($('rf-threshold').value)||0,
+template:$('rf-template').value,
+enabled:$('rf-enabled').checked,
+cooldownMs:parseInt($('rf-cooldown').value)||0
+};
+const r=await fetch(API+'/api/alerts/rules',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)});
+if(r.ok){showToast('Regra criada!',true);loadRules();loadStats()}else{showToast('Erro ao criar regra',false)}
+}catch(e){showToast('Erro ao criar regra',false)}
+}
+
+async function deleteRule(id){
+try{await fetch(API+'/api/alerts/rules/'+id,{method:'DELETE'});showToast('Regra excluida!',true);loadRules();loadStats()}catch(e){showToast('Erro ao excluir',false)}
+}
+
+// History
+async function loadHistory(){
+try{
+const alerts=await fetchJson('/api/alerts/history');
+if(!alerts.length){$('history-table').innerHTML='<div class="empty">Nenhum alerta no historico</div>';return}
+$('history-table').innerHTML='<table><tr><th>ID</th><th>Regra</th><th>Tipo</th><th>Mensagem</th><th>Status</th></tr>'
++alerts.map(a=>'<tr><td>'+a.id.substring(0,8)+'...</td><td>'+a.ruleName+'</td><td><span class="badge badge-rule">'+a.eventType+'</span></td><td>'+a.message+'</td><td>'+(a.acknowledged?'<span class="badge badge-ack">Ack</span>':'<span class="badge badge-active">Ativo</span>')+'</td></tr>').join('')+'</table>';
+}catch(e){$('history-table').innerHTML='<div class="empty">Erro ao carregar</div>'}
+}
+
+// Init
+loadStats();loadEventTypes();loadActive();loadRules();loadHistory();
+setInterval(()=>{loadStats();loadActive()},10000);
+</script>
+</body>
+</html>
