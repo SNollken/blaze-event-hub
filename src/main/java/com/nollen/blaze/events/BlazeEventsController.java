@@ -1,16 +1,16 @@
 package com.nollen.blaze.events;
 
 import java.util.List;
-
+import java.util.Map;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.nollen.blaze.common.ConfigurationMissingException;
 import com.nollen.blaze.config.BlazeProperties;
-
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 @RestController
@@ -18,33 +18,55 @@ import org.springframework.web.bind.annotation.RestController;
 public class BlazeEventsController {
 
 	private final BlazeEventsRunner runner;
+	private final BlazeEventsService eventsService;
 	private final EventSubscriptionService subscriptionService;
 	private final BlazeProperties blazeProperties;
 	private final ObjectMapper objectMapper;
 
-	public BlazeEventsController(BlazeEventsRunner runner, EventSubscriptionService subscriptionService,
-			BlazeProperties blazeProperties, ObjectMapper objectMapper) {
+	public BlazeEventsController(BlazeEventsRunner runner, BlazeEventsService eventsService,
+			EventSubscriptionService subscriptionService, BlazeProperties blazeProperties,
+			ObjectMapper objectMapper) {
 		this.runner = runner;
+		this.eventsService = eventsService;
 		this.subscriptionService = subscriptionService;
 		this.blazeProperties = blazeProperties;
 		this.objectMapper = objectMapper;
 	}
 
 	@GetMapping("/status")
-	BlazeEventsStatusResponse status() {
-		return runner.status();
+	BlazeEventsStatusExtended status() {
+		return eventsService.status();
 	}
 
 	@PostMapping("/start")
 	BlazeEventsStatusResponse start() {
-		runner.start();
-		return runner.status();
+		return eventsService.start();
 	}
 
 	@PostMapping("/stop")
 	BlazeEventsStatusResponse stop() {
-		runner.stop();
-		return runner.status();
+		return eventsService.stop();
+	}
+
+	@GetMapping("/log")
+	BlazeEventsLogResponse log(
+			@RequestParam(required = false) String eventType,
+			@RequestParam(required = false) String source,
+			@RequestParam(defaultValue = "50") int limit) {
+		List<BlazeEventsLogEntry> entries = eventsService.getLog(eventType, source, limit);
+		return new BlazeEventsLogResponse(entries.size(), entries);
+	}
+
+	@PostMapping("/simulate")
+	BlazeEventsLogEntry simulate(@RequestBody(required = false) SimulateBlazeEventRequest request) {
+		String eventType = request != null ? request.eventType() : null;
+		String message = request != null ? request.message() : null;
+		return eventsService.simulate(eventType, message);
+	}
+
+	@GetMapping("/capabilities")
+	Map<String, Object> capabilities() {
+		return eventsService.capabilities();
 	}
 
 	@PostMapping("/subscriptions/sync")

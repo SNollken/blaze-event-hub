@@ -38,8 +38,8 @@ class DashboardMvpControllerTests {
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
-				.andExpect(content().string(containsString("Painel MVP 2")))
-				.andExpect(content().string(containsString("Tela provisoria")))
+				.andExpect(content().string(containsString("Painel MVP 3")))
+				.andExpect(content().string(containsString("Blaze Events + Canal Monitorado")))
 				.andExpect(content().string(containsString("Configuracao Blaze")))
 				.andExpect(content().string(containsString("Conta Blaze")))
 				.andExpect(content().string(containsString("Copiar Redirect URI")))
@@ -63,7 +63,7 @@ class DashboardMvpControllerTests {
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("Tela provisoria")));
+				.andExpect(content().string(containsString("Blaze Events + Canal Monitorado")));
 
 		mockMvc.perform(get("/api/health"))
 				.andExpect(status().isOk())
