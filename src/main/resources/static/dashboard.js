@@ -678,4 +678,213 @@ $("startEvents").addEventListener("click", () => postAction("Start Events", "/ap
 $("stopEvents").addEventListener("click", () => postAction("Stop Events", "/api/blaze/events/stop"));
 $("syncSubscriptions").addEventListener("click", () => postAction("Sync subscriptions", "/api/blaze/events/subscriptions/sync"));
 
-loadAll();
+
+// --- Channel Config Panel ---
+async function loadChannels() {
+	try {
+		const channels = await request("/api/blaze/channel");
+		renderChannels(channels);
+		return channels;
+	}
+	catch (error) {
+		log("Channels", error.body || error.message, true);
+		return [];
+	}
+}
+
+function renderChannels(channels) {
+	const grid = $("channelGrid");
+	if (!channels.length) {
+		grid.textContent = "";
+		const card = document.createElement("article");
+		card.className = "card channel-card";
+		card.innerHTML = '<span class="label">Canais</span><strong>Nenhum canal configurado</strong><small>Crie um canal abaixo.</small>';
+		grid.appendChild(card);
+		return;
+	}
+	grid.textContent = "";
+	for (const ch of channels) {
+		const card = document.createElement("article");
+		card.className = "card channel-card";
+		const label = document.createElement("span");
+		label.className = "label";
+		label.textContent = (ch.platform || "blaze") + " canal";
+		const name = document.createElement("strong");
+		name.textContent = ch.name;
+		const idLine = document.createElement("small");
+		idLine.textContent = "ID: " + maskIdentifier(ch.channelId);
+		const monLine = document.createElement("small");
+		monLine.textContent = "Monitorado: " + (ch.monitored ? "sim" : "nao");
+		const actions = document.createElement("div");
+		actions.className = "actions";
+		const deleteBtn = document.createElement("button");
+		deleteBtn.className = "danger-button";
+		deleteBtn.textContent = "Excluir";
+		deleteBtn.addEventListener("click", () => deleteChannelAction(ch.id));
+		actions.appendChild(deleteBtn);
+		card.appendChild(label);
+		card.appendChild(name);
+		card.appendChild(idLine);
+		card.appendChild(monLine);
+		card.appendChild(actions);
+		grid.appendChild(card);
+	}
+}
+
+async function createChannelAction() {
+	const name = $("channelName").value.trim();
+	const channelId = $("channelIdInput").value.trim();
+	const monitored = $("channelMonitored").checked;
+	if (!name || !channelId) {
+		setText("channelFormHelp", "Nome e Channel ID sao obrigatorios.");
+		return;
+	}
+	try {
+		setText("channelFormHelp", "Criando canal...");
+		await request("/api/blaze/channel", {
+			method: "POST",
+			body: JSON.stringify({name, channelId, platform: "blaze", monitored})
+		});
+		setText("channelFormHelp", "Canal criado com sucesso.", "ok");
+		$("channelName").value = "";
+		$("channelIdInput").value = "";
+		await loadChannels();
+		log("Channel create", {name, channelId, monitored});
+	}
+	catch (error) {
+		setText("channelFormHelp", error.message || "Erro ao criar canal.");
+		log("Channel create", error.body || error.message, true);
+	}
+}
+
+async function deleteChannelAction(id) {
+	try {
+		await request("/api/blaze/channel/" + encodeURIComponent(id), {method: "DELETE"});
+		log("Channel delete", {id: id});
+		await loadChannels();
+	}
+	catch (error) {
+		log("Channel delete", error.body || error.message, true);
+	}
+}
+
+// --- Events Panel ---
+async function loadEventsPanel() {
+	try {
+		const [status, caps] = await Promise.all([
+			request("/api/blaze/events/status"),
+			request("/api/blaze/events/capabilities")
+		]);
+		renderEventsPanel(status, caps);
+		await loadEventsLog();
+		return {status, caps};
+	}
+	catch (error) {
+		log("Events panel", error.body || error.message, true);
+		return null;
+	}
+}
+
+function renderEventsPanel(status, caps) {
+	setText("eventsPanelRunning", status.runnerRunning ? "Rodando" : "Parado", status.runnerRunning ? "ok" : "warn");
+	setText("eventsPanelSession", status.sessionId ? "Session: " + maskIdentifier(status.sessionId) : "Sem sessao");
+	setText("eventsPanelCount", status.eventCount || 0);
+	setText("eventsPanelLastReceived", status.lastEventReceivedAt ? "Ultimo: " + formatDate(status.lastEventReceivedAt) : "Nenhum evento ainda");
+	const capEngine = caps && caps.engine ? caps.engine : {};
+	setText("eventsPanelCapabilities", capEngine.simulated ? "Simulado" : "Real", capEngine.simulated ? "warn" : "ok");
+}
+
+async function loadEventsLog() {
+	try {
+		const filter = $("logEventTypeFilter").value.trim();
+		const params = filter ? "?eventType=" + encodeURIComponent(filter) : "";
+		const data = await request("/api/blaze/events/log" + params);
+		renderEventsLog(data);
+		return data;
+	}
+	catch (error) {
+		log("Events log", error.body || error.message, true);
+		return null;
+	}
+}
+
+function renderEventsLog(data) {
+	const pre = $("eventsLog");
+	if (!data || !data.entries || !data.entries.length) {
+		pre.textContent = "Nenhum evento registrado.";
+		return;
+	}
+	const lines = data.entries.map(function(e) {
+		const ts = formatDate(e.timestamp);
+		return "[" + ts + "] " + (e.source || "-") + " | " + (e.eventType || "-") + " | " + (e.message || "-");
+	});
+	pre.textContent = lines.join("\n");
+}
+
+async function simulateEventAction() {
+	const eventType = $("simulateEventType").value;
+	const message = $("simulateMessage").value.trim();
+	try {
+		setText("simulateHelp", "Simulando evento...");
+		const entry = await request("/api/blaze/events/simulate", {
+			method: "POST",
+			body: JSON.stringify({eventType: eventType, message: message || undefined})
+		});
+		setText("simulateHelp", "Evento simulado: " + entry.eventType, "ok");
+		$("simulateMessage").value = "";
+		log("Simulate", entry);
+		await loadEventsLog();
+	}
+	catch (error) {
+		setText("simulateHelp", error.message || "Erro ao simular.");
+		log("Simulate", error.body || error.message, true);
+	}
+}
+
+async function startEventsPanel() {
+	try {
+		const status = await request("/api/blaze/events/start", {method: "POST"});
+		log("Start engine", status);
+		await loadEventsPanel();
+	}
+	catch (error) {
+		log("Start engine", error.body || error.message, true);
+	}
+}
+
+async function stopEventsPanel() {
+	try {
+		const status = await request("/api/blaze/events/stop", {method: "POST"});
+		log("Stop engine", status);
+		await loadEventsPanel();
+	}
+	catch (error) {
+		log("Stop engine", error.body || error.message, true);
+	}
+}
+
+// Override loadAll to also load channels and events panel
+const _originalLoadAll = loadAll;
+async function loadAllExtended() {
+	await _originalLoadAll();
+	await Promise.all([
+		safeLoad("Channels indisponiveis", loadChannels, function() {}),
+		safeLoad("Events panel indisponivel", loadEventsPanel, function() {})
+	]);
+}
+
+// Re-bind the main loadAll to the extended version
+loadAll = loadAllExtended;
+
+$("createChannel").addEventListener("click", createChannelAction);
+$("refreshEventsPanel").addEventListener("click", loadEventsPanel);
+$("eventsPanelStart").addEventListener("click", startEventsPanel);
+$("eventsPanelStop").addEventListener("click", stopEventsPanel);
+$("simulateEventBtn").addEventListener("click", simulateEventAction);
+$("refreshLogBtn").addEventListener("click", loadEventsLog);
+$("clearLogBtn").addEventListener("click", function() {
+	$("eventsLog").textContent = "Log limpo (reinicie para novos eventos).";
+	log("Log cleared", "Log visual limpo.");
+});
+
+loadAllExtended();

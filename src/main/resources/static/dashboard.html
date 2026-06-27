@@ -3,15 +3,15 @@
 <head>
 	<meta charset="utf-8">
 	<meta name="viewport" content="width=device-width, initial-scale=1">
-	<title>NollenBlaze - Painel MVP 2</title>
+	<title>NollenBlaze - Painel MVP 3</title>
 	<link rel="stylesheet" href="/dashboard.css">
 </head>
 <body>
 	<header class="topbar">
 		<div>
 			<p class="eyebrow">NollenBlaze</p>
-			<h1>Painel MVP 2</h1>
-			<p class="notice">Tela provisoria. O design final sera feito depois no OpenDesign/opencode.</p>
+			<h1>Painel MVP 3</h1>
+			<p class="notice">Blaze Events + Canal Monitorado. O design final sera feito depois no OpenDesign/opencode.</p>
 		</div>
 		<button id="refreshStatus" type="button">Atualizar status</button>
 	</header>
@@ -192,6 +192,105 @@
 		</section>
 
 		<section class="panel">
+			<h2 id="channelTitle">Canal Monitorado</h2>
+			<p class="help">Configuracao de canais Blaze monitorados via API REST.</p>
+			<div class="channel-grid" id="channelGrid">
+				<article class="card" id="channelEmpty">
+					<span class="label">Canais</span>
+					<strong>Nenhum canal configurado</strong>
+					<small>Crie um canal abaixo.</small>
+				</article>
+			</div>
+			<div class="channel-form">
+				<h3>Novo Canal</h3>
+				<div class="form-row">
+					<label for="channelName">Nome</label>
+					<input id="channelName" type="text" placeholder="Nome do canal" />
+				</div>
+				<div class="form-row">
+					<label for="channelIdInput">Channel ID</label>
+					<input id="channelIdInput" type="text" placeholder="UUID do canal Blaze" />
+				</div>
+				<div class="form-row">
+					<label for="channelMonitored">Monitorado</label>
+					<input id="channelMonitored" type="checkbox" checked />
+				</div>
+				<div class="actions">
+					<button id="createChannel" type="button">Criar Canal</button>
+				</div>
+				<p id="channelFormHelp" class="help"></p>
+			</div>
+		</section>
+
+		<section class="panel events-panel" aria-labelledby="eventsTitle">
+			<div class="panel-heading">
+				<div>
+					<h2 id="eventsTitle">Events Engine</h2>
+					<p class="help">Motor de eventos simulado - start/stop, log, simulacao e capacidades.</p>
+				</div>
+				<button id="refreshEventsPanel" type="button">Atualizar</button>
+			</div>
+			<div class="events-layout">
+				<article class="card events-card">
+					<span class="label">Status</span>
+					<strong id="eventsPanelRunning">-</strong>
+					<small id="eventsPanelSession">-</small>
+				</article>
+				<article class="card events-card">
+					<span class="label">Eventos recebidos</span>
+					<strong id="eventsPanelCount">-</strong>
+					<small id="eventsPanelLastReceived">-</small>
+				</article>
+				<article class="card events-card">
+					<span class="label">Capacidades</span>
+					<strong id="eventsPanelCapabilities">-</strong>
+				</article>
+			</div>
+			<div class="actions events-actions">
+				<button id="eventsPanelStart" type="button">Start Engine</button>
+				<button id="eventsPanelStop" type="button">Stop Engine</button>
+			</div>
+
+			<h3>Simular Evento</h3>
+			<div class="simulate-form">
+				<div class="form-row">
+					<label for="simulateEventType">Tipo</label>
+					<select id="simulateEventType">
+						<option value="channel.chat.message">channel.chat.message</option>
+						<option value="channel.follow">channel.follow</option>
+						<option value="channel.unfollow">channel.unfollow</option>
+						<option value="channel.subscribe">channel.subscribe</option>
+						<option value="channel.subscription.gift">channel.subscription.gift</option>
+						<option value="channel.vote">channel.vote</option>
+						<option value="channel.chat.clear">channel.chat.clear</option>
+						<option value="channel.chat.message_delete">channel.chat.message_delete</option>
+					</select>
+				</div>
+				<div class="form-row">
+					<label for="simulateMessage">Mensagem</label>
+					<input id="simulateMessage" type="text" placeholder="Mensagem simulada (opcional)" />
+				</div>
+				<div class="actions">
+					<button id="simulateEventBtn" type="button">Simular Evento</button>
+				</div>
+				<p id="simulateHelp" class="help"></p>
+			</div>
+
+			<h3>Log de Eventos</h3>
+			<div class="log-filters">
+				<div class="form-row">
+					<label for="logEventTypeFilter">Filtrar por tipo</label>
+					<input id="logEventTypeFilter" type="text" placeholder="Tipo (opcional)" />
+				</div>
+				<div class="actions">
+					<button id="refreshLogBtn" type="button">Atualizar Log</button>
+					<button id="clearLogBtn" type="button" class="danger-button">Limpar Log</button>
+				</div>
+			</div>
+			<pre id="eventsLog" aria-live="polite">Aguardando eventos...</pre>
+		</section>
+
+		<section class="panel">
 			<h2>Acoes</h2>
 			<div class="actions">
 				<button id="startOAuth" type="button">Iniciar OAuth</button>
@@ -212,7 +311,10 @@
 				<li><a href="/api/status" target="_blank" rel="noreferrer">GET /api/status</a></li>
 				<li><a href="/api/blaze/setup" target="_blank" rel="noreferrer">GET /api/blaze/setup</a></li>
 				<li><a href="/api/blaze/oauth/session" target="_blank" rel="noreferrer">GET /api/blaze/oauth/session</a></li>
-				<li><a href="/api/blaze/events/status" target="_blank" rel="noreferrer">GET /api/blaze/events/status</a></li>
+				<li><a href="/api/blaze/events/status" target="_blank" rel="noreferrer">GET /api/blaze/events/status (estendido)</a></li>
+				<li><a href="/api/blaze/events/log" target="_blank" rel="noreferrer">GET /api/blaze/events/log</a></li>
+				<li><a href="/api/blaze/events/capabilities" target="_blank" rel="noreferrer">GET /api/blaze/events/capabilities</a></li>
+				<li><a href="/api/blaze/channel" target="_blank" rel="noreferrer">GET /api/blaze/channel</a></li>
 				<li><a href="/api/overlay-profiles" target="_blank" rel="noreferrer">GET /api/overlay-profiles</a></li>
 				<li><a id="manifestEndpoint" href="#" target="_blank" rel="noreferrer">GET /api/public/overlays/{publicToken}/manifest</a></li>
 			</ul>
