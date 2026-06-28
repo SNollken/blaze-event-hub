@@ -23,7 +23,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\mvnw.cmd spring-boot:run
 ```
 
-Use as variaveis de `.env.example` como referencia se for testar Blaze real. Nao exponha valores reais em docs, logs, vault, prints ou respostas publicas.
+Copie os nomes de variaveis de `.env.example` para um `.env` local se for testar Blaze real. Nunca commite `.env`.
 
 ## MVP 1 - Painel provisorio
 
@@ -34,7 +34,7 @@ O MVP 1 inclui uma tela funcional minima servida pelo proprio Spring Boot. Ela e
 - Health usado pela tela: `GET /api/health`
 - Status seguro usado pela tela: `GET /api/status`
 - Events usados pela tela: `GET /api/blaze/events/status`, `POST /api/blaze/events/start`, `POST /api/blaze/events/stop`, `POST /api/blaze/events/subscriptions/sync`
-- OAuth usado pela tela: `POST /api/blaze/oauth/start`, `GET /api/blaze/oauth/session`, `POST /api/blaze/oauth/refresh`, `POST /api/blaze/oauth/disconnect`
+- OAuth usado pela tela: `POST /api/blaze/oauth/start`
 - Overlays usados pela tela: `GET /api/overlay-profiles`, `GET /api/overlay-profiles/{profileId}/overlays`, `GET /api/public/overlays/{publicToken}/manifest`
 - Runtime publico OBS: `GET /overlay/{publicToken}`
 
@@ -45,7 +45,7 @@ A tela mostra apenas flags e respostas sanitizadas. Ela nao deve exibir `clientS
 O MVP 2 adiciona uma area de configuracao no mesmo dashboard provisorio e o endpoint seguro `GET /api/blaze/setup`. O objetivo e orientar App Setup, OAuth, scopes, canal monitorado e Events sem exigir credenciais reais no repositorio.
 
 - Endpoint de setup: `GET /api/blaze/setup`
-- Botao para copiar Redirect URI: usa o valor configurado no backend e nao deve ser registrado em logs ou relatorios.
+- Botao para copiar Redirect URI: `http://localhost:8080/api/blaze/oauth/callback`
 - Botao para copiar scopes atuais: `users.read,offline.access`
 - Botao para copiar um exemplo `.env` com placeholders
 - Botao `Iniciar OAuth`, que continua falhando com erro amigavel quando `BLAZE_CLIENT_ID`, `BLAZE_CLIENT_SECRET` ou `BLAZE_REDIRECT_URI` nao estiverem configurados
@@ -69,26 +69,11 @@ Invoke-WebRequest http://localhost:8080/dashboard -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/status -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/blaze/setup -UseBasicParsing
-Invoke-WebRequest http://localhost:8080/api/blaze/oauth/session -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/blaze/events/status -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/overlay-profiles -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/public/overlays/demo-overlay-obs-mvp/manifest -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/overlay/demo-overlay-obs-mvp -UseBasicParsing
 ```
-
-## OAuth produto
-
-O modulo OAuth finaliza a experiencia de conta conectada no dashboard provisorio:
-
-- `GET /api/blaze/oauth/session`: retorna flags seguras de sessao, perfil seguro, datas e proxima acao recomendada.
-- `GET /api/blaze/oauth/callback`: retorna HTML amigavel no navegador e JSON seguro quando `Accept: application/json`.
-- `POST /api/blaze/oauth/refresh`: renova a sessao com a credencial de renovacao local e preserva a credencial anterior se a Blaze nao devolver outra.
-- `POST /api/blaze/oauth/disconnect`: limpa token, resumo de perfil e states pendentes neste backend local.
-- Dashboard: bloco `Conta Blaze` com estados desconectado, conectado sem perfil, conectado com perfil, atualizar sessao e desconectar.
-
-Depois do token exchange, o backend tenta chamar `GET /v1/users/profile` na Blaze com `users.read` para salvar apenas um resumo seguro: `id`, `username`, `displayName`, `avatarUrl` e data de sincronizacao. Payload bruto, headers e tokens nao sao persistidos nem expostos.
-
-Limites atuais: storage in-memory, sem revoke remoto confirmado e sem criptografia definitiva de token. Esses pontos ficam para persistencia segura.
 
 ## Overlay Runtime OBS
 
@@ -129,10 +114,8 @@ Limitacoes atuais:
 - `GET /api/status`
 - `GET /api/blaze/setup`
 - `POST /api/blaze/oauth/start`
-- `GET /api/blaze/oauth/callback`
-- `GET /api/blaze/oauth/session`
+- `GET /api/blaze/oauth/callback?code=...&state=...`
 - `POST /api/blaze/oauth/refresh`
-- `POST /api/blaze/oauth/disconnect`
 - `GET /api/blaze/users/profile`
 - `GET /api/blaze/channels?slug=...`
 - `GET /api/blaze/chats/messages?channelId=...`
@@ -167,7 +150,7 @@ O runtime publico nao deve expor credenciais, tokens OAuth, stack traces ou JSON
 
 ## Blaze OAuth, REST e Events
 
-OAuth e server-side. Client credential, authorization code, state real, PKCE verifier, access token e refresh token ficam apenas no backend. O token store inicial e in-memory e troca refresh token de forma atomica ao receber um novo snapshot.
+OAuth e server-side. `clientSecret`, `codeVerifier`, `accessToken` e `refreshToken` ficam apenas no backend. O token store inicial e in-memory e troca refresh token de forma atomica ao receber um novo snapshot.
 
 REST usa `RestClient`, header `client-id`, bearer token e tratamento explicito para erros HTTP da Blaze.
 
@@ -179,11 +162,11 @@ Events esta preparado como abstracao segura. A implementacao atual nao abre Sock
 .\mvnw.cmd test
 ```
 
-A suite cobre health/status, propriedades seguras, OAuth, sessao conectada, profile seguro, refresh, disconnect, REST client, Events e overlays.
+A suite cobre health/status, propriedades seguras, OAuth, REST client, Events e overlays.
 
 ## Proximos passos
 
 - Persistir tokens e overlays em banco seguro.
 - Integrar cliente Socket.IO real depois de validar biblioteca e reconexao.
-- Fazer smoke E2E de Events real com credenciais Blaze reais fora do repositorio.
+- Fazer smoke E2E com credenciais Blaze reais fora do repositorio.
 - Evoluir o dashboard/frontend final em fase separada.
