@@ -88,7 +88,7 @@ export default function Dashboard() {
       </div>
 
       {/* Status details */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="responsive-grid-2" style={{ marginBottom: 24 }}>
         {/* System status */}
         <div className="glass-card" style={{ padding: 20 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Status do Sistema</h3>

@@ -267,7 +267,11 @@ export default function BlazeChannel() {
                 {setup?.redirectUri || 'Nao configurado'}
               </code>
               {setup?.redirectUri && (
-                <button className="copy-btn" onClick={() => copyToClipboard(setup.redirectUri!)}>
+                <button
+                  className="copy-btn"
+                  aria-label="Copiar Redirect URI"
+                  onClick={() => copyToClipboard(setup.redirectUri!)}
+                >
                   <Copy size={12} />
                   Copiar
                 </button>

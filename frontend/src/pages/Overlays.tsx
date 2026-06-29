@@ -95,10 +95,10 @@ export default function Overlays() {
       key: 'actions', header: '', width: 100,
       render: (p) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn btn-primary btn-sm" onClick={() => loadOverlays(p.id)}>
+          <button className="btn btn-primary btn-sm btn-icon" aria-label={`Ver overlays de ${p.name}`} onClick={() => loadOverlays(p.id)}>
             <Eye size={12} />
           </button>
-          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteProfile(p.id)}>
+          <button className="btn btn-danger btn-sm btn-icon" aria-label={`Remover perfil ${p.name}`} onClick={() => handleDeleteProfile(p.id)}>
             <Trash2 size={12} />
           </button>
         </div>
@@ -124,7 +124,7 @@ export default function Overlays() {
           <code className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
             {o.publicToken}
           </code>
-          <button className="copy-btn" onClick={() => copyToClipboard(getOverlayUrl(o.publicToken))}>
+          <button className="copy-btn" aria-label={`Copiar URL da overlay ${o.name}`} onClick={() => copyToClipboard(getOverlayUrl(o.publicToken))}>
             <Copy size={10} />
           </button>
           <a href={getOverlayUrl(o.publicToken)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '2px 6px' }}>
@@ -137,10 +137,10 @@ export default function Overlays() {
       key: 'actions', header: '', width: 80,
       render: (o) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn btn-secondary btn-sm" onClick={() => setSelectedOverlay(o)}>
+          <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Ver detalhes da overlay ${o.name}`} onClick={() => setSelectedOverlay(o)}>
             <Settings size={12} />
           </button>
-          <button className="btn btn-danger btn-sm" onClick={() => handleDeleteOverlay(o.id)}>
+          <button className="btn btn-danger btn-sm btn-icon" aria-label={`Remover overlay ${o.name}`} onClick={() => handleDeleteOverlay(o.id)}>
             <Trash2 size={12} />
           </button>
         </div>
@@ -289,7 +289,7 @@ export default function Overlays() {
                 <code className="mono" style={{ flex: 1, fontSize: 11, padding: '4px 8px', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
                   {getOverlayUrl(selectedOverlay.publicToken)}
                 </code>
-                <button className="copy-btn" onClick={() => copyToClipboard(getOverlayUrl(selectedOverlay.publicToken))}>
+                <button className="copy-btn" aria-label={`Copiar URL da overlay ${selectedOverlay.name}`} onClick={() => copyToClipboard(getOverlayUrl(selectedOverlay.publicToken))}>
                   <Copy size={10} />
                   Copiar
                 </button>

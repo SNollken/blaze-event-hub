@@ -176,3 +176,121 @@ export interface OverlayManifestResponse {
   config: OverlayConfig;
   layers: OverlayLayer[];
 }
+
+export type BlazeEventType =
+  | 'channel.follow'
+  | 'channel.unfollow'
+  | 'channel.subscribe'
+  | 'channel.subscription.gift'
+  | 'channel.vote'
+  | 'channel.chat.message'
+  | 'channel.chat.clear'
+  | 'channel.chat.message_delete';
+
+export type AlertCondition = 'ALWAYS' | 'MIN_AMOUNT' | 'RAID_MIN_SIZE';
+
+export interface AlertRule {
+  id: string;
+  name: string;
+  eventType: BlazeEventType;
+  condition: AlertCondition;
+  threshold: number;
+  template: string | null;
+  enabled: boolean;
+  cooldownMs: number;
+}
+
+export interface AlertEvent {
+  id: string;
+  ruleId: string;
+  ruleName: string;
+  eventType: BlazeEventType;
+  triggeredAt: string;
+  message: string;
+  acknowledged: boolean;
+  metadata: Record<string, unknown>;
+}
+
+export interface AlertStatsResponse {
+  totalRules: number;
+  enabledRules: number;
+  totalAlerts: number;
+  unacknowledgedAlerts: number;
+  acknowledgedAlerts: number;
+  rules: AlertRule[];
+}
+
+export interface CreateAlertRuleRequest {
+  name: string;
+  eventType: BlazeEventType;
+  condition: AlertCondition;
+  threshold: number;
+  template: string | null;
+  enabled: boolean;
+  cooldownMs: number;
+}
+
+export interface BlazeEventsLogEntry {
+  id: string;
+  timestamp: string;
+  eventType: string;
+  source: string;
+  message: string;
+  data: string | null;
+}
+
+export type GiveawayStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'DRAWING' | 'COMPLETED' | 'CANCELLED';
+
+export interface Giveaway {
+  id: string;
+  title: string;
+  description: string;
+  status: GiveawayStatus;
+  entryCount: number;
+  maxEntries: number;
+  createdAt: string;
+  openedAt: string | null;
+  closedAt: string | null;
+  drawnAt: string | null;
+  winnerIds: string[];
+}
+
+export interface GiveawayEntry {
+  id: string;
+  giveawayId: string;
+  participantName: string;
+  enteredAt: string;
+  selected: boolean;
+  eligible: boolean;
+}
+
+export interface CreateGiveawayRequest {
+  title: string;
+  description?: string;
+  maxEntries?: number;
+}
+
+export interface GiveawayResultsResponse {
+  giveawayId: string;
+  title: string;
+  status: GiveawayStatus;
+  totalEntries: number;
+  winnerCount: number;
+  winners: Array<{
+    entryId: string;
+    participantName: string;
+    enteredAt: string;
+  }>;
+  drawnAt: string | null;
+}
+
+export interface GiveawayStatsResponse {
+  totalGiveaways: number;
+  draftCount: number;
+  openCount: number;
+  closedCount: number;
+  completedCount: number;
+  cancelledCount: number;
+  totalEntries: number;
+  entriesPerGiveaway: Record<string, number>;
+}

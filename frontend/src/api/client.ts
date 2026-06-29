@@ -1,10 +1,13 @@
 const BASE = '';
+const API_KEY = import.meta.env.VITE_NOLLEN_API_KEY || 'dev-local-key';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const res = await fetch(`${BASE}${url}`, {
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      'X-Nollen-Api-Key': API_KEY,
+      ...(options?.headers || {}),
     },
     ...options,
   });
@@ -94,6 +97,49 @@ export const getBlazeProfile = () =>
 export const getBlazeChannel = (slug: string) =>
   request<Record<string, unknown>>(`/api/blaze/channels?slug=${encodeURIComponent(slug)}`);
 
+/* Alerts */
+export const getAlertRules = () => request<import('./types').AlertRule[]>('/api/alerts/rules');
+export const createAlertRule = (data: import('./types').CreateAlertRuleRequest) =>
+  request<import('./types').AlertRule>('/api/alerts/rules', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+export const deleteAlertRule = (id: string) =>
+  request<void>(`/api/alerts/rules/${id}`, { method: 'DELETE' });
+export const getAlertHistory = () => request<import('./types').AlertEvent[]>('/api/alerts/history');
+export const getActiveAlerts = () => request<import('./types').AlertEvent[]>('/api/alerts/active');
+export const getAlertStats = () => request<import('./types').AlertStatsResponse>('/api/alerts/stats');
+export const acknowledgeAlert = (id: string) =>
+  request<import('./types').AlertEvent>(`/api/alerts/acknowledge/${id}`, { method: 'POST' });
+export const simulateBlazeEvent = (eventType: string, message: string) =>
+  request<import('./types').BlazeEventsLogEntry>('/api/blaze/events/simulate', {
+    method: 'POST',
+    body: JSON.stringify({ eventType, message }),
+  });
+
+/* Giveaways */
+export const getGiveaways = () => request<import('./types').Giveaway[]>('/api/giveaways');
+export const createGiveaway = (data: import('./types').CreateGiveawayRequest) =>
+  request<import('./types').Giveaway>('/api/giveaways', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  });
+export const openGiveaway = (id: string) =>
+  request<import('./types').Giveaway>(`/api/giveaways/${id}/open`, { method: 'POST' });
+export const closeGiveaway = (id: string) =>
+  request<import('./types').Giveaway>(`/api/giveaways/${id}/close`, { method: 'POST' });
+export const enterGiveaway = (id: string, participantName: string) =>
+  request<import('./types').GiveawayEntry>(`/api/giveaways/${id}/enter`, {
+    method: 'POST',
+    body: JSON.stringify({ participantName }),
+  });
+export const drawGiveaway = (id: string, winnerCount = 1) =>
+  request<import('./types').Giveaway>(`/api/giveaways/${id}/draw?winnerCount=${winnerCount}`, { method: 'POST' });
+export const getGiveawayResults = (id: string) =>
+  request<import('./types').GiveawayResultsResponse>(`/api/giveaways/${id}/results`);
+export const getGiveawayStats = () =>
+  request<import('./types').GiveawayStatsResponse>('/api/giveaways/stats');
+
 export default {
   getHealth,
   getStatus,
@@ -120,4 +166,20 @@ export default {
   getOverlayManifest,
   getBlazeProfile,
   getBlazeChannel,
+  getAlertRules,
+  createAlertRule,
+  deleteAlertRule,
+  getAlertHistory,
+  getActiveAlerts,
+  getAlertStats,
+  acknowledgeAlert,
+  simulateBlazeEvent,
+  getGiveaways,
+  createGiveaway,
+  openGiveaway,
+  closeGiveaway,
+  enterGiveaway,
+  drawGiveaway,
+  getGiveawayResults,
+  getGiveawayStats,
 };
