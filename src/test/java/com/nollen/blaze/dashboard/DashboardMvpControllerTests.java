@@ -38,21 +38,13 @@ class DashboardMvpControllerTests {
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
-				.andExpect(content().string(containsString("Painel MVP 3")))
-				.andExpect(content().string(containsString("Blaze Events + Canal Monitorado")))
-				.andExpect(content().string(containsString("Configuracao Blaze")))
-				.andExpect(content().string(containsString("Conta Blaze")))
-				.andExpect(content().string(containsString("Copiar Redirect URI")))
-				.andExpect(content().string(containsString("Copiar scopes")))
-				.andExpect(content().string(containsString("Atualizar sessao")))
-				.andExpect(content().string(containsString("Desconectar Blaze")));
+				.andExpect(content().string(containsString("Frontend React unificado")))
+				.andExpect(content().string(containsString("id=\"root\"")));
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
-				.andExpect(content().string(containsString("OpenDesign/opencode")))
-				.andExpect(content().string(containsString("Iniciar OAuth")))
-				.andExpect(content().string(containsString("Conta Blaze")));
+				.andExpect(content().string(containsString("/src/main.tsx")));
 	}
 
 	@Test
@@ -63,7 +55,7 @@ class DashboardMvpControllerTests {
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("Blaze Events + Canal Monitorado")));
+				.andExpect(content().string(containsString("Frontend React unificado")));
 
 		mockMvc.perform(get("/api/health"))
 				.andExpect(status().isOk())

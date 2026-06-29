@@ -7,6 +7,7 @@ import java.util.Map;
 
 import com.nollen.blaze.common.IdGenerator;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -17,14 +18,22 @@ public class BlazeEventsService {
 	private final BlazeEventsCapabilities capabilities;
 	private final IdGenerator idGenerator;
 	private final Clock clock;
+	private final BlazeEventsPipeline pipeline;
 
 	public BlazeEventsService(BlazeEventsRunner runner, BlazeEventsLogStore logStore,
 			BlazeEventsCapabilities capabilities, IdGenerator idGenerator, Clock clock) {
+		this(runner, logStore, capabilities, idGenerator, clock, null);
+	}
+
+	@Autowired
+	public BlazeEventsService(BlazeEventsRunner runner, BlazeEventsLogStore logStore,
+			BlazeEventsCapabilities capabilities, IdGenerator idGenerator, Clock clock, BlazeEventsPipeline pipeline) {
 		this.runner = runner;
 		this.logStore = logStore;
 		this.capabilities = capabilities;
 		this.idGenerator = idGenerator;
 		this.clock = clock;
+		this.pipeline = pipeline;
 	}
 
 	public BlazeEventsStatusExtended status() {
@@ -50,13 +59,18 @@ public class BlazeEventsService {
 
 	public void acceptEnvelope(BlazeEventEnvelope envelope) {
 		runner.acceptEnvelope(envelope);
-		logEntry(
-				envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
-				envelope.messageType() != null ? envelope.messageType() : "unknown",
-				"Event received: " + (envelope.messageType() != null ? envelope.messageType() : "unknown"));
+		if (pipeline == null && envelope != null) {
+			logEntry(
+					envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
+					envelope.messageType() != null ? envelope.messageType() : "unknown",
+					"Event received: " + (envelope.messageType() != null ? envelope.messageType() : "unknown"));
+		}
 	}
 
 	public BlazeEventsLogEntry simulate(String eventType, String message) {
+		if (pipeline != null) {
+			return pipeline.simulate(eventType, message);
+		}
 		Instant now = Instant.now(clock);
 		String resolvedType = eventType != null && !eventType.isBlank() ? eventType : "channel.chat.message";
 		String resolvedMessage = message != null && !message.isBlank() ? message : "Simulated event: " + resolvedType;
@@ -89,4 +103,5 @@ public class BlazeEventsService {
 				null);
 		logStore.append(entry);
 	}
+
 }

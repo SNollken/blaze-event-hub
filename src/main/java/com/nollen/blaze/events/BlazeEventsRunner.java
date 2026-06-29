@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -14,14 +15,21 @@ public class BlazeEventsRunner {
 
 	private final BlazeEventsClient client;
 	private final Clock clock;
+	private final BlazeEventsPipeline pipeline;
 	private final AtomicBoolean running = new AtomicBoolean(false);
 	private final AtomicReference<String> sessionId = new AtomicReference<>();
 	private final AtomicReference<String> lastMessageType = new AtomicReference<>();
 	private volatile Instant startedAt;
 
 	public BlazeEventsRunner(BlazeEventsClient client, Clock clock) {
+		this(client, clock, null);
+	}
+
+	@Autowired
+	public BlazeEventsRunner(BlazeEventsClient client, Clock clock, BlazeEventsPipeline pipeline) {
 		this.client = client;
 		this.clock = clock;
+		this.pipeline = pipeline;
 	}
 
 	public void start() {
@@ -46,6 +54,9 @@ public class BlazeEventsRunner {
 		lastMessageType.set(envelope.messageType());
 		if (SESSION_WELCOME.equals(envelope.messageType()) && envelope.sessionId() != null) {
 			sessionId.set(envelope.sessionId());
+		}
+		if (pipeline != null) {
+			pipeline.acceptEnvelope(envelope);
 		}
 	}
 

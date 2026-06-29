@@ -1,0 +1,7 @@
+nollen:
+  security:
+    api-key:
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:nollenblaze-test;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;DB_CLOSE_DELAY=-1
