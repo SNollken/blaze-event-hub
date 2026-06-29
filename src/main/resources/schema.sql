@@ -1,0 +1,122 @@
+CREATE TABLE IF NOT EXISTS alert_rules (
+	id VARCHAR(64) PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	event_type VARCHAR(80) NOT NULL,
+	rule_condition VARCHAR(40) NOT NULL,
+	threshold DOUBLE DEFAULT 0,
+	template CLOB,
+	enabled BOOLEAN NOT NULL,
+	cooldown_ms BIGINT DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS alerts (
+	id VARCHAR(64) PRIMARY KEY,
+	rule_id VARCHAR(64) NOT NULL,
+	rule_name VARCHAR(255) NOT NULL,
+	event_type VARCHAR(80) NOT NULL,
+	triggered_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	message CLOB NOT NULL,
+	acknowledged BOOLEAN NOT NULL,
+	metadata CLOB
+);
+
+CREATE TABLE IF NOT EXISTS blaze_events_log (
+	id VARCHAR(64) PRIMARY KEY,
+	received_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	event_type VARCHAR(80) NOT NULL,
+	source VARCHAR(80) NOT NULL,
+	message CLOB NOT NULL,
+	raw_payload CLOB
+);
+
+CREATE TABLE IF NOT EXISTS blaze_channels (
+	id VARCHAR(64) PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	channel_id VARCHAR(255) NOT NULL,
+	platform VARCHAR(80) NOT NULL,
+	monitored BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS event_subscriptions (
+	id VARCHAR(64) PRIMARY KEY,
+	type VARCHAR(80) NOT NULL,
+	version VARCHAR(40) NOT NULL,
+	channel_id VARCHAR(255) NOT NULL,
+	session_id VARCHAR(255) NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS live_events (
+	id VARCHAR(64) PRIMARY KEY,
+	type VARCHAR(80) NOT NULL,
+	source VARCHAR(80) NOT NULL,
+	status VARCHAR(80) NOT NULL,
+	payload CLOB,
+	occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	dedup_key VARCHAR(255)
+);
+
+CREATE TABLE IF NOT EXISTS giveaways (
+	id VARCHAR(64) PRIMARY KEY,
+	title VARCHAR(255) NOT NULL,
+	description CLOB,
+	status VARCHAR(40) NOT NULL,
+	entry_count INT NOT NULL,
+	max_entries INT NOT NULL,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	opened_at TIMESTAMP WITH TIME ZONE,
+	closed_at TIMESTAMP WITH TIME ZONE,
+	drawn_at TIMESTAMP WITH TIME ZONE,
+	winner_ids CLOB
+);
+
+CREATE TABLE IF NOT EXISTS giveaway_entries (
+	id VARCHAR(64) PRIMARY KEY,
+	giveaway_id VARCHAR(64) NOT NULL,
+	participant_name VARCHAR(255) NOT NULL,
+	entered_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	selected BOOLEAN NOT NULL,
+	eligible BOOLEAN NOT NULL,
+	UNIQUE (giveaway_id, participant_name)
+);
+
+CREATE TABLE IF NOT EXISTS overlay_profiles (
+	id VARCHAR(64) PRIMARY KEY,
+	name VARCHAR(255) NOT NULL,
+	description CLOB,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS overlays (
+	id VARCHAR(64) PRIMARY KEY,
+	profile_id VARCHAR(64) NOT NULL,
+	name VARCHAR(255) NOT NULL,
+	type VARCHAR(80) NOT NULL,
+	public_token VARCHAR(160) NOT NULL UNIQUE,
+	enabled BOOLEAN NOT NULL,
+	config CLOB,
+	layers CLOB,
+	assets CLOB,
+	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
+	updated_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS overlay_asset_bytes (
+	asset_id VARCHAR(64) PRIMARY KEY,
+	asset_bytes BINARY LARGE OBJECT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS runtime_overlay_configs (
+	id VARCHAR(64) PRIMARY KEY,
+	type VARCHAR(80) NOT NULL,
+	name VARCHAR(255) NOT NULL,
+	enabled BOOLEAN NOT NULL,
+	refresh_interval_ms BIGINT NOT NULL,
+	custom_css CLOB,
+	position_x INT NOT NULL,
+	position_y INT NOT NULL,
+	position_width INT NOT NULL,
+	position_height INT NOT NULL,
+	opacity DOUBLE NOT NULL
+);

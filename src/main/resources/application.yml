@@ -3,6 +3,14 @@ spring:
     name: nollen-blaze
   config:
     import: "optional:file:.env[.properties]"
+  datasource:
+    url: ${NOLLEN_DB_URL:jdbc:h2:file:./data/nollenblaze-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
+    driver-class-name: org.h2.Driver
+    username: ${NOLLEN_DB_USER:sa}
+    password: ${NOLLEN_DB_PASSWORD:}
+  sql:
+    init:
+      mode: always
 
 server:
   port: ${SERVER_PORT:8080}
@@ -17,6 +25,8 @@ management:
       show-details: never
 
 nollen:
+  security:
+    api-key: ${NOLLEN_API_KEY:dev-local-key}
   blaze:
     client-id: ${BLAZE_CLIENT_ID:}
     client-secret: ${BLAZE_CLIENT_SECRET:}
