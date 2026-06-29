@@ -26,8 +26,8 @@ export default function LiveEvents() {
   const fetchEvents = useCallback(() => getEventsStatus(), []);
   const fetchStatus = useCallback(() => getStatus(), []);
 
-  const { data: events, loading, reload: reloadEvents } = usePolling(fetchEvents, 5000);
-  const { data: status } = usePolling(fetchStatus, 15000);
+  const { data: events, reload: reloadEvents } = usePolling(fetchEvents, 5000);
+  const { data: status, reload: reloadStatus } = usePolling(fetchStatus, 15000);
 
   const [logs, setLogs] = useState<{ time: string; message: string }[]>([]);
   const [starting, setStarting] = useState(false);
@@ -41,7 +41,9 @@ export default function LiveEvents() {
   const handleStart = async () => {
     setStarting(true);
     try {
-      const res = await startEvents();
+      await startEvents();
+      await reloadEvents();
+      await reloadStatus();
       addLog('Events iniciado com sucesso');
       addToast('success', 'Events Socket iniciado');
     } catch (e: unknown) {
@@ -56,7 +58,9 @@ export default function LiveEvents() {
   const handleStop = async () => {
     setStopping(true);
     try {
-      const res = await stopEvents();
+      await stopEvents();
+      await reloadEvents();
+      await reloadStatus();
       addLog('Events parado');
       addToast('success', 'Events Socket parado');
     } catch (e: unknown) {
@@ -121,7 +125,7 @@ export default function LiveEvents() {
       <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
         <div className="section-header" style={{ marginBottom: 0 }}>
           <h3 style={{ fontSize: 14, fontWeight: 600 }}>Status do Events Engine</h3>
-          <button className="btn btn-secondary btn-sm" onClick={() => reloadEvents()}>
+          <button className="btn btn-secondary btn-sm" onClick={() => { void reloadEvents(); void reloadStatus(); }}>
             <RefreshCw size={14} />
             Atualizar
           </button>

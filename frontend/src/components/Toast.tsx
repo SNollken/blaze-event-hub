@@ -54,6 +54,7 @@ export function ToastContainer() {
           {icons[t.type]}
           <span style={{ flex: 1 }}>{t.text}</span>
           <button
+            aria-label="Fechar notificacao"
             onClick={() => removeToast(t.id)}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
           >
@@ -65,8 +66,8 @@ export function ToastContainer() {
   );
 }
 
-/** Hook for fetching with polling */
-export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
+/** Hook for initial loading plus explicit refresh. */
+export function usePolling<T>(fetcher: () => Promise<T>, _intervalMs = 10000) {
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -83,11 +84,9 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
     }
   }, [fetcher]);
 
-  useEffect(() => {
-    load();
-    const id = setInterval(load, intervalMs);
-    return () => clearInterval(id);
-  }, [load, intervalMs]);
+	useEffect(() => {
+		load();
+	}, [load]);
 
   return { data, loading, error, reload: load };
 }

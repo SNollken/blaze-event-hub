@@ -79,6 +79,7 @@ export function DataTable<T>({
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             className="input"
+            aria-label={filterPlaceholder}
             style={{ paddingLeft: 32 }}
             placeholder={filterPlaceholder}
             value={filter}

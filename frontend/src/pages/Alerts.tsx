@@ -5,74 +5,112 @@ import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
 import { usePolling, addToast } from '../components/Toast';
-import { getStatus } from '../api/client';
 import {
-  Bell,
-  BellRing,
-  Plus,
-  Trash2,
-  Clock,
-  Filter,
-} from 'lucide-react';
+  acknowledgeAlert,
+  createAlertRule,
+  deleteAlertRule,
+  getActiveAlerts,
+  getAlertHistory,
+  getAlertRules,
+  getAlertStats,
+  simulateBlazeEvent,
+} from '../api/client';
+import { AlertCondition, AlertEvent, AlertRule, BlazeEventType } from '../api/types';
+import { Bell, BellRing, Check, Play, Plus, Trash2 } from 'lucide-react';
 
-interface AlertRule {
-  id: string;
-  name: string;
-  type: string;
-  condition: string;
-  active: boolean;
-  createdAt: string;
-}
-
-interface AlertEvent {
-  id: string;
-  ruleName: string;
-  message: string;
-  severity: 'info' | 'warning' | 'critical';
-  acknowledged: boolean;
-  createdAt: string;
-}
-
-// Demo data for UI purposes - will be replaced with API calls
-const demoRules: AlertRule[] = [
-  { id: '1', name: 'Evento de follow', type: 'follow', condition: 'Quando recebido', active: true, createdAt: '2024-01-15' },
-  { id: '2', name: 'Mensagem de chat', type: 'chat', condition: 'Contem palavra-chave', active: true, createdAt: '2024-01-15' },
-  { id: '3', name: 'Subscribers novos', type: 'subscribe', condition: 'Novo inscrito', active: false, createdAt: '2024-01-10' },
+const eventTypes: BlazeEventType[] = [
+  'channel.follow',
+  'channel.subscribe',
+  'channel.subscription.gift',
+  'channel.vote',
+  'channel.chat.message',
 ];
 
-const demoAlerts: AlertEvent[] = [
-  { id: '1', ruleName: 'Evento de follow', message: 'Novo follow recebido', severity: 'info', acknowledged: false, createdAt: '2024-01-15T10:30:00' },
-  { id: '2', ruleName: 'Mensagem de chat', message: 'Mensagem com palavra-chave detectada', severity: 'warning', acknowledged: true, createdAt: '2024-01-15T10:25:00' },
-  { id: '3', ruleName: 'Subscribers novos', message: 'Novo subscriber detectado', severity: 'info', acknowledged: false, createdAt: '2024-01-15T10:20:00' },
-];
+const conditions: AlertCondition[] = ['ALWAYS', 'MIN_AMOUNT', 'RAID_MIN_SIZE'];
 
-const severityColors: Record<string, 'success' | 'warning' | 'error'> = {
-  info: 'success',
-  warning: 'warning',
-  critical: 'error',
+const conditionLabels: Record<AlertCondition, string> = {
+  ALWAYS: 'Sempre',
+  MIN_AMOUNT: 'Valor minimo',
+  RAID_MIN_SIZE: 'Raid minimo',
 };
 
-export default function Alerts() {
-  const fetchStatus = useCallback(() => getStatus(), []);
-  const { data: status } = usePolling(fetchStatus, 15000);
+const severityFor = (acknowledged: boolean): 'success' | 'warning' => acknowledged ? 'success' : 'warning';
 
-  const [rules, setRules] = useState<AlertRule[]>(demoRules);
-  const [alerts] = useState<AlertEvent[]>(demoAlerts);
+export default function Alerts() {
+  const fetchRules = useCallback(() => getAlertRules(), []);
+  const fetchHistory = useCallback(() => getAlertHistory(), []);
+  const fetchActive = useCallback(() => getActiveAlerts(), []);
+  const fetchStats = useCallback(() => getAlertStats(), []);
+
+  const { data: rules, loading: rulesLoading, reload: reloadRules } = usePolling(fetchRules, 15000);
+  const { data: history, loading: historyLoading, reload: reloadHistory } = usePolling(fetchHistory, 12000);
+  const { data: activeAlerts, reload: reloadActive } = usePolling(fetchActive, 10000);
+  const { data: stats, reload: reloadStats } = usePolling(fetchStats, 15000);
+
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'rules' | 'history'>('rules');
+  const [form, setForm] = useState({
+    name: '',
+    eventType: 'channel.follow' as BlazeEventType,
+    condition: 'ALWAYS' as AlertCondition,
+    threshold: 0,
+    template: '',
+    enabled: true,
+    cooldownMs: 0,
+  });
+
+  const reloadAll = async () => {
+    await Promise.all([reloadRules(), reloadHistory(), reloadActive(), reloadStats()]);
+  };
+
+  const createRule = async () => {
+    try {
+      await createAlertRule({
+        ...form,
+        name: form.name.trim(),
+        template: form.template.trim() || null,
+      });
+      addToast('success', 'Regra criada');
+      setShowCreateModal(false);
+      setForm({ ...form, name: '', template: '', threshold: 0 });
+      await reloadAll();
+    } catch (error) {
+      addToast('error', error instanceof Error ? error.message : 'Erro ao criar regra');
+    }
+  };
+
+  const simulateEvent = async () => {
+    try {
+      await simulateBlazeEvent(form.eventType, `Evento simulado para ${form.eventType}`);
+      addToast('success', 'Evento simulado enviado');
+      await reloadAll();
+    } catch (error) {
+      addToast('error', error instanceof Error ? error.message : 'Erro ao simular evento');
+    }
+  };
 
   const ruleColumns: Column<AlertRule>[] = [
     { key: 'name', header: 'Nome', sortable: true },
-    { key: 'type', header: 'Tipo', render: (r) => <Badge variant="neutral">{r.type}</Badge> },
-    { key: 'condition', header: 'Condicao' },
-    { key: 'active', header: 'Status', render: (r) => <Badge variant={r.active ? 'success' : 'neutral'} dot>{r.active ? 'Ativa' : 'Inativa'}</Badge> },
+    { key: 'eventType', header: 'Evento', render: (r) => <Badge variant="neutral">{r.eventType}</Badge> },
+    { key: 'condition', header: 'Condicao', render: (r) => conditionLabels[r.condition] },
+    { key: 'threshold', header: 'Limite', sortable: true },
+    { key: 'enabled', header: 'Status', render: (r) => <Badge variant={r.enabled ? 'success' : 'neutral'} dot>{r.enabled ? 'Ativa' : 'Inativa'}</Badge> },
     {
       key: 'actions', header: '', width: 80,
       render: (r) => (
-        <button className="btn btn-danger btn-sm" onClick={() => {
-          setRules(rules.filter((x) => x.id !== r.id));
-          addToast('success', 'Regra removida');
-        }}>
+        <button
+          className="btn btn-danger btn-sm btn-icon"
+          aria-label={`Remover regra ${r.name}`}
+          onClick={async () => {
+            try {
+              await deleteAlertRule(r.id);
+              addToast('success', 'Regra removida');
+              await reloadAll();
+            } catch (error) {
+              addToast('error', error instanceof Error ? error.message : 'Erro ao remover regra');
+            }
+          }}
+        >
           <Trash2 size={12} />
         </button>
       ),
@@ -81,100 +119,76 @@ export default function Alerts() {
 
   const alertColumns: Column<AlertEvent>[] = [
     {
-      key: 'createdAt', header: 'Quando', width: 160,
-      render: (a) => <span className="mono" style={{ fontSize: 12 }}>{new Date(a.createdAt).toLocaleString('pt-BR')}</span>,
+      key: 'triggeredAt', header: 'Quando', width: 170,
+      render: (a) => <span className="mono" style={{ fontSize: 12 }}>{new Date(a.triggeredAt).toLocaleString('pt-BR')}</span>,
     },
     { key: 'ruleName', header: 'Regra', sortable: true },
+    { key: 'eventType', header: 'Evento', render: (a) => <Badge variant="neutral">{a.eventType}</Badge> },
     { key: 'message', header: 'Mensagem' },
     {
-      key: 'severity', header: 'Severidade',
-      render: (a) => <Badge variant={severityColors[a.severity] || 'neutral'}>{a.severity}</Badge>,
+      key: 'acknowledged', header: 'Status',
+      render: (a) => <Badge variant={severityFor(a.acknowledged)}>{a.acknowledged ? 'Reconhecido' : 'Pendente'}</Badge>,
     },
     {
-      key: 'acknowledged', header: 'Status',
-      render: (a) => <Badge variant={a.acknowledged ? 'success' : 'warning'}>{a.acknowledged ? 'Reconhecido' : 'Pendente'}</Badge>,
+      key: 'actions', header: '', width: 80,
+      render: (a) => !a.acknowledged && (
+        <button
+          className="btn btn-secondary btn-sm btn-icon"
+          aria-label={`Reconhecer alerta ${a.ruleName}`}
+          onClick={async () => {
+            try {
+              await acknowledgeAlert(a.id);
+              addToast('success', 'Alerta reconhecido');
+              await reloadAll();
+            } catch (error) {
+              addToast('error', error instanceof Error ? error.message : 'Erro ao reconhecer alerta');
+            }
+          }}
+        >
+          <Check size={12} />
+        </button>
+      ),
     },
   ];
 
+  const visibleHistory = history || [];
+  const visibleRules = rules || [];
+
   return (
-    <Layout title="Alertas" subtitle="Regras e historico de alertas">
-      {/* Stats */}
+    <Layout title="Alertas" subtitle="Regras, disparos e historico conectados ao backend">
       <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <StatsCard
-          title="Regras Ativas"
-          value={rules.filter((r) => r.active).length}
-          icon={<Bell size={18} />}
-          color="primary"
-          subtitle={`${rules.length} total`}
-        />
-        <StatsCard
-          title="Alertas Pendentes"
-          value={alerts.filter((a) => !a.acknowledged).length}
-          icon={<BellRing size={18} />}
-          color="warning"
-          subtitle={`${alerts.length} total`}
-        />
-        <StatsCard
-          title="Sistema"
-          value={status ? 'Online' : 'Offline'}
-          icon={<Clock size={18} />}
-          color={status ? 'success' : 'error'}
-        />
+        <StatsCard title="Regras Ativas" value={stats?.enabledRules ?? 0} icon={<Bell size={18} />} color="primary" subtitle={`${stats?.totalRules ?? 0} total`} />
+        <StatsCard title="Alertas Pendentes" value={activeAlerts?.length ?? 0} icon={<BellRing size={18} />} color="warning" subtitle={`${stats?.totalAlerts ?? 0} historico`} />
+        <StatsCard title="Reconhecidos" value={stats?.acknowledgedAlerts ?? 0} icon={<Check size={18} />} color="success" />
       </div>
 
-      {/* Tabs */}
-      <div className="tabs">
-        <button
-          className={`tab ${activeTab === 'rules' ? 'active' : ''}`}
-          onClick={() => setActiveTab('rules')}
-        >
-          Regras
-        </button>
-        <button
-          className={`tab ${activeTab === 'history' ? 'active' : ''}`}
-          onClick={() => setActiveTab('history')}
-        >
-          Historico
-        </button>
+      <div className="section-header">
+        <div className="tabs" style={{ marginBottom: 0 }}>
+          <button className={`tab ${activeTab === 'rules' ? 'active' : ''}`} onClick={() => setActiveTab('rules')}>Regras</button>
+          <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Historico</button>
+        </div>
+        <div className="flex gap-sm">
+          <button className="btn btn-secondary btn-sm" onClick={simulateEvent}>
+            <Play size={14} />
+            Simular Evento
+          </button>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+            <Plus size={14} />
+            Nova Regra
+          </button>
+        </div>
       </div>
 
-      {/* Rules tab */}
-      {activeTab === 'rules' && (
-        <div>
-          <div className="section-header">
-            <span className="section-title">Regras de Alerta</span>
-            <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
-              <Plus size={14} />
-              Nova Regra
-            </button>
-          </div>
-          <DataTable
-            columns={ruleColumns}
-            data={rules}
-            filterable
-            filterKeys={['name', 'type', 'condition']}
-            emptyMessage="Nenhuma regra configurada."
-          />
-        </div>
+      {activeTab === 'rules' ? (
+        rulesLoading && !rules ? <div className="skeleton-list" /> : (
+          <DataTable columns={ruleColumns} data={visibleRules} filterable filterKeys={['name', 'eventType', 'condition']} emptyMessage="Nenhuma regra configurada." />
+        )
+      ) : (
+        historyLoading && !history ? <div className="skeleton-list" /> : (
+          <DataTable columns={alertColumns} data={visibleHistory} filterable filterKeys={['ruleName', 'message', 'eventType']} emptyMessage="Nenhum alerta registrado." />
+        )
       )}
 
-      {/* History tab */}
-      {activeTab === 'history' && (
-        <div>
-          <div className="section-header">
-            <span className="section-title">Historico de Alertas</span>
-          </div>
-          <DataTable
-            columns={alertColumns}
-            data={alerts}
-            filterable
-            filterKeys={['ruleName', 'message']}
-            emptyMessage="Nenhum alerta registrado."
-          />
-        </div>
-      )}
-
-      {/* Create rule modal */}
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
@@ -182,36 +196,33 @@ export default function Alerts() {
         footer={
           <>
             <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
-            <button className="btn btn-primary" onClick={() => {
-              addToast('success', 'Regra criada (demo)');
-              setShowCreateModal(false);
-            }}>Criar Regra</button>
+            <button className="btn btn-primary" onClick={createRule} disabled={!form.name.trim()}>Criar Regra</button>
           </>
         }
       >
         <div>
-          <label>Nome da Regra</label>
-          <input className="input" placeholder="Ex: Alerta de follow" />
+          <label htmlFor="alert-name">Nome da Regra</label>
+          <input id="alert-name" className="input" value={form.name} onChange={(event) => setForm({ ...form, name: event.target.value })} placeholder="Ex: Alerta de follow" />
         </div>
         <div>
-          <label>Tipo de Evento</label>
-          <select className="select">
-            <option value="follow">Follow</option>
-            <option value="chat">Mensagem de Chat</option>
-            <option value="subscribe">Subscriber</option>
-            <option value="raid">Raid</option>
+          <label htmlFor="alert-event-type">Tipo de Evento</label>
+          <select id="alert-event-type" className="select" value={form.eventType} onChange={(event) => setForm({ ...form, eventType: event.target.value as BlazeEventType })}>
+            {eventTypes.map((type) => <option key={type} value={type}>{type}</option>)}
           </select>
         </div>
         <div>
-          <label>Condicao</label>
-          <input className="input" placeholder="Ex: Quando recebido" />
+          <label htmlFor="alert-condition">Condicao</label>
+          <select id="alert-condition" className="select" value={form.condition} onChange={(event) => setForm({ ...form, condition: event.target.value as AlertCondition })}>
+            {conditions.map((condition) => <option key={condition} value={condition}>{conditionLabels[condition]}</option>)}
+          </select>
         </div>
         <div>
-          <label>Canal de Notificacao</label>
-          <select className="select">
-            <option value="overlay">Overlay</option>
-            <option value="console">Console</option>
-          </select>
+          <label htmlFor="alert-threshold">Limite</label>
+          <input id="alert-threshold" className="input" type="number" min={0} value={form.threshold} onChange={(event) => setForm({ ...form, threshold: Number(event.target.value) })} />
+        </div>
+        <div>
+          <label htmlFor="alert-template">Template da mensagem</label>
+          <input id="alert-template" className="input" value={form.template} onChange={(event) => setForm({ ...form, template: event.target.value })} placeholder="Opcional" />
         </div>
       </Modal>
     </Layout>

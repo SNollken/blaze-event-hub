@@ -36,7 +36,7 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {actions}
         <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? 'Online' : 'Offline'} />
-        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title="Atualizar status">
+        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title="Atualizar status" aria-label="Atualizar status">
           <RefreshCw size={14} />
         </button>
       </div>
