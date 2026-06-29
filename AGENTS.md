@@ -13,14 +13,11 @@
 - Tela MVP 1 de dashboard e provisoria e funcional. Nao gastar tempo refinando UI sem pedido explicito.
 - MVP 2 adiciona configuracao assistida da Blaze no mesmo dashboard provisorio e o endpoint `GET /api/blaze/setup`.
 - `/api/blaze/setup` deve devolver flags, checklist, scopes recomendados, proximos passos, links oficiais e exemplos com placeholders; nunca devolver valores reais nem campos publicos `clientSecret`, `client_secret`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `codeVerifier` ou `code_verifier`.
-- OAuth produto usa `GET /api/blaze/oauth/session`, `POST /api/blaze/oauth/refresh` e `POST /api/blaze/oauth/disconnect` para expor somente sessao segura, perfil resumido, renovacao e desconexao local.
-- Callback OAuth deve responder HTML amigavel para navegador e JSON seguro quando requisitado; nao ecoar authorization code, state real, code verifier, tokens, Client Secret ou URL completa de callback.
-- Perfil Blaze conectado deve ser resumo allowlist (`id`, `username`, `displayName`, `avatarUrl`, data de sync); nao persistir payload bruto, headers, tokens ou segredo.
 - Scopes padrao devem ficar em privilegio minimo: `users.read,offline.access`. `channel.moderate` e `users.bot` so entram quando houver feature de chat/moderacao/bot validada.
-- Sempre validar `/`, `/dashboard`, `/api/health`, `/api/status`, `/api/blaze/setup`, `/api/blaze/oauth/session`, `/api/blaze/events/status`, `/api/overlay-profiles`, `/api/public/overlays/demo-overlay-obs-mvp/manifest` e `/overlay/demo-overlay-obs-mvp` no smoke do dashboard/runtime.
-- Se smoke de overlay runtime falhar durante tarefa OAuth, registrar como fora de escopo e nao mexer em `feature/overlay-runtime-obs` nem em arquivos `overlay-runtime.*`.
+- Sempre validar `/`, `/dashboard`, `/api/health`, `/api/status`, `/api/blaze/setup`, `/api/blaze/events/status`, `/api/overlay-profiles`, `/api/public/overlays/demo-overlay-obs-mvp/manifest` e `/overlay/demo-overlay-obs-mvp` no smoke do dashboard/runtime.
 - A tela provisoria deve continuar resiliente sem credenciais reais, sem token e sem Events rodando.
-- Se houver trabalho paralelo em overlay ou WIP de outra sessao, usar worktree separado para `feature/oauth-blaze`; nao trocar branch do working tree ocupado.
+- Runtime publico de overlay OBS deve ser servido em `/overlay/{publicToken}`, sem dashboard, sem navbar, com fundo transparente e sem expor secrets/tokens.
+- Ao testar runtime local, fechar o backend iniciado pela tarefa e confirmar porta 8080 livre ao final.
 - Design final do dashboard vira depois no OpenDesign/opencode.
 - Nao abrir PR automatico. Commits e pushes seguem a branch combinada.
 - Features devem usar `feature/*` e integrar direto em `dev` quando validadas.

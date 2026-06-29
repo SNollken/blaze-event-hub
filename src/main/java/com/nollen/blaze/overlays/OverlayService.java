@@ -9,6 +9,7 @@ import java.util.ArrayList;
 import java.util.HexFormat;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Set;
 
 import com.nollen.blaze.common.IdGenerator;
@@ -26,6 +27,7 @@ public class OverlayService {
 	private static final long MAX_ASSET_BYTES = 10 * 1024 * 1024;
 	private static final Set<String> ALLOWED_MIME_TYPES = Set.of("image/png", "image/gif", "image/webp");
 	private static final Set<String> BLOCKED_EXTENSIONS = Set.of("exe", "bat", "cmd", "html", "js", "svg");
+	static final String DEMO_PUBLIC_TOKEN = "demo-overlay-obs-mvp";
 
 	private final OverlayRepository repository;
 	private final OverlayAssetStorage assetStorage;
@@ -45,19 +47,43 @@ public class OverlayService {
 			return;
 		}
 		OverlayProfile profile = createProfile(new CreateOverlayProfileRequest("Demo", "Perfil de demonstracao local"));
-		Overlay overlay = createOverlay(profile.id(), new CreateOverlayRequest("Overlay de Teste", "demo", true, OverlayConfig.defaultConfig()));
+		Instant now = Instant.now(clock);
+		Overlay overlay = repository.saveOverlay(new Overlay(
+				idGenerator.newId(),
+				profile.id(),
+				"Overlay de Teste",
+				"demo",
+				DEMO_PUBLIC_TOKEN,
+				true,
+				OverlayConfig.defaultConfig(),
+				List.of(),
+				List.of(),
+				now,
+				now));
 		createLayer(overlay.id(), new CreateOverlayLayerRequest(
 				OverlayLayerType.TEXT,
 				80,
 				80,
-				640,
+				760,
 				120,
 				1,
 				true,
 				1.0,
-				"NollenBlaze",
+				"NollenBlaze Overlay Demo",
 				null,
-				null));
+				Map.of("fontSize", 56, "fontWeight", "700", "color", "#ffffff", "textAlign", "left")));
+		createLayer(overlay.id(), new CreateOverlayLayerRequest(
+				OverlayLayerType.SHAPE,
+				80,
+				800,
+				400,
+				8,
+				0,
+				true,
+				0.6,
+				null,
+				null,
+				Map.of("backgroundColor", "#00d4ff", "borderRadius", "4")));
 	}
 
 	public List<OverlayProfile> listProfiles() {
@@ -91,8 +117,12 @@ public class OverlayService {
 	}
 
 	public void deleteProfile(String profileId) {
-		getProfile(profileId);
-		repository.deleteProfile(profileId);
+		OverlayProfile profile = getProfile(profileId);
+		List<Overlay> overlays = repository.listOverlays(profile.id());
+		for (Overlay overlay : overlays) {
+			overlay.assets().forEach(asset -> assetStorage.delete(asset.id()));
+		}
+		repository.deleteProfile(profile.id());
 	}
 
 	public List<Overlay> listOverlays(String profileId) {
@@ -214,6 +244,30 @@ public class OverlayService {
 		repository.saveOverlay(copyWithLayers(overlay, overlay.layers().stream()
 				.filter(layer -> !layer.id().equals(layerId))
 				.toList()));
+	}
+
+	public byte[] readPublicAsset(String publicToken, String assetId) {
+		if (!StringUtils.hasText(publicToken) || !StringUtils.hasText(assetId)) {
+			throw new NotFoundException("Asset not found");
+		}
+		Overlay overlay = repository.findByPublicToken(publicToken)
+				.orElseThrow(() -> new NotFoundException("Overlay not found"));
+		boolean owns = overlay.assets().stream().anyMatch(a -> a.id().equals(assetId));
+		if (!owns) {
+			throw new NotFoundException("Asset not found");
+		}
+		return assetStorage.read(assetId)
+				.orElseThrow(() -> new NotFoundException("Asset not found"));
+	}
+
+	public String assetMimeType(String publicToken, String assetId) {
+		Overlay overlay = repository.findByPublicToken(publicToken)
+				.orElseThrow(() -> new NotFoundException("Overlay not found"));
+		return overlay.assets().stream()
+				.filter(a -> a.id().equals(assetId))
+				.map(OverlayAsset::mimeType)
+				.findFirst()
+				.orElse("application/octet-stream");
 	}
 
 	public OverlayManifestResponse manifest(String publicToken) {

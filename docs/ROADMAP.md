@@ -15,6 +15,7 @@
 - MVP 1 concluido: painel provisorio em `/` e `/dashboard` para health/status, OAuth start, Events noop/status, canal monitorado, overlay profiles e manifest demo.
 - Correcao de regressao: `/` e `/dashboard` devem servir a tela provisoria sem credenciais reais; o JS deve mostrar estados indisponiveis em vez de travar se algum endpoint de status falhar.
 - MVP 2 concluido: configuracao assistida da Blaze no dashboard e `GET /api/blaze/setup` com checklist, Redirect URI, scopes minimos, exemplo `.env`, links oficiais, proximos passos e contrato sem segredos/tokens.
+- Overlay Runtime OBS MVP concluido em branch `feature/overlay-runtime-obs`: `GET /overlay/{publicToken}` consome manifest publico, renderiza camadas simples em 16:9 transparente para OBS e mantem Overlay Studio visual para fase futura. Integrar em `dev` somente depois da linha OAuth paralela.
 
 ## Fase 3: OAuth real e perfil
 
@@ -35,6 +36,7 @@
 
 ## Fase 5: overlay studio visual
 
+- Runtime publico OBS ja existe como MVP; esta fase deve focar editor/preview visual, nao no HTML publico basico.
 - Editor visual de layers.
 - Preview por overlay.
 - Controles de texto, imagem, shape e ordenacao.
