@@ -12,10 +12,10 @@
 
 ## Fase 2: frontend/dashboard
 
-- MVP 1 concluido: painel provisorio em `/` e `/dashboard` para health/status, OAuth start, Events noop/status, canal monitorado, overlay profiles e manifest demo.
-- Correcao de regressao: `/` e `/dashboard` devem servir a tela provisoria sem credenciais reais; o JS deve mostrar estados indisponiveis em vez de travar se algum endpoint de status falhar.
+- Frontend React unificado concluido: dashboard, live events, Blaze Channel, Alerts, Giveaways e Overlays em Vite.
+- Rotas `/`, `/dashboard` e rotas legadas servem shell React sem depender de HTML estatico paralelo.
 - MVP 2 concluido: configuracao assistida da Blaze no dashboard e `GET /api/blaze/setup` com checklist, Redirect URI, scopes minimos, exemplo `.env`, links oficiais, proximos passos e contrato sem segredos/tokens.
-- Overlay Runtime OBS MVP concluido em branch `feature/overlay-runtime-obs`: `GET /overlay/{publicToken}` consome manifest publico, renderiza camadas simples em 16:9 transparente para OBS e mantem Overlay Studio visual para fase futura. Integrar em `dev` somente depois da linha OAuth paralela.
+- Overlay Runtime OBS MVP integrado: `GET /overlay/{publicToken}` consome manifest publico e renderiza camadas simples em 16:9 transparente para OBS.
 
 ## Fase 3: OAuth real e perfil
 
@@ -33,6 +33,13 @@
 - Validar biblioteca Socket.IO Java e reconexao.
 - Capturar `session_welcome`, obter `sessionId` e sincronizar subscriptions reais.
 - Auditar erros 401/403 sem expor tokens.
+- Alert Engine ja recebe envelopes aceitos pelo runner via `BlazeEventsPipeline`.
+
+## Fase 4.5: persistencia e admin MVP
+
+- H2 dev/test integrado para alerts, events log, canal Blaze, live events, giveaways e overlays.
+- API key basica integrada para endpoints administrativos.
+- Persistencia OAuth segura segue pendente para uma fase dedicada, sem alterar o fluxo OAuth atual.
 
 ## Fase 5: overlay studio visual
 

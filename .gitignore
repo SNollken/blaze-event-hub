@@ -1,4 +1,9 @@
 target/
+data/
+*.tsbuildinfo
+.MIMO_*.md
+ANALISE_PROFUNDA_*.md
+PROMPT_CODEX_*.md
 .mvn/wrapper/maven-wrapper.jar
 !**/src/main/**/target/
 !**/src/test/**/target/

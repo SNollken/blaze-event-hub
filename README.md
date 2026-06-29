@@ -7,9 +7,11 @@ Backend limpo do NollenBlaze para integracao server-side com blaze.stream, OAuth
 - Java 21
 - Spring Boot 3.5.3
 - Maven Wrapper
-- Spring Web, Validation, Actuator
+- Spring Web, Validation, Actuator, JDBC
+- H2 para dev/testes
 - RestClient para HTTP
-- Storage inicial in-memory
+- Frontend React + Vite em `frontend/`
+- Storage H2 para Alerts, Events log, Canal Blaze, Live Events, Giveaways e Overlays
 
 ## Como rodar
 
@@ -25,20 +27,40 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 Copie os nomes de variaveis de `.env.example` para um `.env` local se for testar Blaze real. Nunca commite `.env`.
 
-## MVP 1 - Painel provisorio
+O backend exige API key nos endpoints administrativos de `/api/**`, exceto health/status, callback OAuth e rotas publicas de overlay. Em dev, se `NOLLEN_API_KEY` nao estiver definida, a chave padrao e `dev-local-key`.
 
-O MVP 1 inclui uma tela funcional minima servida pelo proprio Spring Boot. Ela existe para testar fluxo, estados e endpoints; o design final sera feito depois no OpenDesign/opencode.
+```powershell
+$headers = @{ 'X-Nollen-Api-Key' = 'dev-local-key' }
+Invoke-WebRequest http://localhost:8080/api/alerts/stats -Headers $headers -UseBasicParsing
+```
+
+Para o frontend React:
+
+```powershell
+cd frontend
+npm install
+npm run dev
+```
+
+O Vite roda em `http://localhost:5173` e faz proxy de `/api` para `http://localhost:8080`.
+
+## Frontend React
+
+O dashboard principal e o frontend React unificado. O Spring Boot serve um shell HTML para rotas SPA e rotas legadas, enquanto o Vite serve a experiencia completa em desenvolvimento.
 
 - Tela inicial: `http://localhost:8080/`
 - Dashboard: `http://localhost:8080/dashboard`
+- Frontend dev: `http://localhost:5173/`
 - Health usado pela tela: `GET /api/health`
 - Status seguro usado pela tela: `GET /api/status`
 - Events usados pela tela: `GET /api/blaze/events/status`, `POST /api/blaze/events/start`, `POST /api/blaze/events/stop`, `POST /api/blaze/events/subscriptions/sync`
 - OAuth usado pela tela: `POST /api/blaze/oauth/start`
+- Alertas usados pela tela: `GET/POST/DELETE /api/alerts/rules`, `GET /api/alerts/history`, `GET /api/alerts/active`, `POST /api/alerts/acknowledge/{id}`
+- Sorteios usados pela tela: `GET/POST /api/giveaways`, `POST /api/giveaways/{id}/open`, `POST /api/giveaways/{id}/close`, `POST /api/giveaways/{id}/enter`, `POST /api/giveaways/{id}/draw`
 - Overlays usados pela tela: `GET /api/overlay-profiles`, `GET /api/overlay-profiles/{profileId}/overlays`, `GET /api/public/overlays/{publicToken}/manifest`
 - Runtime publico OBS: `GET /overlay/{publicToken}`
 
-A tela mostra apenas flags e respostas sanitizadas. Ela nao deve exibir `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais.
+O frontend nao recebe `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais. As rotas antigas `/alerts-dashboard`, `/giveaways-dashboard`, `/live-events` e `/overlays-dashboard` continuam respondendo, mas agora servem o shell React em vez de dashboards estaticos paralelos.
 
 ## MVP 2 - Configuracao assistida da Blaze
 
@@ -61,7 +83,7 @@ BLAZE_SCOPES=users.read,offline.access
 
 Scopes como `channel.moderate` e `users.bot` ficam reservados para fases futuras de chat/moderacao/bot, depois de haver necessidade real.
 
-Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `dev`, se o app foi reiniciado depois do checkout e se `src/main/resources/static/dashboard.html` esta empacotado. O smoke minimo do dashboard deve validar:
+Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `dev` e se o app foi reiniciado depois do checkout. O smoke minimo do dashboard deve validar:
 
 ```powershell
 Invoke-WebRequest http://localhost:8080/ -UseBasicParsing
@@ -124,6 +146,17 @@ Limitacoes atuais:
 - `POST /api/blaze/events/start`
 - `POST /api/blaze/events/stop`
 - `POST /api/blaze/events/subscriptions/sync`
+- `GET /api/alerts/rules`
+- `POST /api/alerts/rules`
+- `GET /api/alerts/history`
+- `GET /api/alerts/active`
+- `POST /api/alerts/acknowledge/{id}`
+- `GET /api/giveaways`
+- `POST /api/giveaways`
+- `POST /api/giveaways/{id}/open`
+- `POST /api/giveaways/{id}/close`
+- `POST /api/giveaways/{id}/enter`
+- `POST /api/giveaways/{id}/draw`
 - `GET /api/overlay-profiles`
 - `POST /api/overlay-profiles`
 - `GET /api/overlay-profiles/{profileId}/overlays`
@@ -154,19 +187,22 @@ OAuth e server-side. `clientSecret`, `codeVerifier`, `accessToken` e `refreshTok
 
 REST usa `RestClient`, header `client-id`, bearer token e tratamento explicito para erros HTTP da Blaze.
 
-Events esta preparado como abstracao segura. A implementacao atual nao abre Socket.IO real; ela oferece runner, status, captura de `session_welcome`, `sessionId` e sincronizacao de subscriptions in-memory para uma proxima fase com cliente Socket.IO Java validado.
+Events esta preparado como abstracao segura. A implementacao atual nao abre Socket.IO real; ela oferece runner, status, captura de `session_welcome`, `sessionId` e sincronizacao de subscriptions. Envelopes aceitos pelo runner passam pelo pipeline de log, Live Event Intake e Alert Engine.
 
 ## Testes
 
 ```powershell
-.\mvnw.cmd test
+.\mvnw.cmd clean verify
+cd frontend
+npm test
+npm run build
+npm audit --audit-level=moderate
 ```
 
-A suite cobre health/status, propriedades seguras, OAuth, REST client, Events e overlays.
+A suite cobre health/status, propriedades seguras, OAuth, REST client, Events, alerts, giveaways, overlays e smoke tests React.
 
 ## Proximos passos
 
-- Persistir tokens e overlays em banco seguro.
 - Integrar cliente Socket.IO real depois de validar biblioteca e reconexao.
 - Fazer smoke E2E com credenciais Blaze reais fora do repositorio.
-- Evoluir o dashboard/frontend final em fase separada.
+- Persistir tokens OAuth em storage seguro sem expor credenciais.
