@@ -15,6 +15,7 @@ logs/
 .hermes/
 test-results/
 screenshots/
+frontend-audit/
 frontend-audit/screenshots-overlay-runtime-obs/
 tmp/
 *.tmp

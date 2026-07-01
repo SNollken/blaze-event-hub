@@ -38,13 +38,22 @@ class DashboardMvpControllerTests {
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
-				.andExpect(content().string(containsString("Frontend React unificado")))
-				.andExpect(content().string(containsString("id=\"root\"")));
+				.andExpect(content().string(containsString("Dashboard Shell MVP")))
+				.andExpect(content().string(containsString("data-section-target=\"overview\"")))
+				.andExpect(content().string(containsString("/dashboard.js")));
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
-				.andExpect(content().string(containsString("/src/main.tsx")));
+				.andExpect(content().string(containsString("Conta Blaze")))
+				.andExpect(content().string(containsString("/dashboard.css")));
+
+		mockMvc.perform(get("/dashboard.js"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("API_KEY")))
+				.andExpect(content().string(not(containsString("accessToken"))))
+				.andExpect(content().string(not(containsString("refreshToken"))))
+				.andExpect(content().string(not(containsString("clientSecret"))));
 	}
 
 	@Test
@@ -55,7 +64,7 @@ class DashboardMvpControllerTests {
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("Frontend React unificado")));
+				.andExpect(content().string(containsString("Dashboard Shell MVP")));
 
 		mockMvc.perform(get("/api/health"))
 				.andExpect(status().isOk())

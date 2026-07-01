@@ -12,8 +12,10 @@
 
 ## Fase 2: frontend/dashboard
 
+- Dashboard Shell MVP provisorio integrado: `/` e `/dashboard` servem HTML/CSS/JS simples com sidebar para Visao geral, Conta Blaze, Canal monitorado, Events, Live Events, Alertas, Sorteios, Overlays, Configuracoes e Diagnostico.
+- O shell consome endpoints existentes e trata ausencias/erros como estados amigaveis, sem JSON bruto e sem expor tokens ou segredos.
 - Frontend React unificado concluido: dashboard, live events, Blaze Channel, Alerts, Giveaways e Overlays em Vite.
-- Rotas `/`, `/dashboard` e rotas legadas servem shell React sem depender de HTML estatico paralelo.
+- Rotas `/`, `/dashboard` e rotas legadas servem o shell provisorio atual enquanto o design final fica pendente para OpenDesign.
 - MVP 2 concluido: configuracao assistida da Blaze no dashboard e `GET /api/blaze/setup` com checklist, Redirect URI, scopes minimos, exemplo `.env`, links oficiais, proximos passos e contrato sem segredos/tokens.
 - Overlay Runtime OBS MVP integrado: `GET /overlay/{publicToken}` consome manifest publico e renderiza camadas simples em 16:9 transparente para OBS.
 

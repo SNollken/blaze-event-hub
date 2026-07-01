@@ -12,6 +12,7 @@
 - Manter historico Git limpo. Evitar merge commit desnecessario.
 - Tela MVP 1 de dashboard e provisoria e funcional. Nao gastar tempo refinando UI sem pedido explicito.
 - MVP 2 adiciona configuracao assistida da Blaze no mesmo dashboard provisorio e o endpoint `GET /api/blaze/setup`.
+- Dashboard Shell MVP provisorio usa `src/main/resources/static/dashboard.html`, `dashboard.css` e `dashboard.js` com sidebar para modulos existentes; design final continua reservado para OpenDesign/opencode.
 - `/api/blaze/setup` deve devolver flags, checklist, scopes recomendados, proximos passos, links oficiais e exemplos com placeholders; nunca devolver valores reais nem campos publicos `clientSecret`, `client_secret`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `codeVerifier` ou `code_verifier`.
 - Scopes padrao devem ficar em privilegio minimo: `users.read,offline.access`. `channel.moderate` e `users.bot` so entram quando houver feature de chat/moderacao/bot validada.
 - Sempre validar `/`, `/dashboard`, `/api/health`, `/api/status`, `/api/blaze/setup`, `/api/blaze/events/status`, `/api/overlay-profiles`, `/api/public/overlays/demo-overlay-obs-mvp/manifest` e `/overlay/demo-overlay-obs-mvp` no smoke do dashboard/runtime.
