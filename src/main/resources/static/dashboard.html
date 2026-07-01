@@ -1,0 +1,304 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1">
+	<title>NollenBlaze - Dashboard Shell MVP</title>
+	<link rel="icon" href="data:,">
+	<link rel="stylesheet" href="/dashboard.css">
+</head>
+<body>
+	<div class="app-shell">
+		<aside class="sidebar" aria-label="Navegacao principal">
+			<div class="brand">
+				<span class="brand-mark" aria-hidden="true">NB</span>
+				<div>
+					<strong>NollenBlaze</strong>
+					<span>Dashboard Shell MVP</span>
+				</div>
+			</div>
+			<nav class="nav-list" aria-label="Secoes do dashboard">
+				<button class="nav-item active" type="button" data-section-target="overview">Visao geral</button>
+				<button class="nav-item" type="button" data-section-target="account">Conta Blaze</button>
+				<button class="nav-item" type="button" data-section-target="channel">Canal monitorado</button>
+				<button class="nav-item" type="button" data-section-target="events">Events</button>
+				<button class="nav-item" type="button" data-section-target="live-events">Live Events</button>
+				<button class="nav-item" type="button" data-section-target="alerts">Alertas</button>
+				<button class="nav-item" type="button" data-section-target="giveaways">Sorteios</button>
+				<button class="nav-item" type="button" data-section-target="overlays">Overlays</button>
+				<button class="nav-item" type="button" data-section-target="settings">Configuracoes</button>
+				<button class="nav-item" type="button" data-section-target="diagnostic">Diagnostico</button>
+			</nav>
+			<div class="sidebar-footer">
+				<span id="sidebar-health" class="badge badge-pending">Carregando</span>
+				<span id="sidebar-updated">Aguardando dados</span>
+			</div>
+		</aside>
+
+		<main class="main-panel">
+			<header class="topbar">
+				<div>
+					<p class="eyebrow">Painel provisorio</p>
+					<h1 id="page-title">Visao geral</h1>
+				</div>
+				<div class="topbar-actions">
+					<a class="button button-secondary" href="/overlay/demo-overlay-obs-mvp" target="_blank" rel="noreferrer">Abrir overlay</a>
+					<button id="refresh-dashboard" class="button" type="button">Atualizar</button>
+				</div>
+			</header>
+
+			<div id="toast-region" class="toast-region" aria-live="polite"></div>
+
+			<section id="overview" class="dashboard-section active" aria-labelledby="overview-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Resumo</p>
+						<h2 id="overview-title">Visao geral</h2>
+					</div>
+					<span id="overview-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div id="overview-metrics" class="metric-grid"></div>
+				<div class="content-grid">
+					<article class="card">
+						<div class="card-header">
+							<h3>Ultimos eventos</h3>
+							<span id="events-log-state" class="badge badge-muted">Aguardando</span>
+						</div>
+						<div id="overview-events-list" class="list"></div>
+					</article>
+					<article class="card">
+						<div class="card-header">
+							<h3>Modulos</h3>
+							<span class="badge badge-muted">MVP</span>
+						</div>
+						<div id="overview-modules" class="status-list"></div>
+					</article>
+				</div>
+			</section>
+
+			<section id="account" class="dashboard-section" aria-labelledby="account-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">OAuth seguro</p>
+						<h2 id="account-title">Conta Blaze</h2>
+					</div>
+					<span id="account-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<div class="card-header">
+							<h3>Sessao</h3>
+							<span id="session-state" class="badge badge-muted">Sem dados</span>
+						</div>
+						<div id="account-summary" class="status-list"></div>
+						<div class="actions">
+							<button class="button" type="button" data-action="oauth-start">Conectar</button>
+							<button class="button button-secondary" type="button" data-action="oauth-refresh">Atualizar sessao</button>
+							<button class="button button-secondary" type="button" data-action="reload-session">Refresh</button>
+							<button class="button button-danger" type="button" data-action="oauth-disconnect">Desconectar</button>
+						</div>
+					</article>
+					<article class="card">
+						<h3>Perfil conectado</h3>
+						<div id="profile-summary" class="empty-state">Nenhum perfil conectado nesta sessao.</div>
+					</article>
+				</div>
+			</section>
+
+			<section id="channel" class="dashboard-section" aria-labelledby="channel-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Entrada dos Events</p>
+						<h2 id="channel-title">Canal monitorado</h2>
+					</div>
+					<span id="channel-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<h3>Canal ativo</h3>
+						<div id="channel-summary" class="status-list"></div>
+					</article>
+					<article class="card">
+						<h3>Configurar canal</h3>
+						<form id="channel-form" class="form-grid">
+							<label for="channel-name">Nome</label>
+							<input id="channel-name" name="name" type="text" autocomplete="off" placeholder="Canal principal">
+							<label for="channel-id">Channel ID</label>
+							<input id="channel-id" name="channelId" type="text" autocomplete="off" placeholder="ID do canal">
+							<div class="actions">
+								<button class="button" type="submit">Salvar</button>
+								<button class="button button-secondary" type="button" data-action="clear-channel">Limpar</button>
+							</div>
+						</form>
+						<p class="helper-text">Este canal sera usado pelos Events quando o modulo estiver configurado.</p>
+					</article>
+				</div>
+			</section>
+
+			<section id="events" class="dashboard-section" aria-labelledby="events-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Runner e cliente</p>
+						<h2 id="events-title">Events</h2>
+					</div>
+					<span id="events-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<h3>Status do modulo</h3>
+						<div id="events-summary" class="status-list"></div>
+						<div class="actions">
+							<button class="button" type="button" data-action="events-start">Iniciar</button>
+							<button class="button button-secondary" type="button" data-action="events-stop">Parar</button>
+							<button class="button button-secondary" type="button" data-action="events-simulate">Simular</button>
+						</div>
+					</article>
+					<article class="card">
+						<div class="card-header">
+							<h3>Log</h3>
+							<span id="events-log-count" class="badge badge-muted">0 itens</span>
+						</div>
+						<div id="events-log-list" class="list"></div>
+					</article>
+				</div>
+			</section>
+
+			<section id="live-events" class="dashboard-section" aria-labelledby="live-events-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Intake</p>
+						<h2 id="live-events-title">Live Events</h2>
+					</div>
+					<span id="live-events-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="toolbar">
+					<label for="live-filter">Filtro</label>
+					<select id="live-filter">
+						<option value="">Todos</option>
+						<option value="RECEIVED">Recebidos</option>
+						<option value="PROCESSED">Processados</option>
+						<option value="DUPLICATE">Duplicados</option>
+					</select>
+					<button class="button button-secondary" type="button" data-action="live-simulate">Simular evento</button>
+				</div>
+				<div id="live-events-list" class="table-wrap"></div>
+			</section>
+
+			<section id="alerts" class="dashboard-section" aria-labelledby="alerts-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Alert Engine</p>
+						<h2 id="alerts-title">Alertas</h2>
+					</div>
+					<span id="alerts-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<div class="card-header">
+							<h3>Fila ativa</h3>
+							<span id="active-alerts-count" class="badge badge-muted">0</span>
+						</div>
+						<div id="active-alerts-list" class="list"></div>
+					</article>
+					<article class="card">
+						<h3>Simular</h3>
+						<div class="actions actions-wrap">
+							<button class="button button-secondary" type="button" data-action="alert-simulate" data-event="channel.follow">Follow</button>
+							<button class="button button-secondary" type="button" data-action="alert-simulate" data-event="channel.subscribe">Sub</button>
+							<button class="button button-secondary" type="button" data-action="alert-simulate" data-event="channel.vote">Donation</button>
+							<button class="button button-secondary" type="button" data-action="alert-simulate" data-event="channel.chat.message">Custom</button>
+						</div>
+						<div id="alert-history-list" class="list compact"></div>
+					</article>
+				</div>
+			</section>
+
+			<section id="giveaways" class="dashboard-section" aria-labelledby="giveaways-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Sorteios</p>
+						<h2 id="giveaways-title">Sorteios</h2>
+					</div>
+					<span id="giveaways-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<h3>Criar sorteio simples</h3>
+						<form id="giveaway-form" class="form-grid">
+							<label for="giveaway-title">Titulo</label>
+							<input id="giveaway-title" name="title" type="text" autocomplete="off" placeholder="Sorteio da live">
+							<label for="giveaway-limit">Limite de participantes</label>
+							<input id="giveaway-limit" name="maxEntries" type="number" min="1" value="50">
+							<button class="button" type="submit">Criar</button>
+						</form>
+					</article>
+					<article class="card">
+						<div class="card-header">
+							<h3>Lista</h3>
+							<span id="giveaways-count" class="badge badge-muted">0</span>
+						</div>
+						<div id="giveaways-list" class="list"></div>
+					</article>
+				</div>
+			</section>
+
+			<section id="overlays" class="dashboard-section" aria-labelledby="overlays-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">OBS</p>
+						<h2 id="overlays-title">Overlays</h2>
+					</div>
+					<span id="overlays-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<h3>Runtime demo</h3>
+						<div class="copy-row">
+							<code id="overlay-url">/overlay/demo-overlay-obs-mvp</code>
+							<button class="button button-secondary" type="button" data-action="copy-overlay-link">Copiar link</button>
+						</div>
+						<p class="helper-text">Use este link como Browser Source no OBS. O runtime publico nao carrega navbar nem dashboard.</p>
+						<div id="overlay-summary" class="status-list"></div>
+					</article>
+					<article class="card">
+						<h3>Profiles e manifest</h3>
+						<div id="overlay-profiles-list" class="list"></div>
+					</article>
+				</div>
+			</section>
+
+			<section id="settings" class="dashboard-section" aria-labelledby="settings-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Setup</p>
+						<h2 id="settings-title">Configuracoes</h2>
+					</div>
+					<span id="settings-state" class="badge badge-pending">Carregando</span>
+				</div>
+				<div class="content-grid">
+					<article class="card">
+						<h3>Ambiente</h3>
+						<div id="settings-summary" class="status-list"></div>
+					</article>
+					<article class="card">
+						<h3>Checklist</h3>
+						<div id="setup-checklist" class="list"></div>
+					</article>
+				</div>
+			</section>
+
+			<section id="diagnostic" class="dashboard-section" aria-labelledby="diagnostic-title">
+				<div class="section-heading">
+					<div>
+						<p class="eyebrow">Saude e contratos</p>
+						<h2 id="diagnostic-title">Diagnostico</h2>
+					</div>
+					<button class="button button-secondary" type="button" data-action="refresh-diagnostic">Atualizar diagnostico</button>
+				</div>
+				<div id="diagnostic-grid" class="diagnostic-grid"></div>
+			</section>
+		</main>
+	</div>
+	<script src="/dashboard.js" defer></script>
+</body>
+</html>

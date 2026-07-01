@@ -154,7 +154,8 @@ class RuntimeOverlayConfigControllerTests {
 		mockMvc.perform(get("/overlays-dashboard"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-				.andExpect(content().string(containsString("Frontend React unificado")));
+				.andExpect(content().string(containsString("Dashboard Shell MVP")))
+				.andExpect(content().string(containsString("Overlays")));
 	}
 
 	private String extractId(String jsonResponse) {

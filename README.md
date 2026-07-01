@@ -10,6 +10,7 @@ Backend limpo do NollenBlaze para integracao server-side com blaze.stream, OAuth
 - Spring Web, Validation, Actuator, JDBC
 - H2 para dev/testes
 - RestClient para HTTP
+- Dashboard Shell MVP estatico em `src/main/resources/static/dashboard.html`
 - Frontend React + Vite em `frontend/`
 - Storage H2 para Alerts, Events log, Canal Blaze, Live Events, Giveaways e Overlays
 
@@ -44,23 +45,34 @@ npm run dev
 
 O Vite roda em `http://localhost:5173` e faz proxy de `/api` para `http://localhost:8080`.
 
-## Frontend React
+## Dashboard Shell MVP
 
-O dashboard principal e o frontend React unificado. O Spring Boot serve um shell HTML para rotas SPA e rotas legadas, enquanto o Vite serve a experiencia completa em desenvolvimento.
+O dashboard servido pelo Spring Boot e um Dashboard Shell MVP provisorio em HTML/CSS/JS simples. Ele existe para organizar a navegacao real do produto ate o design final no OpenDesign, sem criar backend pesado nem mexer no fluxo OAuth.
 
 - Tela inicial: `http://localhost:8080/`
 - Dashboard: `http://localhost:8080/dashboard`
 - Frontend dev: `http://localhost:5173/`
+- Arquivos do shell: `src/main/resources/static/dashboard.html`, `dashboard.css` e `dashboard.js`
 - Health usado pela tela: `GET /api/health`
 - Status seguro usado pela tela: `GET /api/status`
+- Setup usado pela tela: `GET /api/blaze/setup`
+- Sessao OAuth usada pela tela: `GET /api/blaze/oauth/session`
 - Events usados pela tela: `GET /api/blaze/events/status`, `POST /api/blaze/events/start`, `POST /api/blaze/events/stop`, `POST /api/blaze/events/subscriptions/sync`
 - OAuth usado pela tela: `POST /api/blaze/oauth/start`
+- Canal usado pela tela: `GET/POST/PUT/DELETE /api/blaze/channel`
+- Live Events usados pela tela: `GET /api/live-events`, `GET /api/live-events/stats`, `POST /api/live-events/simulate`
 - Alertas usados pela tela: `GET/POST/DELETE /api/alerts/rules`, `GET /api/alerts/history`, `GET /api/alerts/active`, `POST /api/alerts/acknowledge/{id}`
 - Sorteios usados pela tela: `GET/POST /api/giveaways`, `POST /api/giveaways/{id}/open`, `POST /api/giveaways/{id}/close`, `POST /api/giveaways/{id}/enter`, `POST /api/giveaways/{id}/draw`
 - Overlays usados pela tela: `GET /api/overlay-profiles`, `GET /api/overlay-profiles/{profileId}/overlays`, `GET /api/public/overlays/{publicToken}/manifest`
 - Runtime publico OBS: `GET /overlay/{publicToken}`
 
-O frontend nao recebe `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais. As rotas antigas `/alerts-dashboard`, `/giveaways-dashboard`, `/live-events` e `/overlays-dashboard` continuam respondendo, mas agora servem o shell React em vez de dashboards estaticos paralelos.
+O shell tem sidebar esquerda com Visao geral, Conta Blaze, Canal monitorado, Events, Live Events, Alertas, Sorteios, Overlays, Configuracoes e Diagnostico. Endpoints ausentes, protegidos ou com erro sao tratados como "nao disponivel" ou "erro ao carregar", sem jogar JSON bruto na tela.
+
+O frontend nao recebe `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais. As rotas antigas `/alerts-dashboard`, `/giveaways-dashboard`, `/live-events` e `/overlays-dashboard` continuam respondendo pelo mesmo shell do dashboard.
+
+## Frontend React
+
+O frontend React + Vite permanece em `frontend/` para desenvolvimento e testes da experiencia anterior. Nesta fase, `/` e `/dashboard` no backend priorizam o shell MVP estatico para navegacao provisoria do produto.
 
 ## MVP 2 - Configuracao assistida da Blaze
 
@@ -86,13 +98,14 @@ Scopes como `channel.moderate` e `users.bot` ficam reservados para fases futuras
 Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `dev` e se o app foi reiniciado depois do checkout. O smoke minimo do dashboard deve validar:
 
 ```powershell
+$headers = @{ 'X-Nollen-Api-Key' = 'dev-local-key' }
 Invoke-WebRequest http://localhost:8080/ -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/dashboard -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/status -UseBasicParsing
-Invoke-WebRequest http://localhost:8080/api/blaze/setup -UseBasicParsing
-Invoke-WebRequest http://localhost:8080/api/blaze/events/status -UseBasicParsing
-Invoke-WebRequest http://localhost:8080/api/overlay-profiles -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/blaze/setup -Headers $headers -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/blaze/events/status -Headers $headers -UseBasicParsing
+Invoke-WebRequest http://localhost:8080/api/overlay-profiles -Headers $headers -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/public/overlays/demo-overlay-obs-mvp/manifest -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/overlay/demo-overlay-obs-mvp -UseBasicParsing
 ```
