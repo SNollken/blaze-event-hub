@@ -4,11 +4,13 @@ import java.time.Clock;
 import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Map;
-
 import com.nollen.blaze.common.IdGenerator;
+import com.nollen.blaze.points.LiveEventCreatedEvent;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.springframework.context.ApplicationEvent;
+import org.springframework.context.ApplicationEventPublisher;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -16,6 +18,7 @@ class LiveEventServiceTests {
 
 	private LiveEventService service;
 	private LiveEventStore store;
+	private Object lastPublishedEvent;
 
 	@BeforeEach
 	void setUp() {
@@ -25,7 +28,8 @@ class LiveEventServiceTests {
 		PayloadSanitizer sanitizer = new PayloadSanitizer();
 		IdGenerator idGenerator = new IdGenerator();
 		Clock clock = Clock.fixed(Instant.ofEpochSecond(1_000_000), ZoneOffset.UTC);
-		service = new LiveEventService(store, normalizer, deduplicator, sanitizer, idGenerator, clock);
+		ApplicationEventPublisher publisher = event -> lastPublishedEvent = event;
+		service = new LiveEventService(store, normalizer, deduplicator, sanitizer, idGenerator, clock, publisher);
 	}
 
 	@Test
@@ -92,5 +96,14 @@ class LiveEventServiceTests {
 		LiveEvent event = service.create(LiveEventType.CHAT_MESSAGE, LiveEventSource.MANUAL, payload, null);
 
 		assertFalse(event.payload().get("message").toString().contains("<script>"));
+	}
+
+	@Test
+	void createPublishesEvent() {
+		Map<String, Object> payload = Map.of("message", "test");
+		service.create(LiveEventType.FOLLOW, LiveEventSource.MANUAL, payload, null);
+
+		assertNotNull(lastPublishedEvent);
+		assertInstanceOf(LiveEventCreatedEvent.class, lastPublishedEvent);
 	}
 }

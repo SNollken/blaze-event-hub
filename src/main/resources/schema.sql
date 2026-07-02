@@ -120,3 +120,21 @@ CREATE TABLE IF NOT EXISTS runtime_overlay_configs (
 	position_height INT NOT NULL,
 	opacity DOUBLE NOT NULL
 );
+
+CREATE TABLE IF NOT EXISTS points_rules (
+    id VARCHAR(64) PRIMARY KEY,
+    event_type VARCHAR(80) NOT NULL,
+    points_per_event INT NOT NULL,
+    description VARCHAR(500),
+    enabled BOOLEAN NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS points_ledger (
+    id VARCHAR(64) PRIMARY KEY,
+    user_id VARCHAR(128) NOT NULL,
+    username VARCHAR(255),
+    points INT NOT NULL,
+    event_type VARCHAR(80) NOT NULL,
+    source_event_id VARCHAR(64),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);

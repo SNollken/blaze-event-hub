@@ -10,7 +10,9 @@ import java.util.Optional;
 
 import com.nollen.blaze.common.IdGenerator;
 import com.nollen.blaze.common.NotFoundException;
+import com.nollen.blaze.points.LiveEventCreatedEvent;
 
+import org.springframework.context.ApplicationEventPublisher;
 import org.springframework.stereotype.Service;
 
 @Service
@@ -22,16 +24,18 @@ public class LiveEventService {
 	private final PayloadSanitizer sanitizer;
 	private final IdGenerator idGenerator;
 	private final Clock clock;
+	private final ApplicationEventPublisher eventPublisher;
 
 	public LiveEventService(LiveEventStore store, LiveEventNormalizer normalizer,
 			LiveEventDeduplicator deduplicator, PayloadSanitizer sanitizer,
-			IdGenerator idGenerator, Clock clock) {
+			IdGenerator idGenerator, Clock clock, ApplicationEventPublisher eventPublisher) {
 		this.store = store;
 		this.normalizer = normalizer;
 		this.deduplicator = deduplicator;
 		this.sanitizer = sanitizer;
 		this.idGenerator = idGenerator;
 		this.clock = clock;
+		this.eventPublisher = eventPublisher;
 	}
 
 	public List<LiveEvent> listAll() {
@@ -96,7 +100,12 @@ public class LiveEventService {
 
 		LiveEvent event = new LiveEvent(id, type, source, LiveEventStatus.ACCEPTED,
 				normalizedPayload, now, effectiveDedupKey);
-		return store.save(event);
+		LiveEvent saved = store.save(event);
+		
+		// Publicar evento para Points Economy
+		eventPublisher.publishEvent(new LiveEventCreatedEvent(saved));
+		
+		return saved;
 	}
 
 	public LiveEvent simulate() {
