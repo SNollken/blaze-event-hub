@@ -15,16 +15,34 @@ const responses: Record<string, unknown> = {
     appName: 'Blaze Event Hub',
     version: '0.1.0',
     javaVersion: '21',
+    blazeOAuthConfigured: true,
+    eventsRunning: false,
+    sessionIdPresent: false,
+    oauthConnected: true,
+    profilePresent: true,
+    connectedAccountDisplayName: 'Sofia',
     uptimeSeconds: 120,
+    nextRecommendedAction: null,
   },
-  '/api/events': [],
+  '/api/blaze/oauth/session': {
+    connected: true,
+    tokenPresent: true,
+    profilePresent: true,
+    scopes: ['users.read'],
+    nextRecommendedAction: null,
+  },
+  '/api/blaze/oauth/start': {
+    authorizationUrl: 'https://example.com/auth',
+  },
   '/api/members/me': {
     id: 'user-1',
-    username: 'sofia',
+    blazeUserId: 'blaze-1',
+    blazeUsername: 'sofia',
     displayName: 'Sofia',
     avatarUrl: null,
+    status: 'ACTIVE',
   },
-  '/api/audit': [],
+  '/api/events': [],
 };
 
 beforeEach(() => {
