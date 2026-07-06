@@ -7,7 +7,10 @@ import java.util.List;
 import com.blaze.eventhub.common.ConfigurationMissingException;
 import com.blaze.eventhub.common.OAuthException;
 import com.blaze.eventhub.config.BlazeProperties;
+import com.blaze.eventhub.member.MemberService;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
@@ -15,20 +18,24 @@ import org.springframework.web.client.ResourceAccessException;
 @Service
 public class BlazeOAuthService {
 
+	private static final Logger log = LoggerFactory.getLogger(BlazeOAuthService.class);
+
 	private final BlazeProperties properties;
 	private final BlazeOAuthGateway gateway;
 	private final OAuthStateStore stateStore;
 	private final TokenStore tokenStore;
 	private final OAuthProfileService profileService;
+	private final MemberService memberService;
 	private final Clock clock;
 
 	public BlazeOAuthService(BlazeProperties properties, BlazeOAuthGateway gateway, OAuthStateStore stateStore,
-			TokenStore tokenStore, OAuthProfileService profileService, Clock clock) {
+			TokenStore tokenStore, OAuthProfileService profileService, MemberService memberService, Clock clock) {
 		this.properties = properties;
 		this.gateway = gateway;
 		this.stateStore = stateStore;
 		this.tokenStore = tokenStore;
 		this.profileService = profileService;
+		this.memberService = memberService;
 		this.clock = clock;
 	}
 
@@ -109,6 +116,7 @@ public class BlazeOAuthService {
 					current.refreshToken()));
 			TokenSnapshot snapshot = saveToken(response, current.refreshToken());
 			OAuthProfileSyncResult syncResult = profileService.synchronizeCurrentUser();
+			syncMemberFromOAuth(snapshot, syncResult);
 			return actionResponse("refreshed", true, false, snapshot, syncResult,
 					profileMessage(syncResult, "Sessao Blaze atualizada."));
 		}
@@ -143,9 +151,34 @@ public class BlazeOAuthService {
 				"Conta Blaze desconectada deste backend local.");
 	}
 
+	private void syncMemberFromOAuth(TokenSnapshot snapshot, OAuthProfileSyncResult syncResult) {
+		if (snapshot == null || snapshot.userId() == null || snapshot.userId().isBlank()) {
+			return;
+		}
+		try {
+			OAuthProfileSummary profile = syncResult.profile();
+			String blazeUserId = snapshot.userId();
+			String username = profile != null ? profile.username() : null;
+			String displayName = profile != null ? profile.displayName() : null;
+			String avatarUrl = profile != null ? profile.avatarUrl() : null;
+			memberService.createOrUpdateFromOAuth(
+					blazeUserId,
+					username,
+					displayName,
+					avatarUrl,
+					null,
+					snapshot.accessToken(),
+					snapshot.refreshToken());
+			log.debug("Member sincronizado via OAuth: blazeUserId={}", blazeUserId);
+		} catch (Exception e) {
+			log.warn("Falha ao sincronizar member via OAuth: {}", e.getMessage());
+		}
+	}
+
 	private OAuthCallbackResponse saveCallbackAndSanitize(OAuthTokenResponse response) {
 		TokenSnapshot snapshot = saveToken(response, null);
 		OAuthProfileSyncResult syncResult = profileService.synchronizeCurrentUser();
+		syncMemberFromOAuth(snapshot, syncResult);
 		return new OAuthCallbackResponse(
 				"stored",
 				snapshot.tokenType(),

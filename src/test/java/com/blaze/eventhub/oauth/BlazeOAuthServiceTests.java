@@ -7,7 +7,12 @@ import java.util.List;
 import java.util.Map;
 
 import com.blaze.eventhub.common.OAuthException;
+import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.config.BlazeProperties;
+import com.blaze.eventhub.member.Member;
+import com.blaze.eventhub.member.MemberService;
+import com.blaze.eventhub.member.MemberStore;
+import com.blaze.eventhub.member.NoopMemberStore;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -41,7 +46,10 @@ class BlazeOAuthServiceTests {
 		gateway = new FakeOAuthGateway();
 		profileClient = new FakeOAuthProfileClient();
 		OAuthProfileService profileService = new OAuthProfileService(profileClient, profileStore, clock);
-		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, profileService, clock);
+		MemberStore noopMemberStore = new NoopMemberStore();
+		IdGenerator idGenerator = new IdGenerator();
+		MemberService memberService = new MemberService(noopMemberStore, tokenStore, idGenerator, clock);
+		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, profileService, memberService, clock);
 	}
 
 	@Test
@@ -364,4 +372,27 @@ class BlazeOAuthServiceTests {
 					"accessToken", "must-not-be-used");
 		}
 	}
-}
+
+	private static class NoopMemberStore implements MemberStore {
+
+		@Override
+		public Member save(Member member) {
+			return member;
+		}
+
+		@Override
+		public java.util.Optional<Member> findById(String id) {
+			return java.util.Optional.empty();
+		}
+
+		@Override
+		public java.util.Optional<Member> findByBlazeUserId(String blazeUserId) {
+			return java.util.Optional.empty();
+		}
+
+		@Override
+		public boolean existsByBlazeUserId(String blazeUserId) {
+			return false;
+		}
+	}
+	}
