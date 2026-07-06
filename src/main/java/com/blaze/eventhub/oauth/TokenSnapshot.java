@@ -22,4 +22,10 @@ public record TokenSnapshot(
 	public boolean refreshTokenBlank() {
 		return refreshToken == null || refreshToken.isBlank();
 	}
+
+	/** Convenience alias for userId — used by MemberService. */
+	@JsonIgnore
+	public String blazeUserId() {
+		return userId;
+	}
 }

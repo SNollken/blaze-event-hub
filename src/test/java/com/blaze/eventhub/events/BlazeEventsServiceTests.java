@@ -16,7 +16,7 @@ class BlazeEventsServiceTests {
 	private final BlazeEventsRunner runner = new BlazeEventsRunner(new NoopBlazeEventsClient(), clock);
 	private final BlazeEventsLogStore logStore = new BlazeEventsLogStore();
 	private final BlazeEventsCapabilities capabilities = new BlazeEventsCapabilities(
-			new com.nollen.blaze.config.BlazeProperties());
+						new com.blaze.eventhub.config.BlazeProperties());
 	private final IdGenerator idGenerator = new IdGenerator();
 	private final BlazeEventsService service = new BlazeEventsService(runner, logStore, capabilities, idGenerator, clock);
 
