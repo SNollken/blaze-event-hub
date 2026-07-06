@@ -15,6 +15,7 @@ import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.event.Event;
 import com.blaze.eventhub.event.EventStore;
 import com.blaze.eventhub.event.EventStatus;
+import com.blaze.eventhub.event.entry.EntryCalculator;
 import com.blaze.eventhub.event.interest.EventInterest;
 import com.blaze.eventhub.event.interest.EventInterestService;
 import com.blaze.eventhub.event.interest.InterestStatus;
@@ -31,6 +32,9 @@ public class VoteDetectionService {
 
     @Autowired(required = false)
     private EventInterestService interestService;
+
+    @Autowired(required = false)
+    private EntryCalculator entryCalculator;
 
     public VoteDetectionService(DetectedActionStore detectedActionStore, EventStore eventStore,
             IdGenerator idGenerator, Clock clock) {
@@ -99,6 +103,14 @@ public class VoteDetectionService {
         detectedActionStore.save(action);
 
         log.info("Vote detected: eventId={}, actor={}, channel={}", event.id(), actorUsername, targetChannelId);
+
+        if (entryCalculator != null) {
+            try {
+                entryCalculator.calculateEntries(event.id(), action.memberId());
+            } catch (Exception e) {
+                log.warn("Entry calculation failed for vote: {}", e.getMessage());
+            }
+        }
 
         return action;
     }

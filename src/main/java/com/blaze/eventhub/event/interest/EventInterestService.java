@@ -127,4 +127,16 @@ public class EventInterestService {
     public Optional<EventInterest> findByEventIdAndMemberId(String eventId, String memberId) {
         return interestStore.findByEventIdAndMemberId(eventId, memberId);
     }
+
+    public void updateEntries(String eventId, String memberId, int entries) {
+        interestStore.findByEventIdAndMemberId(eventId, memberId).ifPresent(existing -> {
+            Instant now = Instant.now(clock);
+            EventInterest updated = new EventInterest(
+                    existing.id(), existing.eventId(), existing.memberId(),
+                    entries > 0 ? InterestStatus.ELIGIBLE : InterestStatus.INTERESTED,
+                    existing.interestedAt(), entries, existing.notes(),
+                    existing.createdAt(), now);
+            interestStore.save(updated);
+        });
+    }
 }
