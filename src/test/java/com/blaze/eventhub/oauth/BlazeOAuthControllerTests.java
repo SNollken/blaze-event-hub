@@ -1,0 +1,211 @@
+package com.blaze.eventhub.oauth;
+
+import java.util.List;
+import java.util.Map;
+
+import com.blaze.eventhub.common.OAuthException;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
+import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.http.HttpHeaders;
+import org.springframework.test.web.servlet.MockMvc;
+
+import static org.hamcrest.Matchers.containsString;
+import static org.hamcrest.Matchers.not;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.BDDMockito.given;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.header;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+@SpringBootTest(properties = {
+		"nollen.blaze.client-id=client-id",
+		"nollen.blaze.client-secret=client-secret",
+		"nollen.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"nollen.blaze.scopes=users.read,offline.access"
+})
+@AutoConfigureMockMvc
+class BlazeOAuthControllerTests {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@Autowired
+	private TokenStore tokenStore;
+
+	@Autowired
+	private OAuthProfileStore profileStore;
+
+	@Autowired
+	private OAuthStateStore stateStore;
+
+	@MockBean
+	private BlazeOAuthGateway gateway;
+
+	@MockBean
+	private OAuthProfileClient profileClient;
+
+	@BeforeEach
+	void setUp() {
+		tokenStore.clear();
+		profileStore.clear();
+		stateStore.clear();
+		given(gateway.generateAuthUrl(any(OAuthGenerateAuthUrlRequest.class)))
+				.willReturn(new GeneratedAuthUrl(
+						"https://blaze.stream/oauth2/authorize?state=blaze-state-1",
+						"blaze-state-1",
+						"verifier-1"));
+		given(gateway.exchangeCode(any(OAuthTokenExchangeRequest.class)))
+				.willReturn(new OAuthTokenResponse("user", "user-1", "Bearer", "access-token-1", "refresh-token-1",
+						86400L, List.of("users.read", "offline.access")));
+		given(gateway.refresh(any(OAuthRefreshRequest.class)))
+				.willReturn(new OAuthTokenResponse("user", "user-1", "Bearer", "access-token-2", null,
+						86400L, List.of("users.read", "offline.access")));
+		given(profileClient.getCurrentUserProfile())
+				.willReturn(Map.of(
+						"id", "user-1",
+						"username", "sofia",
+						"displayName", "Sofia Blaze",
+						"avatarUrl", "https://cdn.example.test/avatar.png",
+						"refreshToken", "must-not-leak"));
+	}
+
+	@Test
+	void sessionWithoutTokenIsSafeAndDisconnected() throws Exception {
+		mockMvc.perform(get("/api/blaze/oauth/session"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.connected").value(false))
+				.andExpect(jsonPath("$.tokenPresent").value(false))
+				.andExpect(jsonPath("$.refreshCredentialPresent").value(false))
+				.andExpect(jsonPath("$.profilePresent").value(false))
+				.andExpect(jsonPath("$.nextRecommendedAction").value("CONNECT_BLAZE"))
+				.andExpect(content().string(not(containsString("access-token"))))
+				.andExpect(content().string(not(containsString("refresh-token"))))
+				.andExpect(content().string(not(containsString("client-secret"))))
+				.andExpect(content().string(not(containsString("verifier-1"))));
+	}
+
+	@Test
+	void callbackReturnsFriendlyHtmlForBrowserWithoutSensitiveValues() throws Exception {
+		mockMvc.perform(post("/api/blaze/oauth/start"))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "text/html"))
+				.andExpect(status().isOk())
+				.andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("text/html")))
+				.andExpect(content().string(containsString("Blaze conectada com sucesso")))
+				.andExpect(content().string(containsString("Voltar ao dashboard")))
+				.andExpect(content().string(not(containsString("auth-code-1"))))
+				.andExpect(content().string(not(containsString("blaze-state-1"))))
+				.andExpect(content().string(not(containsString("verifier-1"))))
+				.andExpect(content().string(not(containsString("access-token-1"))))
+				.andExpect(content().string(not(containsString("refresh-token-1"))))
+				.andExpect(content().string(not(containsString("client-secret"))));
+	}
+
+	@Test
+	void callbackReturnsSafeJsonWhenRequested() throws Exception {
+		mockMvc.perform(post("/api/blaze/oauth/start"))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "application/json"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.status").value("stored"))
+				.andExpect(jsonPath("$.refreshTokenPresent").value(true))
+				.andExpect(jsonPath("$.profilePresent").value(true))
+				.andExpect(jsonPath("$.profile.displayName").value("Sofia Blaze"))
+				.andExpect(content().string(not(containsString("auth-code-1"))))
+				.andExpect(content().string(not(containsString("blaze-state-1"))))
+				.andExpect(content().string(not(containsString("verifier-1"))))
+				.andExpect(content().string(not(containsString("access-token-1"))))
+				.andExpect(content().string(not(containsString("refresh-token-1"))))
+				.andExpect(content().string(not(containsString("client-secret"))));
+	}
+
+	@Test
+	void refreshPreservesSessionAndNeverReturnsTokens() throws Exception {
+		connectWithJsonCallback();
+
+		mockMvc.perform(post("/api/blaze/oauth/refresh"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.refreshed").value(true))
+				.andExpect(jsonPath("$.connected").value(true))
+				.andExpect(jsonPath("$.refreshCredentialPresent").value(true))
+				.andExpect(jsonPath("$.profilePresent").value(true))
+				.andExpect(content().string(not(containsString("access-token-2"))))
+				.andExpect(content().string(not(containsString("refresh-token-1"))))
+				.andExpect(content().string(not(containsString("client-secret"))));
+	}
+
+	@Test
+	void disconnectClearsLocalSessionAndProfile() throws Exception {
+		connectWithJsonCallback();
+
+		mockMvc.perform(post("/api/blaze/oauth/disconnect"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.disconnected").value(true))
+				.andExpect(jsonPath("$.connected").value(false))
+				.andExpect(jsonPath("$.tokenPresent").value(false))
+				.andExpect(jsonPath("$.profilePresent").value(false));
+
+		mockMvc.perform(get("/api/blaze/oauth/session"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.connected").value(false))
+				.andExpect(jsonPath("$.profilePresent").value(false));
+	}
+
+	@Test
+	void refreshWithoutCredentialFailsSafely() throws Exception {
+		mockMvc.perform(post("/api/blaze/oauth/refresh"))
+				.andExpect(status().isServiceUnavailable())
+				.andExpect(content().string(not(containsString("access-token"))))
+				.andExpect(content().string(not(containsString("refresh-token"))))
+				.andExpect(content().string(not(containsString("client-secret"))));
+	}
+
+	@Test
+	void jsonCallbackErrorSanitizesRemoteSensitiveText() throws Exception {
+		mockMvc.perform(post("/api/blaze/oauth/start"))
+				.andExpect(status().isOk());
+		given(gateway.exchangeCode(any(OAuthTokenExchangeRequest.class)))
+				.willThrow(new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
+						"remote error code=auth-code-1 state=blaze-state-1 codeVerifier=verifier-1 authorizationUrl=https://blaze.stream/oauth?state=blaze-state-1 accessToken=access-token-1 refreshToken=refresh-token-1 clientSecret=client-secret"));
+
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "application/json"))
+				.andExpect(status().isBadRequest())
+				.andExpect(content().string(not(containsString("auth-code-1"))))
+				.andExpect(content().string(not(containsString("blaze-state-1"))))
+				.andExpect(content().string(not(containsString("verifier-1"))))
+				.andExpect(content().string(not(containsString("access-token-1"))))
+				.andExpect(content().string(not(containsString("refresh-token-1"))))
+				.andExpect(content().string(not(containsString("client-secret"))))
+				.andExpect(content().string(not(containsString("https://blaze.stream/oauth"))));
+	}
+
+	private void connectWithJsonCallback() throws Exception {
+		mockMvc.perform(post("/api/blaze/oauth/start"))
+				.andExpect(status().isOk());
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "application/json"))
+				.andExpect(status().isOk());
+	}
+}

@@ -1,13 +1,13 @@
 spring:
   application:
-    name: nollen-blaze
+    name: blaze-event-hub
   config:
     import: "optional:file:.env[.properties]"
   datasource:
-    url: ${NOLLEN_DB_URL:jdbc:h2:file:./data/nollenblaze-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
+    url: ${EVENTHUB_DB_URL:jdbc:h2:file:./data/eventhub-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
     driver-class-name: org.h2.Driver
-    username: ${NOLLEN_DB_USER:sa}
-    password: ${NOLLEN_DB_PASSWORD:}
+    username: ${EVENTHUB_DB_USER:sa}
+    password: ${EVENTHUB_DB_PASSWORD:}
   sql:
     init:
       mode: always
@@ -24,9 +24,9 @@ management:
     health:
       show-details: never
 
-nollen:
+eventhub:
   security:
-    api-key: ${NOLLEN_API_KEY:dev-local-key}
+    api-key: ${EVENTHUB_API_KEY:dev-local-key}
   blaze:
     client-id: ${BLAZE_CLIENT_ID:}
     client-secret: ${BLAZE_CLIENT_SECRET:}
