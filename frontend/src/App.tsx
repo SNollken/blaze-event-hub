@@ -3,11 +3,10 @@ import { Routes, Route } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
-const LiveEvents = lazy(() => import('./pages/LiveEvents'));
-const BlazeChannel = lazy(() => import('./pages/BlazeChannel'));
-const Alerts = lazy(() => import('./pages/Alerts'));
-const Giveaways = lazy(() => import('./pages/Giveaways'));
-const Overlays = lazy(() => import('./pages/Overlays'));
+const Events = lazy(() => import('./pages/Events'));
+const CreateEvent = lazy(() => import('./pages/CreateEvent'));
+const EventDetail = lazy(() => import('./pages/EventDetail'));
+const MyEvents = lazy(() => import('./pages/MyEvents'));
 
 export default function App() {
   return (
@@ -15,11 +14,10 @@ export default function App() {
       <Suspense fallback={<div className="skeleton-list" style={{ margin: 24 }} />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
-          <Route path="/events" element={<LiveEvents />} />
-          <Route path="/blaze" element={<BlazeChannel />} />
-          <Route path="/alerts" element={<Alerts />} />
-          <Route path="/giveaways" element={<Giveaways />} />
-          <Route path="/overlays" element={<Overlays />} />
+          <Route path="/events" element={<Events />} />
+          <Route path="/events/create" element={<CreateEvent />} />
+          <Route path="/events/:id" element={<EventDetail />} />
+          <Route path="/my-events" element={<MyEvents />} />
           <Route path="*" element={<Dashboard />} />
         </Routes>
       </Suspense>

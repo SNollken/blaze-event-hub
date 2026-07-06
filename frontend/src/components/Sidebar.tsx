@@ -1,21 +1,17 @@
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
-  Radio,
-  RadioTower,
-  Bell,
-  Gift,
-  Layers,
-  Flame,
+  CalendarPlus,
+  ListTodo,
+  Trophy,
+  User,
 } from 'lucide-react';
 
 const navItems = [
-  { to: '/', label: 'Visao Geral', icon: LayoutDashboard },
-  { to: '/events', label: 'Eventos ao Vivo', icon: Radio },
-  { to: '/blaze', label: 'Blaze Channel', icon: RadioTower },
-  { to: '/alerts', label: 'Alertas', icon: Bell },
-  { to: '/giveaways', label: 'Sorteios', icon: Gift },
-  { to: '/overlays', label: 'Overlays', icon: Layers },
+  { to: '/', label: 'Visão Geral', icon: LayoutDashboard },
+  { to: '/events', label: 'Eventos', icon: ListTodo },
+  { to: '/events/create', label: 'Criar Evento', icon: CalendarPlus },
+  { to: '/my-events', label: 'Meus Eventos', icon: User },
 ];
 
 export function Sidebar() {
@@ -32,7 +28,6 @@ export function Sidebar() {
         overflow: 'hidden',
       }}
     >
-      {/* Brand */}
       <div
         style={{
           padding: '16px 20px',
@@ -53,18 +48,19 @@ export function Sidebar() {
             justifyContent: 'center',
           }}
         >
-          <Flame size={18} color="#fff" />
+          <Trophy size={18} color="#fff" />
         </div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            NollenBlaze
+            Blaze Event Hub
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Painel de Controle</div>
+          <div style={{ fontSize: 11, color: 'var(--text-secondary)', letterSpacing: '0.02em' }}>
+            Eventos Comunitários
+          </div>
         </div>
       </div>
 
-      {/* Navigation */}
-      <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <nav style={{ padding: '12px 8px', flex: 1 }}>
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -74,48 +70,25 @@ export function Sidebar() {
               display: 'flex',
               alignItems: 'center',
               gap: 10,
-              padding: '9px 12px',
-              borderRadius: 'var(--radius)',
+              padding: '10px 12px',
+              borderRadius: 8,
+              marginBottom: 2,
               textDecoration: 'none',
-              fontSize: 13,
-              fontWeight: 500,
-              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-              background: isActive ? 'var(--primary-subtle)' : 'transparent',
-              transition: 'all var(--transition-fast)',
+              fontSize: 14,
+              fontWeight: isActive ? 600 : 400,
+              color: isActive ? 'var(--primary)' : 'var(--text-secondary)',
+              background: isActive ? 'var(--bg-hover)' : 'transparent',
+              transition: 'all 0.15s',
             })}
           >
-            {({ isActive }) => (
-              <>
-                <item.icon size={16} style={{ color: isActive ? 'var(--primary)' : 'var(--text-muted)' }} />
-                <span>{item.label}</span>
-                {isActive && (
-                  <div
-                    style={{
-                      marginLeft: 'auto',
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                    }}
-                  />
-                )}
-              </>
-            )}
+            <item.icon size={18} />
+            {item.label}
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderTop: '1px solid var(--border)',
-          fontSize: 11,
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-        }}
-      >
-        NollenBlaze v0.1
+      <div style={{ padding: '12px 16px', borderTop: '1px solid var(--border)', fontSize: 11, color: 'var(--text-secondary)' }}>
+        Blaze Event Hub v0.1.0
       </div>
     </aside>
   );

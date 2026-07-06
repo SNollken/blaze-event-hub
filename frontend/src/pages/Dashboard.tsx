@@ -1,179 +1,72 @@
-import { useCallback } from 'react';
-import { Layout } from '../components/Layout';
+import { useState, useEffect } from 'react';
+import { getStatus, getOAuthSession, startOAuth, getEvents } from '../api/client';
+import type { StatusResponse, OAuthSessionResponse, EventResponse } from '../api/client';
 import { StatsCard } from '../components/StatsCard';
-import { StatusDot } from '../components/Badge';
-import { usePolling } from '../components/Toast';
-import { getStatus, getEventsStatus, getOAuthSession } from '../api/client';
-import {
-  Server,
-  Key,
-  Radio,
-  Layers,
-  Clock,
-  User,
-  Zap,
-  Settings,
-} from 'lucide-react';
-
-function formatUptime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}min`;
-  return `${m}min`;
-}
 
 export default function Dashboard() {
-  const fetchStatus = useCallback(() => getStatus(), []);
-  const fetchEvents = useCallback(() => getEventsStatus(), []);
-  const fetchOAuth = useCallback(() => getOAuthSession(), []);
+  const [status, setStatus] = useState<StatusResponse | null>(null);
+  const [oauth, setOAuth] = useState<OAuthSessionResponse | null>(null);
+  const [events, setEvents] = useState<EventResponse[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
 
-  const { data: status, loading: statusLoading } = usePolling(fetchStatus, 10000);
-  const { data: events } = usePolling(fetchEvents, 8000);
-  const { data: oauth } = usePolling(fetchOAuth, 15000);
+  useEffect(() => {
+    Promise.all([getStatus(), getOAuthSession(), getEvents('OPEN')])
+      .then(([s, o, e]) => { setStatus(s); setOAuth(o); setEvents(e); })
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false));
+  }, []);
 
-  if (statusLoading && !status) {
-    return (
-      <Layout title="Visao Geral">
-        <div className="empty-state" style={{ minHeight: 300 }}>
-          <div>Carregando...</div>
-        </div>
-      </Layout>
-    );
-  }
+  const handleConnect = async () => {
+    try {
+      const { authorizationUrl } = await startOAuth();
+      window.location.href = authorizationUrl;
+    } catch (e: any) {
+      setError(e.message);
+    }
+  };
+
+  if (loading) return <div style={{ padding: 24 }}>Carregando...</div>;
+  if (error) return <div style={{ padding: 24, color: 'var(--danger)' }}>Erro: {error}</div>;
 
   return (
-    <Layout title="Visao Geral" subtitle="Painel do NollenBlaze">
-      {/* Stats row */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <StatsCard
-          title="Backend"
-          value={status ? 'Online' : 'Offline'}
-          icon={<Server size={18} />}
-          color={status ? 'success' : 'error'}
-          subtitle={status ? `${status.appName} ${status.version}` : 'Indisponivel'}
-        />
-        <StatsCard
-          title="Blaze OAuth"
-          value={status?.oauthConnected ? 'Conectado' : 'Desconectado'}
-          icon={<Key size={18} />}
-          color={status?.oauthConnected ? 'success' : 'warning'}
-          subtitle={status?.connectedAccountDisplayName || 'Sem conta conectada'}
-        />
-        <StatsCard
-          title="Events Socket"
-          value={events?.runnerRunning ? 'Rodando' : 'Parado'}
-          icon={<Radio size={18} />}
-          color={events?.runnerRunning ? 'success' : 'neutral'}
-          subtitle={events?.clientRunning ? 'Cliente conectado' : 'Cliente desconectado'}
-        />
-        <StatsCard
-          title="Overlays"
-          value={status?.overlaysCount ?? 0}
-          icon={<Layers size={18} />}
-          color="accent"
-          subtitle={`${status?.activeProfilesCount ?? 0} perfis`}
-        />
-        <StatsCard
-          title="Java"
-          value={status?.javaVersion ?? '-'}
-          icon={<Zap size={18} />}
-          color="primary"
-        />
-        <StatsCard
-          title="Uptime"
-          value={status ? formatUptime(status.uptimeSeconds) : '-'}
-          icon={<Clock size={18} />}
-          color="primary"
-        />
-      </div>
+    <div style={{ padding: 24 }}>
+      <h1 style={{ fontSize: 24, fontWeight: 700, marginBottom: 24 }}>Blaze Event Hub</h1>
 
-      {/* Status details */}
-      <div className="responsive-grid-2" style={{ marginBottom: 24 }}>
-        {/* System status */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Status do Sistema</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-            <StatusItem label="OAuth configurado" ok={status?.blazeOAuthConfigured} />
-            <StatusItem label="Blaze API configurada" ok={status?.blazeApiConfigured} />
-            <StatusItem label="Socket configurado" ok={status?.socketConfigured} />
-            <StatusItem label="Token presente" ok={status?.tokenPresent} />
-            <StatusItem label="Refresh credential" ok={status?.refreshCredentialPresent} />
-            <StatusItem label="Canal monitorado" ok={status?.monitoredChannelConfigured} />
-            <StatusItem label="Session ID" ok={status?.sessionIdPresent} />
-          </div>
-        </div>
-
-        {/* Account & OAuth */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Conta e OAuth</h3>
-          {oauth?.connected ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                {oauth.profile?.avatarUrl && (
-                  <img
-                    src={oauth.profile.avatarUrl}
-                    alt=""
-                    style={{ width: 36, height: 36, borderRadius: '50%' }}
-                  />
-                )}
-                <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
-                    {oauth.profile?.displayName || oauth.userId}
-                  </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
-                    @{oauth.profile?.username || 'desconhecido'}
-                  </div>
-                </div>
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
-                <div>Scopes: {oauth.scopes?.join(', ') || 'nenhum'}</div>
-                <div>Token: {oauth.tokenPresent ? 'Presente' : 'Ausente'}</div>
-                <div>Refresh: {oauth.refreshCredentialPresent ? 'Presente' : 'Ausente'}</div>
-                {oauth.tokenExpiredOrUnknown && (
-                  <div style={{ color: 'var(--warning)' }}>Token expirado ou status desconhecido</div>
-                )}
-              </div>
-            </div>
-          ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Nenhuma conta Blaze conectada.
-              {status?.nextRecommendedAction && (
-                <div style={{ marginTop: 8, color: 'var(--accent)' }}>
-                  Proxima acao: {status.nextRecommendedAction}
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-
-      {/* Recommended action */}
-      {status?.nextRecommendedAction && (
-        <div
-          className="glass-card"
-          style={{
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            borderColor: 'var(--accent)',
-          }}
-        >
-          <Settings size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
-            {status.nextRecommendedAction}
-          </span>
+      {!oauth?.connected && (
+        <div style={{ background: 'var(--bg-hover)', padding: 20, borderRadius: 12, marginBottom: 24, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <span>Conecte sua conta Blaze para criar e participar de eventos.</span>
+          <button onClick={handleConnect} style={{
+            background: 'var(--primary)', color: '#fff', border: 'none',
+            padding: '10px 20px', borderRadius: 8, cursor: 'pointer', fontWeight: 600,
+          }}>
+            Conectar Blaze
+          </button>
         </div>
       )}
-    </Layout>
-  );
-}
 
-function StatusItem({ label, ok }: { label: string; ok?: boolean }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
-      <StatusDot status={ok ? 'active' : 'inactive'} label={ok ? 'Sim' : 'Nao'} />
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: 16, marginBottom: 24 }}>
+        <StatsCard title="Status" value={status?.appName ?? '-'} subtitle={`v${status?.version ?? '?'}`} />
+        <StatsCard title="Blaze" value={oauth?.connected ? 'Conectado' : 'Desconectado'} subtitle={oauth?.connected ? (status?.connectedAccountDisplayName ?? 'OK') : 'Não conectado'} />
+        <StatsCard title="Eventos Abertos" value={String(events.length)} subtitle="Aguardando participantes" />
+        <StatsCard title="Uptime" value={status ? `${Math.floor(status.uptimeSeconds / 60)}min` : '-'} subtitle="Java 21 + Spring Boot" />
+      </div>
+
+      <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Eventos Abertos</h2>
+      {events.length === 0 ? (
+        <p style={{ color: 'var(--text-secondary)' }}>Nenhum evento aberto no momento.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+          {events.map((ev) => (
+            <div key={ev.id} style={{ background: 'var(--bg-card)', padding: 16, borderRadius: 10, border: '1px solid var(--border)' }}>
+              <a href={`/events/${ev.id}`} style={{ fontSize: 16, fontWeight: 600, color: 'var(--primary)', textDecoration: 'none' }}>
+                {ev.title}
+              </a>
+              <p style={{ fontSize: 13, color: 'var(--text-secondary)', marginTop: 4 }}>{ev.description?.slice(0, 100) || 'Sem descrição'}</p>
+            </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }
