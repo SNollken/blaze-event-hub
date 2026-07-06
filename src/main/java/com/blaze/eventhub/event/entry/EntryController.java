@@ -27,6 +27,7 @@ public class EntryController {
 
     @PostMapping("/recalculate")
     int recalculate(@PathVariable String eventId) {
-        return calculator.recalculateAll(eventId);
+        var interests = calculator.calculateEntries(eventId, null);
+        return interests.size();
     }
 }

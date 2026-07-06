@@ -128,6 +128,10 @@ public class EventInterestService {
         return interestStore.findByEventIdAndMemberId(eventId, memberId);
     }
 
+    public List<EventInterest> findByEventId(String eventId) {
+        return interestStore.findByEventId(eventId);
+    }
+
     public void updateEntries(String eventId, String memberId, int entries) {
         interestStore.findByEventIdAndMemberId(eventId, memberId).ifPresent(existing -> {
             Instant now = Instant.now(clock);

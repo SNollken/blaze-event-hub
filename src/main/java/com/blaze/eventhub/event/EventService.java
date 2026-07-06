@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 
 import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.common.NotFoundException;
+import com.blaze.eventhub.event.audit.AuditService;
 import com.blaze.eventhub.member.MemberService;
 
 @Service
@@ -26,6 +27,9 @@ public class EventService {
 
     @Autowired(required = false)
     private MemberService memberService;
+
+    @Autowired(required = false)
+    private AuditService auditService;
 
     public EventService(EventStore eventStore, EventRuleStore eventRuleStore, IdGenerator idGenerator, Clock clock) {
         this.eventStore = eventStore;
@@ -148,6 +152,11 @@ public class EventService {
 
         eventStore.updateStatus(eventId, EventStatus.OPEN);
 
+        if (auditService != null) {
+            auditService.log("event_opened", "event", eventId,
+                    event.status().name().toLowerCase(), "open", memberId);
+        }
+
         return getEvent(eventId);
     }
 
@@ -160,6 +169,11 @@ public class EventService {
 
         eventStore.updateStatus(eventId, EventStatus.CLOSED);
 
+        if (auditService != null) {
+            auditService.log("event_closed", "event", eventId,
+                    "open", "closed", memberId);
+        }
+
         return getEvent(eventId);
     }
 
@@ -170,7 +184,13 @@ public class EventService {
             throw new IllegalArgumentException("Cannot cancel an event that is already " + event.status().name().toLowerCase());
         }
 
+        String previousStatus = event.status().name().toLowerCase();
         eventStore.updateStatus(eventId, EventStatus.CANCELLED);
+
+        if (auditService != null) {
+            auditService.log("event_cancelled", "event", eventId,
+                    previousStatus, "cancelled", memberId);
+        }
 
         return getEvent(eventId);
     }
@@ -288,7 +308,9 @@ public class EventService {
 
     private void auditViolation(String eventId, String memberId, String action, String description) {
         log.warn("AUDIT: eventId={}, memberId={}, action={}, description={}", eventId, memberId, action, description);
-        // FUTURE: persist in audit_log table
+        if (auditService != null) {
+            auditService.log(action, "event", eventId, null, description, memberId);
+        }
     }
 
     private static Instant parseInstant(String value) {
