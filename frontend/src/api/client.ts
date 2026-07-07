@@ -8,7 +8,21 @@ import type {
   ParticipantResponse,
   EntryResponse,
   WinnerResponse,
+  RuleResponse,
 } from './types';
+
+export type {
+  StatusResponse,
+  OAuthSessionResponse,
+  OAuthStartResponse,
+  MemberProfile,
+  EventResponse,
+  CreateEventRequest,
+  ParticipantResponse,
+  EntryResponse,
+  WinnerResponse,
+  RuleResponse,
+};
 
 const BASE = '';
 const API_KEY = import.meta.env.VITE_NOLLEN_API_KEY || 'dev-local-key';

@@ -1,351 +1,206 @@
-import { useCallback, useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { Layout } from '../components/Layout';
-import { Badge } from '../components/Badge';
-import { usePolling, addToast } from '../components/Toast';
-import {
-  getEvent,
-  getEntries,
-  getParticipants,
-  openEvent,
-  closeEvent,
-  cancelEvent,
-  expressInterest,
-  withdrawInterest,
-  recalculate,
-  executeDraw,
-  getWinner,
-} from '../api/client';
-import { ArrowLeft, Users, Trophy, Zap, XCircle, Play, Square, Trash2 } from 'lucide-react';
-import type { EventResponse, EntryResponse, ParticipantResponse, WinnerResponse } from '../api/types';
+import { getEvent, openEvent, closeEvent, cancelEvent, expressInterest, withdrawInterest, getParticipants, getEntries, recalculate, executeDraw, getWinner } from '../api/client';
+import type { EventResponse, ParticipantResponse, EntryResponse, WinnerResponse } from '../api/client';
 
-const statusBadge: Record<string, { variant: 'success' | 'warning' | 'error' | 'neutral'; label: string }> = {
-  DRAFT: { variant: 'neutral', label: 'Rascunho' },
-  OPEN: { variant: 'success', label: 'Aberto' },
-  CLOSED: { variant: 'warning', label: 'Fechado' },
-  DRAWING: { variant: 'warning', label: 'Sorteando' },
-  COMPLETED: { variant: 'success', label: 'Concluido' },
-  CANCELLED: { variant: 'error', label: 'Cancelado' },
+const btnGhost: React.CSSProperties = {
+  background: 'var(--bg-button)', border: '1px solid var(--border-card)',
+  color: 'var(--text-secondary)', padding: '7px 14px', borderRadius: 'var(--radius)',
+  fontWeight: 510, fontSize: 13, cursor: 'pointer',
 };
-
-function formatDate(s: string) {
-  return new Date(s).toLocaleString('pt-BR');
-}
+const btnBrand: React.CSSProperties = { ...btnGhost, background: 'var(--brand)', color: '#fff', border: 'none' };
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [actionLoading, setActionLoading] = useState<string | null>(null);
+  const [event, setEvent] = useState<EventResponse | null>(null);
+  const [participants, setParticipants] = useState<ParticipantResponse[]>([]);
+  const [entries, setEntries] = useState<EntryResponse[]>([]);
+  const [winner, setWinner] = useState<WinnerResponse | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [err, setErr] = useState('');
 
-  const fetchEvent = useCallback(() => getEvent(id!), [id]);
-  const fetchEntries = useCallback(() => getEntries(id!), [id]);
-  const fetchParticipants = useCallback(() => getParticipants(id!), [id]);
-  const fetchWinner = useCallback(() => getWinner(id!), [id]);
-
-  const { data: event, loading, error, reload: reloadEvent } = usePolling(fetchEvent, 5000);
-  const { data: entries, reload: reloadEntries } = usePolling(fetchEntries, 5000);
-  const { data: participants } = usePolling(fetchParticipants, 5000);
-  const { data: winner } = usePolling(fetchWinner, 10000);
-
-  if (!id) return null;
-
-  async function withAction(label: string, fn: () => Promise<unknown>) {
-    setActionLoading(label);
+  const load = async () => {
+    if (!id) return;
     try {
-      await fn();
-      addToast('success', `${label} com sucesso`);
-      reloadEvent();
-      reloadEntries();
-    } catch (err) {
-      addToast('error', err instanceof Error ? err.message : `Erro ao ${label.toLowerCase()}`);
-    } finally {
-      setActionLoading(null);
-    }
-  }
+      const [ev, p, e] = await Promise.all([getEvent(id), getParticipants(id), getEntries(id)]);
+      setEvent(ev); setParticipants(p); setEntries(e);
+      try { setWinner(await getWinner(id)); } catch { setWinner(null); }
+    } catch (e: any) { setErr(e.message); }
+    finally { setLoading(false); }
+  };
 
-  if (loading && !event) {
-    return (
-      <Layout title="Detalhes do Evento">
-        <div className="empty-state" style={{ minHeight: 300 }}>
-          <div>Carregando evento...</div>
-        </div>
-      </Layout>
-    );
-  }
+  useEffect(() => { load(); }, [id]);
 
-  if (error || !event) {
-    return (
-      <Layout title="Detalhes do Evento">
-        <div className="empty-state" style={{ minHeight: 300 }}>
-          <div style={{ color: 'var(--error)' }}>{error || 'Evento nao encontrado'}</div>
-          <button className="btn btn-secondary btn-sm" onClick={() => navigate('/events')}>
-            Voltar
-          </button>
-        </div>
-      </Layout>
-    );
-  }
+  const act = async (fn: () => Promise<any>) => {
+    setErr('');
+    try { await fn(); await load(); } catch (e: any) { setErr(e.message); }
+  };
 
-  const status = statusBadge[event.status] ?? statusBadge.DRAFT;
+  if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando...</div>;
+  if (err && !event) return <div style={{ padding: 40, color: 'var(--danger)' }}>{err}</div>;
+  if (!event) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Nao encontrado.</div>;
+
+  const sc: Record<string, { c: string; bg: string; l: string }> = {
+    OPEN: { c: 'var(--success)', bg: 'var(--success-bg)', l: 'Aberto' },
+    CLOSED: { c: 'var(--warning)', bg: 'var(--warning-bg)', l: 'Fechado' },
+    COMPLETED: { c: 'var(--brand-light)', bg: 'var(--brand-bg)', l: 'Concluido' },
+    DRAFT: { c: 'var(--text-muted)', bg: 'rgba(255,255,255,0.04)', l: 'Rascunho' },
+    CANCELLED: { c: 'var(--danger)', bg: 'var(--danger-bg)', l: 'Cancelado' },
+  };
+  const s = sc[event.status] || sc.DRAFT;
 
   return (
-    <Layout
-      title={event.title}
-      subtitle={`Evento #${event.id.slice(0, 8)}`}
-      headerActions={
-        <Badge variant={status.variant} dot>
-          {status.label}
-        </Badge>
-      }
-    >
-      <button
-        className="btn btn-secondary btn-sm"
-        onClick={() => navigate('/events')}
-        style={{ marginBottom: 20 }}
-      >
-        <ArrowLeft size={14} />
-        Voltar
-      </button>
-
-      <div className="responsive-grid-2" style={{ marginBottom: 24 }}>
-        {/* Info card */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Informacoes</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, fontSize: 13 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Status</span>
-              <Badge variant={status.variant} dot>{status.label}</Badge>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Modo de Regras</span>
-              <span>{event.rulesMode}</span>
-            </div>
-            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-              <span style={{ color: 'var(--text-secondary)' }}>Max Entries/Participante</span>
-              <span>{event.maxEntriesPerParticipant}</span>
-            </div>
-            {event.startsAt && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Inicio</span>
-                <span>{formatDate(event.startsAt)}</span>
-              </div>
-            )}
-            {event.endsAt && (
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: 'var(--text-secondary)' }}>Fim</span>
-                <span>{formatDate(event.endsAt)}</span>
-              </div>
-            )}
-          </div>
+    <div style={{ padding: '32px 40px', maxWidth: 700 }}>
+      {/* Header */}
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <div>
+          <h1 style={{ fontSize: 20, fontWeight: 510, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+            {event.title}
+          </h1>
           {event.description && (
-            <div style={{ marginTop: 16, padding: '12px 14px', background: 'var(--bg-base)', borderRadius: 'var(--radius)', fontSize: 13, color: 'var(--text-secondary)' }}>
+            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
               {event.description}
-            </div>
-          )}
-          {event.rules && event.rules.length > 0 && (
-            <div style={{ marginTop: 16 }}>
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-secondary)', marginBottom: 8 }}>Regras</div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                {event.rules.map((rule) => (
-                  <div
-                    key={rule.id}
-                    style={{
-                      padding: '8px 12px',
-                      border: '1px solid var(--border)',
-                      borderRadius: 'var(--radius-sm)',
-                      fontSize: 12,
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                    }}
-                  >
-                    <span>{rule.actionType} x{rule.thresholdAmount}</span>
-                    <span style={{ color: 'var(--primary)' }}>{rule.entries} entries</span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            </p>
           )}
         </div>
-
-        {/* Actions card */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Acoes</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {event.status === 'DRAFT' && (
-              <button
-                className="btn btn-primary"
-                onClick={() => withAction('Abrir evento', () => openEvent(id))}
-                disabled={actionLoading === 'Abrir evento'}
-              >
-                <Play size={14} />
-                {actionLoading === 'Abrir evento' ? 'Abrindo...' : 'Abrir Evento'}
-              </button>
-            )}
-            {event.status === 'OPEN' && (
-              <>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => withAction('Adicionar interesse', () => expressInterest(id))}
-                  disabled={actionLoading === 'Adicionar interesse'}
-                >
-                  <Users size={14} />
-                  {actionLoading === 'Adicionar interesse' ? 'Adicionando...' : 'Participar'}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => withAction('Remover interesse', () => withdrawInterest(id))}
-                  disabled={actionLoading === 'Remover interesse'}
-                >
-                  <XCircle size={14} />
-                  {actionLoading === 'Remover interesse' ? 'Removendo...' : 'Sair do Evento'}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => withAction('Recalcular entries', () => recalculate(id))}
-                  disabled={actionLoading === 'Recalcular entries'}
-                >
-                  <Zap size={14} />
-                  {actionLoading === 'Recalcular entries' ? 'Recalculando...' : 'Recalcular Entries'}
-                </button>
-                <button
-                  className="btn btn-accent"
-                  onClick={() => withAction('Sortear', () => executeDraw(id))}
-                  disabled={actionLoading === 'Sortear'}
-                >
-                  <Trophy size={14} />
-                  {actionLoading === 'Sortear' ? 'Sorteando...' : 'Sortear Vencedor'}
-                </button>
-                <button
-                  className="btn btn-secondary"
-                  onClick={() => withAction('Fechar evento', () => closeEvent(id))}
-                  disabled={actionLoading === 'Fechar evento'}
-                >
-                  <Square size={14} />
-                  {actionLoading === 'Fechar evento' ? 'Fechando...' : 'Fechar Evento'}
-                </button>
-              </>
-            )}
-            {event.status === 'CLOSED' && (
-              <button
-                className="btn btn-accent"
-                onClick={() => withAction('Sortear', () => executeDraw(id))}
-                disabled={actionLoading === 'Sortear'}
-              >
-                <Trophy size={14} />
-                {actionLoading === 'Sortear' ? 'Sorteando...' : 'Sortear Vencedor'}
-              </button>
-            )}
-            {event.status !== 'CANCELLED' && event.status !== 'COMPLETED' && (
-              <button
-                className="btn btn-danger"
-                onClick={() => withAction('Cancelar evento', () => cancelEvent(id))}
-                disabled={actionLoading === 'Cancelar evento'}
-              >
-                <Trash2 size={14} />
-                {actionLoading === 'Cancelar evento' ? 'Cancelando...' : 'Cancelar Evento'}
-              </button>
-            )}
-          </div>
-        </div>
+        <span style={{
+          fontSize: 11, fontWeight: 510, color: s.c, background: s.bg,
+          padding: '3px 10px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap',
+        }}>{s.l}</span>
       </div>
 
-      {/* Winner */}
-      {winner && event.status === 'COMPLETED' && (
-        <div
-          className="glass-card"
-          style={{
-            padding: 20,
-            marginBottom: 24,
-            borderColor: 'var(--accent)',
-            background: 'var(--accent-subtle)',
-          }}
-        >
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 8, color: 'var(--accent)' }}>
-            <Trophy size={16} style={{ verticalAlign: 'middle', marginRight: 6 }} />
-            Vencedor
-          </h3>
-          <div style={{ fontSize: 16, fontWeight: 700 }}>{winner.memberId}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-            Entries no sorteio: {winner.entriesAtDrawTime} | Metodo: {winner.drawMethod}
+      {err && (
+        <div style={{
+          marginBottom: 16, padding: '8px 12px', borderRadius: 'var(--radius)',
+          background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 13,
+        }}>{err}</div>
+      )}
+
+      {/* Actions */}
+      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
+        {event.status === 'OPEN' && (
+          <>
+            <button style={btnBrand} onClick={() => act(() => expressInterest(event.id))}>Participar</button>
+            <button style={btnGhost} onClick={() => act(() => withdrawInterest(event.id))}>Remover interesse</button>
+          </>
+        )}
+        {event.status === 'DRAFT' && (
+          <button style={{ ...btnGhost, color: 'var(--success)' }} onClick={() => act(() => openEvent(event.id))}>Abrir</button>
+        )}
+        {event.status === 'OPEN' && (
+          <button style={{ ...btnGhost, color: 'var(--warning)' }} onClick={() => act(() => closeEvent(event.id))}>Fechar</button>
+        )}
+        {(event.status === 'OPEN' || event.status === 'DRAFT') && (
+          <button style={{ ...btnGhost, color: 'var(--danger)' }} onClick={() => act(() => cancelEvent(event.id))}>Cancelar</button>
+        )}
+        {event.status === 'CLOSED' && !winner && (
+          <>
+            <button style={btnGhost} onClick={() => act(() => recalculate(event.id))}>Recalcular</button>
+            <button style={{ ...btnBrand, background: 'var(--brand-hover)' }} onClick={() => act(() => executeDraw(event.id))}>Sortear</button>
+          </>
+        )}
+      </div>
+
+      {/* Rules */}
+      {event.rules && event.rules.length > 0 && (
+        <section style={{ marginBottom: 32 }}>
+          <SectionTitle>Regras</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {event.rules.filter(r => r.isActive).map(r => (
+              <div key={r.id} style={{
+                fontSize: 13, padding: '10px 14px', background: 'var(--bg-card)',
+                border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+              }}>
+                <span style={{ color: 'var(--text-secondary)' }}>
+                  {r.thresholdAmount} {r.actionType === 'vote' ? 'votos' : 'subs'}
+                </span>
+                <span style={{ color: 'var(--text-primary)', fontWeight: 510 }}>
+                  {r.entries} {r.entries === 1 ? 'entry' : 'entries'}
+                </span>
+              </div>
+            ))}
           </div>
-        </div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
+            Modo: {event.rulesMode}{event.maxEntriesPerParticipant > 0 && ` · Max: ${event.maxEntriesPerParticipant}/pessoa`}
+          </div>
+        </section>
+      )}
+
+      {/* Winner */}
+      {winner && (
+        <section style={{
+          marginBottom: 32, padding: '16px 20px',
+          background: 'rgba(94,106,210,0.06)', border: '1px solid rgba(94,106,210,0.15)',
+          borderRadius: 'var(--radius-lg)',
+        }}>
+          <SectionTitle>Vencedor</SectionTitle>
+          <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 510 }}>{winner.memberId}</div>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
+            {winner.entriesAtDrawTime} entries · {winner.drawMethod} · seed {winner.drawSeed}
+          </div>
+        </section>
       )}
 
       {/* Participants */}
-      <div className="glass-card" style={{ padding: 20, marginBottom: 16 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-          Participantes ({participants?.length ?? 0})
-        </h3>
-        {!participants || participants.length === 0 ? (
-          <div className="empty-state" style={{ padding: 24 }}>
-            <Users size={32} />
-            <div style={{ fontSize: 13 }}>Nenhum participante ainda</div>
-          </div>
+      <section style={{ marginBottom: 32 }}>
+        <SectionTitle>Participantes ({participants.length})</SectionTitle>
+        {participants.length === 0 ? (
+          <Empty>Ninguem demonstrou interesse ainda.</Empty>
         ) : (
-          <div className="data-table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Nome</th>
-                  <th>Username</th>
-                  <th>Status</th>
-                  <th>Entries</th>
-                </tr>
-              </thead>
-              <tbody>
-                {participants.map((p: ParticipantResponse) => (
-                  <tr key={p.memberId}>
-                    <td style={{ fontWeight: 500 }}>{p.displayName}</td>
-                    <td className="mono">@{p.blazeUsername}</td>
-                    <td>
-                      <Badge variant={p.status === 'ACTIVE' ? 'success' : 'neutral'} dot>
-                        {p.status}
-                      </Badge>
-                    </td>
-                    <td>{p.lastCalculatedEntries}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {participants.map(p => (
+              <div key={p.memberId} style={{
+                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+                padding: '10px 14px', background: 'var(--bg-card)',
+                border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
+              }}>
+                <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{p.displayName || p.blazeUsername}</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {p.lastCalculatedEntries ?? 0} entries
+                </span>
+              </div>
+            ))}
           </div>
         )}
-      </div>
+      </section>
 
       {/* Entries */}
-      <div className="glass-card" style={{ padding: 20 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>
-          Entries ({entries?.length ?? 0})
-        </h3>
-        {!entries || entries.length === 0 ? (
-          <div className="empty-state" style={{ padding: 24 }}>
-            <Zap size={32} />
-            <div style={{ fontSize: 13 }}>Nenhum entry registrado</div>
-          </div>
+      <section>
+        <SectionTitle>Entries ({entries.length})</SectionTitle>
+        {entries.length === 0 ? (
+          <Empty>Nenhuma entrada registrada.</Empty>
         ) : (
-          <div className="data-table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Acao</th>
-                  <th>Amount</th>
-                  <th>Entries</th>
-                  <th>Motivo</th>
-                </tr>
-              </thead>
-              <tbody>
-                {entries.map((e: EntryResponse) => (
-                  <tr key={e.id}>
-                    <td style={{ fontWeight: 500 }}>{e.actionType}</td>
-                    <td>{e.amount}</td>
-                    <td style={{ color: 'var(--primary)', fontWeight: 600 }}>+{e.entriesGranted}</td>
-                    <td style={{ fontSize: 12, color: 'var(--text-muted)' }}>{e.calculationReason}</td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
+            {entries.map(e => (
+              <div key={e.id} style={{
+                padding: '10px 14px', background: 'var(--bg-card)',
+                border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
+              }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 510, color: 'var(--text-primary)' }}>
+                    {e.amount} {e.actionType}
+                  </span>
+                  <span style={{ fontSize: 12, fontWeight: 510, color: 'var(--brand-light)' }}>
+                    {e.entriesGranted} entries
+                  </span>
+                </div>
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
+                  {e.calculationReason}
+                </div>
+              </div>
+            ))}
           </div>
         )}
-      </div>
-    </Layout>
+      </section>
+    </div>
   );
+}
+
+function SectionTitle({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 11, fontWeight: 510, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{children}</div>;
+}
+function Empty({ children }: { children: React.ReactNode }) {
+  return <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>{children}</div>;
 }
