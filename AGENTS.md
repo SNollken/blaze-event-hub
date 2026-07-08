@@ -1,24 +1,18 @@
 # AGENTS
 
-- Produto: NollenBlaze.
-- Package Java principal: `com.nollen.blaze`.
-- Nome historico `BlazeBot` so pode aparecer em contexto historico ou de migracao; nao usar como nome novo de aplicacao, package, classe, endpoint ou branding.
-- Vault oficial nesta maquina: detectar entre `C:\Users\sofia\OneDrive - SENAC DF\Drive\vault\NollenBlaze` e `C:\Users\sofia57152576\OneDrive - SENAC DF\Drive\vault\NollenBlaze`; neste host, usar `C:\Users\sofia57152576\OneDrive - SENAC DF\Drive\vault\NollenBlaze`.
+- Produto: Blaze Event Hub.
+- Package Java principal: `com.blaze.eventhub`.
+- Nome historico `NollenBlaze` / `BlazeBot` so pode aparecer em contexto historico ou de migracao; nao usar como nome novo de aplicacao, package, classe, endpoint ou branding.
+- Vault oficial nesta maquina: detectar entre `C:\Users\sofia\OneDrive - SENAC DF\Drive\vault\Blaze Event Hub` e `C:\Users\sofia57152576\OneDrive - SENAC DF\Drive\vault\Blaze Event Hub`; neste host, usar `C:\Users\sofia57152576\OneDrive - SENAC DF\Drive\vault\Blaze Event Hub`.
 - Nao commitar vault, prints, logs, `target`, `.env`, cookies, storage state, `.hermes`, temporarios ou credenciais.
 - Nao commitar `clientSecret`, `accessToken`, `refreshToken`, cookies ou qualquer segredo real.
 - Usar Java 21 sem alterar PATH global. Preferir `JAVA_HOME` apenas por processo/sessao.
 - Usar Maven Wrapper. Nao instalar Maven global para este projeto.
 - Microfeatures futuras devem ir para branch longa de feature e so integrar blocos completos e validados.
 - Manter historico Git limpo. Evitar merge commit desnecessario.
-- Tela MVP 1 de dashboard e provisoria e funcional. Nao gastar tempo refinando UI sem pedido explicito.
-- MVP 2 adiciona configuracao assistida da Blaze no mesmo dashboard provisorio e o endpoint `GET /api/blaze/setup`.
-- Dashboard Shell MVP provisorio usa `src/main/resources/static/dashboard.html`, `dashboard.css` e `dashboard.js` com sidebar para modulos existentes; design final continua reservado para OpenDesign/opencode.
-- `/api/blaze/setup` deve devolver flags, checklist, scopes recomendados, proximos passos, links oficiais e exemplos com placeholders; nunca devolver valores reais nem campos publicos `clientSecret`, `client_secret`, `accessToken`, `access_token`, `refreshToken`, `refresh_token`, `codeVerifier` ou `code_verifier`.
-- Scopes padrao devem ficar em privilegio minimo: `users.read,offline.access`. `channel.moderate` e `users.bot` so entram quando houver feature de chat/moderacao/bot validada.
-- Sempre validar `/`, `/dashboard`, `/api/health`, `/api/status`, `/api/blaze/setup`, `/api/blaze/events/status`, `/api/overlay-profiles`, `/api/public/overlays/demo-overlay-obs-mvp/manifest` e `/overlay/demo-overlay-obs-mvp` no smoke do dashboard/runtime.
-- A tela provisoria deve continuar resiliente sem credenciais reais, sem token e sem Events rodando.
-- Runtime publico de overlay OBS deve ser servido em `/overlay/{publicToken}`, sem dashboard, sem navbar, com fundo transparente e sem expor secrets/tokens.
-- Ao testar runtime local, fechar o backend iniciado pela tarefa e confirmar porta 8080 livre ao final.
-- Design final do dashboard vira depois no OpenDesign/opencode.
+- Frontend React + Vite em `frontend/`, servido pelo Spring Boot via `SpaController`.
+- Porta padrao: 9090.
+- API key header: `X-Nollen-Api-Key` (mantido por compatibilidade).
+- Design final do dashboard continua reservado para OpenDesign/opencode.
 - Nao abrir PR automatico. Commits e pushes seguem a branch combinada.
 - Features devem usar `feature/*` e integrar direto em `dev` quando validadas.
