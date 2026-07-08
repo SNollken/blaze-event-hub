@@ -135,6 +135,24 @@ CREATE TABLE IF NOT EXISTS audit_log (
 );
 
 -- Índices para performance
+CREATE TABLE IF NOT EXISTS blaze_events_log (
+    id VARCHAR(64) PRIMARY KEY,
+    received_at TIMESTAMP WITH TIME ZONE NOT NULL,
+    event_type VARCHAR(120) NOT NULL,
+    source VARCHAR(120) NOT NULL,
+    message CLOB,
+    raw_payload CLOB
+);
+
+CREATE TABLE IF NOT EXISTS event_subscriptions (
+    id VARCHAR(64) PRIMARY KEY,
+    type VARCHAR(120) NOT NULL,
+    version VARCHAR(40) NOT NULL,
+    channel_id VARCHAR(255) NOT NULL,
+    session_id VARCHAR(255),
+    created_at TIMESTAMP WITH TIME ZONE NOT NULL
+);
+
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_creator ON events(creator_member_id);
 CREATE INDEX IF NOT EXISTS idx_event_interests_event ON event_interests(event_id);
@@ -145,3 +163,6 @@ CREATE INDEX IF NOT EXISTS idx_detected_actions_idempotency ON detected_actions(
 CREATE INDEX IF NOT EXISTS idx_event_entries_event ON event_entries(event_id);
 CREATE INDEX IF NOT EXISTS idx_event_entries_member ON event_entries(member_id);
 CREATE INDEX IF NOT EXISTS idx_audit_log_entity ON audit_log(entity_type, entity_id);
+CREATE INDEX IF NOT EXISTS idx_blaze_events_log_received ON blaze_events_log(received_at);
+CREATE INDEX IF NOT EXISTS idx_blaze_events_log_type ON blaze_events_log(event_type);
+CREATE INDEX IF NOT EXISTS idx_event_subscriptions_type ON event_subscriptions(type);

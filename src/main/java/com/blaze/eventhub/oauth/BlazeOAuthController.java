@@ -28,7 +28,7 @@ public class BlazeOAuthController {
 		return oAuthService.session();
 	}
 
-	@PostMapping("/start")
+	@GetMapping("/start")
 	OAuthStartResponse start() {
 		return oAuthService.start();
 	}
@@ -113,7 +113,7 @@ public class BlazeOAuthController {
 				</head>
 				<body>
 					<main>
-						<p class="status">NollenBlaze</p>
+						<p class="status">Blaze Event Hub</p>
 						<h1>%s</h1>
 						<p>%s</p>
 						<a href="/dashboard">Voltar ao dashboard</a>

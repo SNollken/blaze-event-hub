@@ -14,8 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-		"nollen.blaze.client-secret=secret-that-must-not-leak",
-		"nollen.blaze.client-id=test-client"
+		"eventhub.blaze.client-secret=secret-that-must-not-leak",
+		"eventhub.blaze.client-id=test-client"
 })
 @AutoConfigureMockMvc
 class HealthStatusControllerTests {
@@ -28,14 +28,14 @@ class HealthStatusControllerTests {
 		mockMvc.perform(get("/api/health"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.status").value("ok"))
-				.andExpect(jsonPath("$.app").value("NollenBlaze"));
+				.andExpect(jsonPath("$.app").value("Blaze Event Hub"));
 	}
 
 	@Test
 	void statusDoesNotLeakSecret() throws Exception {
 		mockMvc.perform(get("/api/status"))
 				.andExpect(status().isOk())
-				.andExpect(jsonPath("$.appName").value("NollenBlaze"))
+				.andExpect(jsonPath("$.appName").value("Blaze Event Hub"))
 				.andExpect(jsonPath("$.javaVersion").exists())
 				.andExpect(content().string(not(containsString("secret-that-must-not-leak"))))
 				.andExpect(content().string(not(containsString("access-token"))))

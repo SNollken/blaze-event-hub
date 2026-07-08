@@ -183,7 +183,10 @@ class EventServiceIntegrationTest {
 
     @Test
     void addRule_toOpenedEvent_throws() {
-        EventResponse created = createDefaultEvent("No More Rules");
+        CreateEventRequest request = new CreateEventRequest("No More Rules", "Description", "cash", "Cash prize",
+                "tier", 0, true, Instant.now().plus(java.time.Duration.ofHours(12)).toString(), null,
+                CHANNEL_ID, List.of(buildRule("vote", 1, 10)));
+        EventResponse created = eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID);
         eventService.openEvent(created.id(), MEMBER_ID);
 
         assertThrows(IllegalArgumentException.class,
@@ -256,7 +259,7 @@ class EventServiceIntegrationTest {
 
     private static CreateEventRequest buildCreateRequest(String title, List<CreateEventRuleRequest> rules) {
         return new CreateEventRequest(title, "Description", "cash", "Cash prize",
-                "tier", 0, true, null, null, rules);
+                "tier", 0, true, null, null, CHANNEL_ID, rules);
     }
 
     private static CreateEventRuleRequest buildRule(String actionType, int threshold, int entries) {

@@ -6,7 +6,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import com.blaze.eventhub.common.IdGenerator;
-import com.blaze.eventhub.event.detection.VoteDetectionService;
+import com.blaze.eventhub.event.detection.ActionDetectionService;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -19,7 +19,7 @@ public class BlazeEventsPipeline {
 	private final Clock clock;
 
 	@Autowired(required = false)
-	private VoteDetectionService voteDetectionService;
+	private ActionDetectionService actionDetectionService;
 
 	public BlazeEventsPipeline(BlazeEventsLogStore logStore, IdGenerator idGenerator, Clock clock) {
 		this.logStore = logStore;
@@ -74,14 +74,41 @@ public class BlazeEventsPipeline {
 
     @SuppressWarnings("unchecked")
     private void dispatchEventLogged(BlazeEventType eventType, Map<String, Object> payload) {
-        // FASE 5: if channel.vote → delegate to VoteDetectionService
-        if (eventType == BlazeEventType.CHANNEL_VOTE && voteDetectionService != null && payload != null) {
-            try {
-                voteDetectionService.processVoteEvent(payload);
-                logEntry("blaze-events", eventType.id(), "Vote event dispatched to detection service");
-                return;
-            } catch (Exception e) {
-                logEntry("blaze-events", eventType.id(), "Vote detection error: " + e.getMessage());
+        if (payload == null) return;
+
+        switch (eventType) {
+            case CHANNEL_VOTE -> {
+                if (actionDetectionService != null) {
+                    try {
+                        actionDetectionService.processActionEvent("vote", payload);
+                        logEntry("blaze-events", eventType.id(), "Vote event dispatched to detection service");
+                        return;
+                    } catch (Exception e) {
+                        logEntry("blaze-events", eventType.id(), "Vote detection error: " + e.getMessage());
+                    }
+                }
+            }
+            case CHANNEL_SUBSCRIBE -> {
+                if (actionDetectionService != null) {
+                    try {
+                        actionDetectionService.processActionEvent("sub", payload);
+                        logEntry("blaze-events", eventType.id(), "Subscribe event dispatched to detection service");
+                        return;
+                    } catch (Exception e) {
+                        logEntry("blaze-events", eventType.id(), "Sub detection error: " + e.getMessage());
+                    }
+                }
+            }
+            case CHANNEL_SUBSCRIPTION_GIFT -> {
+                if (actionDetectionService != null) {
+                    try {
+                        actionDetectionService.processActionEvent("gifted_sub", payload);
+                        logEntry("blaze-events", eventType.id(), "Gifted sub event dispatched to detection service");
+                        return;
+                    } catch (Exception e) {
+                        logEntry("blaze-events", eventType.id(), "Gifted sub detection error: " + e.getMessage());
+                    }
+                }
             }
         }
         String details = payload != null ? new HashMap<>(payload).toString() : "{}";

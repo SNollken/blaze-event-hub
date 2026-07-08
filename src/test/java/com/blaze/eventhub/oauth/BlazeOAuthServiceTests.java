@@ -12,7 +12,6 @@ import com.blaze.eventhub.config.BlazeProperties;
 import com.blaze.eventhub.member.Member;
 import com.blaze.eventhub.member.MemberService;
 import com.blaze.eventhub.member.MemberStore;
-import com.blaze.eventhub.member.NoopMemberStore;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -395,4 +394,4 @@ class BlazeOAuthServiceTests {
 			return false;
 		}
 	}
-	}
+}

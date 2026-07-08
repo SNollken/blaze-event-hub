@@ -34,6 +34,38 @@ public class BlazeApiController {
 		return apiClient.getChannelsBySlug(slug);
 	}
 
+	@GetMapping("/channels/resolve")
+	Map<String, Object> resolveChannel(@RequestParam @NotBlank String slug) {
+		Map<String, Object> response = apiClient.getChannelsBySlug(slug);
+		return extractFirstChannel(response);
+	}
+
+	@SuppressWarnings("unchecked")
+	private Map<String, Object> extractFirstChannel(Map<String, Object> response) {
+		if (response == null) {
+			throw new IllegalArgumentException("Channel not found for slug");
+		}
+		Object data = response.get("data");
+		if (!(data instanceof Map)) {
+			throw new IllegalArgumentException("Channel not found for slug");
+		}
+		Map<String, Object> dataMap = (Map<String, Object>) data;
+		Object rows = dataMap.get("rows");
+		if (!(rows instanceof java.util.List<?>)) {
+			throw new IllegalArgumentException("Channel not found for slug");
+		}
+		java.util.List<Map<String, Object>> rowsList = (java.util.List<Map<String, Object>>) rows;
+		if (rowsList.isEmpty()) {
+			throw new IllegalArgumentException("Channel not found for slug");
+		}
+		Map<String, Object> channel = rowsList.get(0);
+		return Map.of(
+				"id", channel.get("id"),
+				"slug", channel.get("slug"),
+				"displayName", channel.getOrDefault("displayName", ""),
+				"avatarUrl", channel.getOrDefault("avatarUrl", ""));
+	}
+
 	@GetMapping("/chats/messages")
 	Map<String, Object> chatMessages(@RequestParam @NotBlank String channelId) {
 		return apiClient.getChatMessages(channelId);

@@ -14,6 +14,6 @@ public class HealthController {
 	Map<String, String> health() {
 		return Map.of(
 				"status", "ok",
-				"app", "NollenBlaze");
+				"app", "Blaze Event Hub");
 	}
 }

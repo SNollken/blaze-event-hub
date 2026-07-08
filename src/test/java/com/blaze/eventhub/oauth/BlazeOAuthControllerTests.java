@@ -27,10 +27,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-		"nollen.blaze.client-id=client-id",
-		"nollen.blaze.client-secret=client-secret",
-		"nollen.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
-		"nollen.blaze.scopes=users.read,offline.access"
+		"eventhub.blaze.client-id=client-id",
+		"eventhub.blaze.client-secret=client-secret",
+		"eventhub.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"eventhub.blaze.scopes=users.read,offline.access",
+		"eventhub.security.api-key=dev-local-key"
 })
 @AutoConfigureMockMvc
 class BlazeOAuthControllerTests {
@@ -95,7 +96,7 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void callbackReturnsFriendlyHtmlForBrowserWithoutSensitiveValues() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		mockMvc.perform(get("/api/blaze/oauth/start"))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get("/api/blaze/oauth/callback")
@@ -116,7 +117,7 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void callbackReturnsSafeJsonWhenRequested() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		mockMvc.perform(get("/api/blaze/oauth/start"))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get("/api/blaze/oauth/callback")
@@ -140,7 +141,8 @@ class BlazeOAuthControllerTests {
 	void refreshPreservesSessionAndNeverReturnsTokens() throws Exception {
 		connectWithJsonCallback();
 
-		mockMvc.perform(post("/api/blaze/oauth/refresh"))
+		mockMvc.perform(post("/api/blaze/oauth/refresh")
+						.header("X-Nollen-Api-Key", "dev-local-key"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.refreshed").value(true))
 				.andExpect(jsonPath("$.connected").value(true))
@@ -155,7 +157,8 @@ class BlazeOAuthControllerTests {
 	void disconnectClearsLocalSessionAndProfile() throws Exception {
 		connectWithJsonCallback();
 
-		mockMvc.perform(post("/api/blaze/oauth/disconnect"))
+		mockMvc.perform(post("/api/blaze/oauth/disconnect")
+						.header("X-Nollen-Api-Key", "dev-local-key"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.disconnected").value(true))
 				.andExpect(jsonPath("$.connected").value(false))
@@ -170,7 +173,8 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void refreshWithoutCredentialFailsSafely() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/refresh"))
+		mockMvc.perform(post("/api/blaze/oauth/refresh")
+						.header("X-Nollen-Api-Key", "dev-local-key"))
 				.andExpect(status().isServiceUnavailable())
 				.andExpect(content().string(not(containsString("access-token"))))
 				.andExpect(content().string(not(containsString("refresh-token"))))
@@ -179,7 +183,7 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void jsonCallbackErrorSanitizesRemoteSensitiveText() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		mockMvc.perform(get("/api/blaze/oauth/start"))
 				.andExpect(status().isOk());
 		given(gateway.exchangeCode(any(OAuthTokenExchangeRequest.class)))
 				.willThrow(new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
@@ -200,7 +204,7 @@ class BlazeOAuthControllerTests {
 	}
 
 	private void connectWithJsonCallback() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		mockMvc.perform(get("/api/blaze/oauth/start"))
 				.andExpect(status().isOk());
 		mockMvc.perform(get("/api/blaze/oauth/callback")
 						.param("code", "auth-code-1")

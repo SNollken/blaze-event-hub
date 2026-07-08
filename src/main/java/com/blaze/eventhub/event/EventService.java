@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -13,6 +14,10 @@ import org.springframework.stereotype.Service;
 import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.common.NotFoundException;
 import com.blaze.eventhub.event.audit.AuditService;
+import com.blaze.eventhub.event.detection.DetectedActionStore;
+import com.blaze.eventhub.event.entry.EntryCalculator;
+import com.blaze.eventhub.event.entry.EventEntryStore;
+import com.blaze.eventhub.event.interest.EventInterestService;
 import com.blaze.eventhub.member.MemberService;
 
 @Service
@@ -30,6 +35,18 @@ public class EventService {
 
     @Autowired(required = false)
     private AuditService auditService;
+
+    @Autowired(required = false)
+    private EventInterestService interestService;
+
+    @Autowired(required = false)
+    private EntryCalculator entryCalculator;
+
+    @Autowired(required = false)
+    private EventEntryStore entryStore;
+
+    @Autowired(required = false)
+    private DetectedActionStore detectedActionStore;
 
     public EventService(EventStore eventStore, EventRuleStore eventRuleStore, IdGenerator idGenerator, Clock clock) {
         this.eventStore = eventStore;
@@ -112,8 +129,79 @@ public class EventService {
                 .toList();
     }
 
+    public Map<String, List<EventResponse>> getCreatorHistory(String memberId) {
+        List<EventResponse> all = findByCreatorMemberId(memberId);
+        Instant now = Instant.now(clock);
+
+        List<EventResponse> drafts = all.stream()
+                .filter(e -> "DRAFT".equalsIgnoreCase(e.status()))
+                .toList();
+
+        List<EventResponse> upcoming = all.stream()
+                .filter(e -> {
+                    String s = e.status();
+                    return "OPEN".equalsIgnoreCase(s) || "DRAWING".equalsIgnoreCase(s);
+                })
+                .toList();
+
+        List<EventResponse> past = all.stream()
+                .filter(e -> {
+                    String s = e.status();
+                    return "CLOSED".equalsIgnoreCase(s) || "COMPLETED".equalsIgnoreCase(s) || "CANCELLED".equalsIgnoreCase(s);
+                })
+                .toList();
+
+        return Map.of("drafts", drafts, "upcoming", upcoming, "past", past);
+    }
+
+    @SuppressWarnings("unchecked")
+    public Map<String, Object> getEventStats(String eventId) {
+        Event event = eventStore.findById(eventId)
+                .orElseThrow(() -> new NotFoundException("Event not found: " + eventId));
+
+        List<com.blaze.eventhub.event.detection.DetectedAction> actions =
+                detectedActionStore.findByEventId(eventId);
+
+        int totalVotes = 0, totalSubs = 0, totalGiftedSubs = 0;
+        Instant now = Instant.now(clock);
+        int last24hVotes = 0, last24hSubs = 0;
+        Instant cutoff24h = now.minus(java.time.Duration.ofHours(24));
+
+        for (var action : actions) {
+            switch (action.actionType()) {
+                case "vote" -> {
+                    totalVotes += action.amount();
+                    if (action.createdAt() != null && action.createdAt().isAfter(cutoff24h)) {
+                        last24hVotes += action.amount();
+                    }
+                }
+                case "sub" -> totalSubs += action.amount();
+                case "gifted_sub" -> totalGiftedSubs += action.amount();
+            }
+        }
+
+        int participants = 0;
+        if (interestService != null) {
+            participants = interestService.findByEventId(eventId).size();
+        }
+
+        int totalEntries = 0;
+        if (entryCalculator != null) {
+            totalEntries = entryStore.countByEventId(eventId);
+        }
+
+        return Map.of(
+                "totalVotes", totalVotes,
+                "totalSubs", totalSubs,
+                "totalGiftedSubs", totalGiftedSubs,
+                "participants", participants,
+                "totalEntries", totalEntries,
+                "last24h", Map.of("votes", last24hVotes, "subs", last24hSubs));
+    }
+
     public EventResponse updateEvent(String eventId, UpdateEventRequest request, String memberId) {
         Event event = requireEventOwnership(eventId, memberId);
+        assertEditable(event, "edit");
 
         Instant now = Instant.now(clock);
 
@@ -197,30 +285,17 @@ public class EventService {
 
     public EventRuleResponse addRule(String eventId, CreateEventRuleRequest request, String memberId) {
         requireEventOwnership(eventId, memberId);
-
         Event event = eventStore.findById(eventId).get();
-
-        if (event.status() != EventStatus.DRAFT) {
-            auditViolation(eventId, memberId, "rule_added_after_opened", "Attempt to add rule to non-draft event");
-            throw new IllegalArgumentException("Cannot add rules to an event that is not in draft status. Current status: " + event.status().name().toLowerCase());
-        }
-
+        assertEditable(event, "add rules");
         Instant now = Instant.now(clock);
         EventRule rule = createEventRule(eventId, request, now);
-
         return EventRuleResponse.from(rule);
     }
 
     public EventRuleResponse updateRule(String eventId, String ruleId, UpdateEventRuleRequest request, String memberId) {
         requireEventOwnership(eventId, memberId);
-
         Event event = eventStore.findById(eventId).get();
-
-        if (event.status() != EventStatus.DRAFT) {
-            auditViolation(eventId, memberId, "rule_updated_after_opened", "Attempt to update rule " + ruleId + " on non-draft event");
-            throw new IllegalArgumentException("Cannot update rules on an event that is not in draft status. Current status: " + event.status().name().toLowerCase());
-        }
-
+        assertEditable(event, "update rules");
         List<EventRule> existingRules = eventRuleStore.findByEventId(eventId);
         EventRule existing = existingRules.stream()
                 .filter(r -> r.id().equals(ruleId))
@@ -246,14 +321,8 @@ public class EventService {
 
     public void removeRule(String eventId, String ruleId, String memberId) {
         requireEventOwnership(eventId, memberId);
-
         Event event = eventStore.findById(eventId).get();
-
-        if (event.status() != EventStatus.DRAFT) {
-            auditViolation(eventId, memberId, "rule_removed_after_opened", "Attempt to remove rule " + ruleId + " on non-draft event");
-            throw new IllegalArgumentException("Cannot remove rules from an event that is not in draft status. Current status: " + event.status().name().toLowerCase());
-        }
-
+        assertEditable(event, "remove rules");
         int deleted = eventRuleStore.delete(ruleId);
         if (deleted == 0) {
             throw new NotFoundException("Rule not found: " + ruleId);
@@ -330,5 +399,30 @@ public class EventService {
 
     private static boolean has(String value) {
         return value != null;
+    }
+
+    /**
+     * Events are editable only if DRAFT, or if OPEN/upcoming AND more than 24h before startsAt.
+     * COMPLETED and CANCELLED events are never editable.
+     */
+    private void assertEditable(Event event, String action) {
+        if (event.status() == EventStatus.COMPLETED || event.status() == EventStatus.CANCELLED) {
+            throw new IllegalArgumentException(
+                    "Cannot " + action + " on a " + event.status().name().toLowerCase() + " event");
+        }
+        if (event.status() == EventStatus.DRAFT) {
+            return; // sempre editável
+        }
+        // OPEN ou DRAWING: permitido até 24h antes de startsAt
+        if (event.startsAt() != null) {
+            Instant now = Instant.now(clock);
+            Instant cutoff = event.startsAt().minus(java.time.Duration.ofHours(24));
+            if (now.isAfter(cutoff)) {
+                throw new IllegalArgumentException(
+                        "Cannot " + action + " within 24h of event start");
+            }
+            return;
+        }
+        // sem startsAt definido, mas não está DRAFT -> eventos abertos sem data são editáveis
     }
 }

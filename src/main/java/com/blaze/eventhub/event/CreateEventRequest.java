@@ -17,5 +17,6 @@ public record CreateEventRequest(
         boolean requiresInterestBeforeAction,
         String startsAt,
         String endsAt,
+        @NotBlank String creatorChannelId,
         @NotEmpty @Valid List<CreateEventRuleRequest> rules) {
 }

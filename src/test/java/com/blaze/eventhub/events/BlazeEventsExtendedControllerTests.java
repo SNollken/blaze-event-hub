@@ -7,6 +7,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.http.MediaType;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.request.MockHttpServletRequestBuilder;
 
 import static org.hamcrest.Matchers.greaterThanOrEqualTo;
 import static org.hamcrest.Matchers.notNullValue;
@@ -19,17 +20,26 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-		"nollen.blaze.client-id=",
-		"nollen.blaze.client-secret=",
+		"eventhub.blaze.client-id=",
+		"eventhub.blaze.client-secret=",
+		"eventhub.security.api-key=dev-local-key",
 })
 class BlazeEventsExtendedControllerTests {
 
 	@Autowired
 	private MockMvc mockMvc;
 
+	private static MockHttpServletRequestBuilder apiGet(String url) {
+		return get(url).header("X-Nollen-Api-Key", "dev-local-key");
+	}
+
+	private static MockHttpServletRequestBuilder apiPost(String url) {
+		return post(url).header("X-Nollen-Api-Key", "dev-local-key");
+	}
+
 	@Test
 	void getEventsStatusReturnsExtendedFields() throws Exception {
-		mockMvc.perform(get("/api/blaze/events/status"))
+		mockMvc.perform(apiGet("/api/blaze/events/status"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.runnerRunning").value(false))
 				.andExpect(jsonPath("$.clientRunning").value(false))
@@ -39,11 +49,11 @@ class BlazeEventsExtendedControllerTests {
 
 	@Test
 	void startAndStopEventsEngine() throws Exception {
-		mockMvc.perform(post("/api/blaze/events/start"))
+		mockMvc.perform(apiPost("/api/blaze/events/start"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.runnerRunning").value(true));
 
-		mockMvc.perform(post("/api/blaze/events/stop"))
+		mockMvc.perform(apiPost("/api/blaze/events/stop"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.runnerRunning").value(false));
 	}
@@ -57,7 +67,7 @@ class BlazeEventsExtendedControllerTests {
 				}
 				""";
 
-		mockMvc.perform(post("/api/blaze/events/simulate")
+		mockMvc.perform(apiPost("/api/blaze/events/simulate")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content(body))
 				.andExpect(status().isOk())
@@ -69,7 +79,7 @@ class BlazeEventsExtendedControllerTests {
 
 	@Test
 	void simulateWithDefaults() throws Exception {
-		mockMvc.perform(post("/api/blaze/events/simulate")
+		mockMvc.perform(apiPost("/api/blaze/events/simulate")
 						.contentType(MediaType.APPLICATION_JSON))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.eventType").value("channel.chat.message"))
@@ -79,12 +89,12 @@ class BlazeEventsExtendedControllerTests {
 	@Test
 	void getEventLogReturnsEntries() throws Exception {
 		// Simulate some events first
-		mockMvc.perform(post("/api/blaze/events/simulate")
+		mockMvc.perform(apiPost("/api/blaze/events/simulate")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"eventType\": \"channel.chat.message\", \"message\": \"log test\"}"))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(get("/api/blaze/events/log"))
+		mockMvc.perform(apiGet("/api/blaze/events/log"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.entries").isArray())
 				.andExpect(jsonPath("$.total", greaterThanOrEqualTo(1)));
@@ -92,12 +102,12 @@ class BlazeEventsExtendedControllerTests {
 
 	@Test
 	void getEventLogWithFilters() throws Exception {
-		mockMvc.perform(post("/api/blaze/events/simulate")
+		mockMvc.perform(apiPost("/api/blaze/events/simulate")
 						.contentType(MediaType.APPLICATION_JSON)
 						.content("{\"eventType\": \"channel.follow\", \"message\": \"follow test\"}"))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(get("/api/blaze/events/log")
+		mockMvc.perform(apiGet("/api/blaze/events/log")
 						.param("eventType", "channel.follow"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.entries").isArray());
@@ -105,7 +115,7 @@ class BlazeEventsExtendedControllerTests {
 
 	@Test
 	void capabilitiesEndpointReturnsExpectedStructure() throws Exception {
-		mockMvc.perform(get("/api/blaze/events/capabilities"))
+		mockMvc.perform(apiGet("/api/blaze/events/capabilities"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.engine").exists())
 				.andExpect(jsonPath("$.eventTypes").isArray())
@@ -118,13 +128,13 @@ class BlazeEventsExtendedControllerTests {
 
 	@Test
 	void startStopLogsAppearInLog() throws Exception {
-		mockMvc.perform(post("/api/blaze/events/start"))
+		mockMvc.perform(apiPost("/api/blaze/events/start"))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(post("/api/blaze/events/stop"))
+		mockMvc.perform(apiPost("/api/blaze/events/stop"))
 				.andExpect(status().isOk());
 
-		mockMvc.perform(get("/api/blaze/events/log")
+		mockMvc.perform(apiGet("/api/blaze/events/log")
 						.param("source", "system"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.entries").isArray())
