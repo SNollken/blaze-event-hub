@@ -1,71 +1,108 @@
 import { useState, useEffect } from 'react';
+import { Link } from 'react-router-dom';
 import { getEvents } from '../api/client';
 import type { EventResponse } from '../api/client';
+
+const STATUS_MAP: Record<string, { pill: string; label: string }> = {
+  OPEN:      { pill: 'pill--open',      label: 'Aberto' },
+  CLOSED:    { pill: 'pill--closed',    label: 'Encerrado' },
+  DRAWING:   { pill: 'pill--completed', label: 'Sorteando' },
+  COMPLETED: { pill: 'pill--completed', label: 'Concluido' },
+  CANCELLED: { pill: 'pill--cancelled', label: 'Cancelado' },
+  DRAFT:     { pill: 'pill--draft',     label: 'Rascunho' },
+};
 
 export default function Events() {
   const [events, setEvents] = useState<EventResponse[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    getEvents().then(setEvents).finally(() => setLoading(false));
+    let alive = true;
+
+    async function loadEvents() {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const apiEvents = await getEvents();
+        if (alive) setEvents(apiEvents);
+      } catch {
+        if (alive) {
+          setEvents([]);
+          setError('Nao foi possivel carregar os eventos.');
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    loadEvents();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando...</div>;
-
-  const open = events.filter(e => e.status === 'OPEN');
-  const other = events.filter(e => e.status !== 'OPEN');
+  const openEvents = events.filter((e) => e.status === 'OPEN');
+  const closedEvents = events.filter((e) => e.status !== 'OPEN');
+  const summary = loading
+    ? 'Carregando eventos...'
+    : error
+      ? 'Falha ao carregar eventos'
+      : `${events.length} evento${events.length !== 1 ? 's' : ''} encontrado${events.length !== 1 ? 's' : ''}`;
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 860 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 28 }}>
+    <div style={{ padding: '32px 40px' }}>
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start',
+        marginBottom: 28,
+      }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 510, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
+          <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--fg)', letterSpacing: '-0.3px', margin: 0 }}>
             Eventos
           </h1>
-          <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-            {events.length} evento{events.length !== 1 ? 's' : ''} encontrado{events.length !== 1 ? 's' : ''}
+          <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
+            {summary}
           </p>
         </div>
-        <a href="/events/create" style={{
-          background: 'var(--brand)', color: '#fff', border: 'none',
-          padding: '7px 16px', borderRadius: 'var(--radius)',
-          fontWeight: 510, fontSize: 13, cursor: 'pointer', textDecoration: 'none',
-        }}>
+        <Link to="/events/create" className="btn btn-primary">
           Criar evento
-        </a>
+        </Link>
       </div>
 
-      {events.length === 0 ? (
-        <div style={{ padding: '60px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
+      {loading && (
+        <div className="empty">Carregando eventos...</div>
+      )}
+
+      {!loading && error && (
+        <div className="empty" style={{ color: 'var(--danger)' }}>
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && events.length === 0 ? (
+        <div className="empty">
           Nenhum evento ainda
         </div>
-      ) : (
+      ) : null}
+
+      {!loading && !error && events.length > 0 && (
         <>
-          {open.length > 0 && (
-            <div style={{ marginBottom: 32 }}>
-              <div style={{
-                fontSize: 11, fontWeight: 510, color: 'var(--text-muted)',
-                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
-              }}>
-                Abertos ({open.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {open.map((ev) => <EventRow key={ev.id} event={ev} />)}
-              </div>
-            </div>
+          {openEvents.length > 0 && (
+            <Section
+              label="Abertos"
+              count={openEvents.length}
+              events={openEvents}
+            />
           )}
-          {other.length > 0 && (
-            <div>
-              <div style={{
-                fontSize: 11, fontWeight: 510, color: 'var(--text-muted)',
-                textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10,
-              }}>
-                Encerrados ({other.length})
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-                {other.map((ev) => <EventRow key={ev.id} event={ev} />)}
-              </div>
-            </div>
+
+          {closedEvents.length > 0 && (
+            <Section
+              label="Encerrados"
+              count={closedEvents.length}
+              events={closedEvents}
+            />
           )}
         </>
       )}
@@ -73,39 +110,61 @@ export default function Events() {
   );
 }
 
-function EventRow({ event }: { event: EventResponse }) {
-  const sc: Record<string, { c: string; bg: string; l: string }> = {
-    OPEN: { c: 'var(--success)', bg: 'var(--success-bg)', l: 'Aberto' },
-    CLOSED: { c: 'var(--warning)', bg: 'var(--warning-bg)', l: 'Fechado' },
-    COMPLETED: { c: 'var(--brand-light)', bg: 'var(--brand-bg)', l: 'Concluido' },
-    DRAFT: { c: 'var(--text-muted)', bg: 'rgba(255,255,255,0.04)', l: 'Rascunho' },
-    CANCELLED: { c: 'var(--danger)', bg: 'var(--danger-bg)', l: 'Cancelado' },
-  };
-  const s = sc[event.status] || sc.DRAFT;
+function Section({ label, count, events }: { label: string; count: number; events: EventResponse[] }) {
+  return (
+    <div style={{ marginBottom: 32 }}>
+      <div className="section-label">
+        {label}
+        <span className="count">{count}</span>
+      </div>
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+        gap: 12,
+      }}>
+        {events.map((ev) => (
+          <EventCard key={ev.id} event={ev} />
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function EventCard({ event }: { event: EventResponse }) {
+  const status = STATUS_MAP[event.status] || STATUS_MAP.DRAFT;
+  const rulesCount = event.rules?.length ?? 0;
 
   return (
-    <a href={`/events/${event.id}`} style={{
-      display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-      padding: '12px 14px', background: 'var(--bg-card)',
-      border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
-      textDecoration: 'none', transition: 'border-color 0.12s',
-    }}
-    onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
-    onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-card)')}
+    <Link
+      to={`/events/${event.id}`}
+      className="card"
+      style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px' }}
     >
-      <div>
-        <div style={{ fontSize: 14, fontWeight: 510, color: 'var(--text-primary)' }}>{event.title}</div>
-        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>
-          {event.description?.slice(0, 60) || 'Sem descricao'}
-          {event.rules && event.rules.length > 0 && <> · {event.rules.length} regra{event.rules.length > 1 ? 's' : ''}</>}
-        </div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <span className={`pill ${status.pill}`}>{status.label}</span>
       </div>
-      <span style={{
-        fontSize: 11, fontWeight: 510, color: s.c, background: s.bg,
-        padding: '3px 10px', borderRadius: 'var(--radius-full)',
+
+      <div className="card-title" style={{ fontSize: 14 }}>
+        {event.title}
+      </div>
+
+      <div className="card-desc" style={{ whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
+        {event.description?.slice(0, 120) || 'Sem descricao'}
+      </div>
+
+      <div style={{
+        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
+        marginTop: 'auto', paddingTop: 6,
+        borderTop: '1px solid var(--border-card)',
+        fontSize: 12, color: 'var(--muted)',
       }}>
-        {s.l}
-      </span>
-    </a>
+        <span>
+          {rulesCount > 0 ? `${rulesCount} regra${rulesCount > 1 ? 's' : ''}` : 'Sem regras'}
+        </span>
+        <span style={{ color: 'var(--accent-light)', fontWeight: 510 }}>
+          Ver
+        </span>
+      </div>
+    </Link>
   );
 }

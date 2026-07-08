@@ -1,131 +1,307 @@
-import { useState, useEffect } from 'react';
-import { getEvents, getOAuthSession, startOAuth } from '../api/client';
-import type { EventResponse, OAuthSessionResponse } from '../api/client';
+import { useEffect, useState } from 'react';
+import { Link } from 'react-router-dom';
+import { getEventStats, getEvents, getOAuthSession, startOAuth } from '../api/client';
+import type { EventResponse, EventStatsResponse, OAuthSessionResponse } from '../api/client';
+
+const numberFormatter = new Intl.NumberFormat('pt-BR');
+
+function formatNumber(value: number | null | undefined) {
+  return numberFormatter.format(value ?? 0);
+}
+
+function formatLast24h(last24h: EventStatsResponse['last24h'] | undefined) {
+  if (typeof last24h === 'number') {
+    return `${formatNumber(last24h)} acoes`;
+  }
+
+  const votes = formatNumber(last24h?.votes);
+  const subs = formatNumber(last24h?.subs);
+  const giftedSubs = formatNumber(last24h?.giftedSubs);
+
+  return `${votes} votos / ${subs} subs / ${giftedSubs} gifts`;
+}
 
 export default function Dashboard() {
   const [events, setEvents] = useState<EventResponse[]>([]);
+  const [stats, setStats] = useState<EventStatsResponse | null>(null);
   const [oauth, setOAuth] = useState<OAuthSessionResponse | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+  const [statsError, setStatsError] = useState<string | null>(null);
+  const [oauthError, setOAuthError] = useState<string | null>(null);
+  const [connectError, setConnectError] = useState<string | null>(null);
 
   useEffect(() => {
-    Promise.all([getEvents('OPEN'), getOAuthSession()])
-      .then(([e, o]) => { setEvents(e); setOAuth(o); })
-      .finally(() => setLoading(false));
+    let alive = true;
+
+    async function loadDashboard() {
+      setLoading(true);
+      setError(null);
+      setStatsError(null);
+      setOAuthError(null);
+      setStats(null);
+
+      try {
+        const [eventsResult, oauthResult] = await Promise.allSettled([
+          getEvents('OPEN'),
+          getOAuthSession(),
+        ]);
+
+        if (!alive) return;
+
+        if (oauthResult.status === 'fulfilled') {
+          setOAuth(oauthResult.value);
+        } else {
+          setOAuth(null);
+          setOAuthError('Nao foi possivel verificar a conexao OAuth.');
+        }
+
+        if (eventsResult.status === 'rejected') {
+          setEvents([]);
+          setError('Nao foi possivel carregar os eventos abertos.');
+          return;
+        }
+
+        const openEvents = eventsResult.value;
+        setEvents(openEvents);
+
+        const featuredEvent = openEvents[0];
+        if (!featuredEvent) return;
+
+        try {
+          const eventStats = await getEventStats(featuredEvent.id);
+          if (alive) setStats(eventStats);
+        } catch {
+          if (alive) {
+            setStatsError('Nao foi possivel carregar as estatisticas do evento em destaque.');
+          }
+        }
+      } finally {
+        if (alive) setLoading(false);
+      }
+    }
+
+    loadDashboard();
+
+    return () => {
+      alive = false;
+    };
   }, []);
 
   const handleConnect = async () => {
+    setConnectError(null);
     try {
       const { authorizationUrl } = await startOAuth();
       window.location.href = authorizationUrl;
-    } catch {}
+    } catch {
+      setConnectError('Nao foi possivel iniciar a conexao OAuth.');
+    }
   };
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando...</div>;
-
-  const connected = oauth?.connected;
+  const connected = oauth?.connected === true;
+  const featuredEvent = events[0] ?? null;
+  const statCards = stats
+    ? [
+        { value: formatNumber(stats.totalVotes), label: 'Votos' },
+        { value: formatNumber(stats.totalSubs), label: 'Subs' },
+        { value: formatNumber(stats.totalGiftedSubs), label: 'Gifted subs' },
+        { value: formatNumber(stats.participants), label: 'Participantes' },
+        { value: formatNumber(stats.totalEntries), label: 'Entradas' },
+        { value: formatLast24h(stats.last24h), label: 'Ultimas 24h' },
+      ]
+    : [];
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 860 }}>
-      {/* Header */}
-      <div style={{ marginBottom: 32 }}>
-        <h1 style={{
-          fontSize: 24, fontWeight: 510, color: 'var(--text-primary)',
-          letterSpacing: '-0.5px', marginBottom: 6,
-        }}>
-          Blaze Event Hub
-        </h1>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)' }}>
-          Eventos comunitarios para a Blaze stream
-        </p>
-      </div>
+    <div style={{ padding: '32px 40px', maxWidth: 960 }}>
+      <h1 className="page-title">Blaze Event Hub</h1>
+      <p className="page-subtitle">Eventos comunitarios para a Blaze.stream</p>
 
-      {/* Connect CTA */}
       {!connected && (
-        <div style={{
-          background: 'var(--brand-bg)', border: '1px solid rgba(94,106,210,0.2)',
-          borderRadius: 'var(--radius-lg)', padding: '20px 24px', marginBottom: 32,
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 16,
-        }}>
+        <div className="cta-banner">
           <div>
-            <div style={{ fontSize: 14, fontWeight: 510, color: 'var(--text-primary)', marginBottom: 4 }}>
-              Conecte sua conta Blaze
-            </div>
-            <div style={{ fontSize: 13, color: 'var(--text-tertiary)' }}>
-              Necessario para criar eventos e participar de giveaways
-            </div>
+            <h3>Conecte sua conta Blaze</h3>
+            <p>{oauthError || 'Necessario para criar eventos e participar de giveaways'}</p>
           </div>
-          <button onClick={handleConnect} style={{
-            background: 'var(--brand)', color: '#fff', border: 'none',
-            padding: '8px 18px', borderRadius: 'var(--radius)', fontWeight: 510, fontSize: 13, cursor: 'pointer',
-          }}>
+          <button onClick={handleConnect} className="btn btn-primary" style={{ flexShrink: 0 }}>
             Conectar
           </button>
         </div>
       )}
 
-      {/* Events */}
-      <div>
-        <div style={{
-          fontSize: 12, fontWeight: 510, color: 'var(--text-muted)',
-          textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 12,
-        }}>
-          Eventos Abertos
+      {connectError && (
+        <div className="empty" style={{ color: 'var(--danger)', padding: '0 0 24px' }}>
+          {connectError}
         </div>
+      )}
 
-        {events.length === 0 ? (
-          <div style={{ padding: '48px 0', textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>
-            Nenhum evento aberto no momento
+      {loading && <div className="empty">Carregando dashboard...</div>}
+
+      {!loading && error && (
+        <div className="empty" style={{ color: 'var(--danger)' }}>
+          {error}
+        </div>
+      )}
+
+      {!loading && !error && !featuredEvent && (
+        <>
+          <div className="section-label">
+            Eventos Abertos <span className="count">0</span>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {events.map((ev) => (
-              <a
-                key={ev.id}
-                href={`/events/${ev.id}`}
-                style={{
-                  display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                  padding: '14px 16px', background: 'var(--bg-card)',
-                  border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
-                  textDecoration: 'none', transition: 'border-color 0.12s',
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
-                onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-card)')}
-              >
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 510, color: 'var(--text-primary)' }}>
-                    {ev.title}
+          <div className="empty">Nenhum evento aberto no momento</div>
+        </>
+      )}
+
+      {!loading && !error && featuredEvent && (
+        <>
+          <div className="section-label">
+            Evento em destaque <span className="count">OPEN</span>
+          </div>
+
+          <Link
+            to={`/events/${featuredEvent.id}`}
+            className="card"
+            style={{
+              display: 'flex',
+              flexDirection: 'column',
+              gap: 8,
+              padding: '20px 22px',
+              marginBottom: 14,
+            }}
+          >
+            <span className="pill pill--open">Aberto</span>
+            <div className="card-title" style={{ fontSize: 16 }}>
+              {featuredEvent.title}
+            </div>
+            <div
+              className="card-desc"
+              style={{
+                whiteSpace: 'normal',
+                maxWidth: 'none',
+                display: '-webkit-box',
+                WebkitLineClamp: 2,
+                WebkitBoxOrient: 'vertical',
+              }}
+            >
+              {featuredEvent.description || 'Sem descricao'}
+            </div>
+            <div
+              style={{
+                marginTop: 8,
+                paddingTop: 10,
+                borderTop: '1px solid var(--border-card)',
+                color: 'var(--accent-light)',
+                fontSize: 12,
+                fontWeight: 510,
+              }}
+            >
+              Ver evento
+            </div>
+          </Link>
+
+          {statsError ? (
+            <div className="empty" style={{ color: 'var(--danger)', padding: '18px 0 32px' }}>
+              {statsError}
+            </div>
+          ) : (
+            <div style={{
+              display: 'grid',
+              gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))',
+              gap: 12,
+              marginBottom: 32,
+            }}>
+              {statCards.map((item) => (
+                <div key={item.label} className="card" style={{ padding: '16px 18px' }}>
+                  <div style={{
+                    fontSize: item.label === 'Ultimas 24h' ? 14 : 24,
+                    fontWeight: 600,
+                    color: 'var(--fg)',
+                    fontFamily: 'var(--font-mono)',
+                    lineHeight: 1.25,
+                    overflowWrap: 'anywhere',
+                  }}>
+                    {item.value}
                   </div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>
-                    {ev.description?.slice(0, 80) || 'Sem descricao'}
+                  <div style={{
+                    fontSize: 11,
+                    color: 'var(--muted)',
+                    marginTop: 4,
+                    textTransform: 'uppercase',
+                    letterSpacing: '0.04em',
+                  }}>
+                    {item.label}
                   </div>
                 </div>
-                <span style={{
-                  fontSize: 11, fontWeight: 510, color: 'var(--success)',
-                  background: 'var(--success-bg)', padding: '3px 10px', borderRadius: 'var(--radius-full)',
+              ))}
+            </div>
+          )}
+
+          <div className="section-label">
+            Eventos Abertos <span className="count">{events.length}</span>
+          </div>
+
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
+            gap: 12,
+            marginBottom: 32,
+          }}>
+            {events.map((ev) => (
+              <Link
+                key={ev.id}
+                to={`/events/${ev.id}`}
+                className="card"
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  gap: 6,
+                  padding: '18px 20px',
+                  minHeight: 140,
+                }}
+              >
+                <span className="pill pill--open">Aberto</span>
+                <div className="card-title" style={{
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                  overflow: 'hidden',
                 }}>
-                  Aberto
-                </span>
-              </a>
+                  {ev.title}
+                </div>
+                <div className="card-desc" style={{
+                  lineHeight: 1.45,
+                  whiteSpace: 'normal',
+                  maxWidth: 'none',
+                  display: '-webkit-box',
+                  WebkitLineClamp: 2,
+                  WebkitBoxOrient: 'vertical',
+                }}>
+                  {ev.description?.slice(0, 80) || 'Sem descricao'}
+                </div>
+                <div style={{
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
+                  marginTop: 'auto',
+                  paddingTop: 10,
+                  borderTop: '1px solid var(--border-card)',
+                  fontSize: 11,
+                  color: 'var(--muted)',
+                  fontFamily: 'var(--font-mono)',
+                  letterSpacing: '0.02em',
+                }}>
+                  <span>{ev.rules?.length || 0} regras / {ev.participantCount || 0} part.</span>
+                  <span style={{ color: 'var(--accent-light)' }}>Ver</span>
+                </div>
+              </Link>
             ))}
           </div>
-        )}
-      </div>
+        </>
+      )}
 
-      {/* Quick actions */}
       {connected && (
-        <div style={{ marginTop: 32 }}>
-          <a href="/events/create" style={{
-            display: 'inline-flex', alignItems: 'center', gap: 6,
-            padding: '8px 16px', borderRadius: 'var(--radius)',
-            border: '1px solid var(--border-card)', background: 'var(--bg-button)',
-            color: 'var(--text-secondary)', fontSize: 13, fontWeight: 510,
-            textDecoration: 'none', transition: 'border-color 0.12s',
-          }}
-          onMouseEnter={(e) => (e.currentTarget.style.borderColor = 'var(--border-hover)')}
-          onMouseLeave={(e) => (e.currentTarget.style.borderColor = 'var(--border-card)')}
-          >
-            Criar evento
-          </a>
+        <div style={{ marginTop: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+          <Link to="/events/create" className="btn btn-secondary">+ Criar evento</Link>
+          <Link to="/events" className="btn btn-secondary">Ver todos os eventos</Link>
         </div>
       )}
     </div>

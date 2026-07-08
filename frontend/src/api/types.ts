@@ -1,4 +1,4 @@
-/* Blaze Event Hub — API Types (matches client.ts) */
+/* Blaze Event Hub - API Types (matches client.ts) */
 
 export type EventStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'DRAWING' | 'COMPLETED' | 'CANCELLED';
 
@@ -19,8 +19,22 @@ export interface StatusResponse {
 export interface OAuthSessionResponse {
   connected: boolean;
   tokenPresent: boolean;
+  refreshCredentialPresent?: boolean;
   profilePresent: boolean;
+  profile?: {
+    id: string;
+    username: string;
+    displayName: string;
+    avatarUrl: string | null;
+    rawAvailable?: boolean;
+  } | null;
+  tokenType?: string | null;
+  userId?: string | null;
   scopes: string[];
+  expiresAt?: string | null;
+  tokenExpiredOrUnknown?: boolean;
+  lastConnectedAt?: string | null;
+  lastProfileSyncAt?: string | null;
   nextRecommendedAction: string | null;
 }
 
@@ -40,24 +54,59 @@ export interface MemberProfile {
 export interface EventResponse {
   id: string;
   creatorMemberId: string;
+  creatorBlazeUserId?: string;
   creatorChannelId: string;
+  channelSlug?: string;
   title: string;
   description: string;
+  prizeType?: string;
+  prizeDescription?: string;
   status: string;
+  mode?: string;
+  maxEntries?: number;
   rulesMode: string;
   maxEntriesPerParticipant: number;
   requiresInterestBeforeAction: boolean;
   startsAt: string | null;
   endsAt: string | null;
+  createdAt?: string | null;
+  updatedAt?: string | null;
+  closedAt?: string | null;
+  completedAt?: string | null;
+  participantCount?: number;
   rules?: RuleResponse[];
+}
+
+export interface EventStatsLast24h {
+  votes?: number;
+  subs?: number;
+  giftedSubs?: number;
+}
+
+export interface EventStatsResponse {
+  totalVotes: number;
+  totalSubs: number;
+  totalGiftedSubs: number;
+  participants: number;
+  totalEntries: number;
+  last24h: EventStatsLast24h | number;
+}
+
+export interface EventHistoryResponse {
+  drafts: EventResponse[];
+  upcoming: EventResponse[];
+  past: EventResponse[];
 }
 
 export interface RuleResponse {
   id: string;
+  eventId?: string;
   actionType: string;
   thresholdAmount: number;
   entries: number;
   isActive: boolean;
+  createdAt?: string | null;
+  updatedAt?: string | null;
 }
 
 export interface CreateEventRequest {
@@ -67,6 +116,7 @@ export interface CreateEventRequest {
   prizeDescription?: string;
   rulesMode?: string;
   maxEntriesPerParticipant?: number;
+  requiresInterestBeforeAction?: boolean;
   startsAt?: string;
   endsAt?: string;
   creatorChannelId: string;
@@ -79,11 +129,21 @@ export interface CreateRuleRequest {
   entries: number;
 }
 
+export interface UpdateRuleRequest {
+  actionType?: string;
+  thresholdAmount?: number;
+  entries?: number;
+  isActive?: boolean;
+}
+
+export type Rule = CreateRuleRequest;
+
 export interface ParticipantResponse {
   memberId: string;
   blazeUsername: string;
   displayName: string;
   status: string;
+  interestedAt?: string;
   lastCalculatedEntries: number;
 }
 

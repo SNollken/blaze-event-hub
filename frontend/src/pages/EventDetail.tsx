@@ -1,164 +1,325 @@
-import { useState, useEffect } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
-import { getEvent, openEvent, closeEvent, cancelEvent, expressInterest, withdrawInterest, getParticipants, getEntries, recalculate, executeDraw, getWinner } from '../api/client';
-import type { EventResponse, ParticipantResponse, EntryResponse, WinnerResponse } from '../api/client';
+import { useCallback, useEffect, useState } from 'react';
+import { useNavigate, useParams } from 'react-router-dom';
+import {
+  cancelEvent,
+  closeEvent,
+  executeDraw,
+  expressInterest,
+  getEntries,
+  getEvent,
+  getEventStats,
+  getParticipants,
+  getWinner,
+  openEvent,
+  recalculate,
+  withdrawInterest,
+} from '../api/client';
+import type {
+  EntryResponse,
+  EventResponse,
+  EventStatsResponse,
+  ParticipantResponse,
+  WinnerResponse,
+} from '../api/client';
 
-const btnGhost: React.CSSProperties = {
-  background: 'var(--bg-button)', border: '1px solid var(--border-card)',
-  color: 'var(--text-secondary)', padding: '7px 14px', borderRadius: 'var(--radius)',
-  fontWeight: 510, fontSize: 13, cursor: 'pointer',
-};
-const btnBrand: React.CSSProperties = { ...btnGhost, background: 'var(--brand)', color: '#fff', border: 'none' };
+type ActionName =
+  | 'open'
+  | 'close'
+  | 'cancel'
+  | 'interest'
+  | 'withdraw'
+  | 'recalculate'
+  | 'draw';
+
+const numberFormatter = new Intl.NumberFormat('pt-BR');
+
+function formatNumber(value: number | null | undefined) {
+  return numberFormatter.format(value ?? 0);
+}
+
+function formatLast24h(last24h: EventStatsResponse['last24h']) {
+  if (typeof last24h === 'number') {
+    return formatNumber(last24h);
+  }
+
+  return `${formatNumber(last24h?.votes)} votos / ${formatNumber(last24h?.subs)} subs / ${formatNumber(last24h?.giftedSubs)} gifted`;
+}
+
+function getErrorMessage(error: unknown) {
+  return error instanceof Error ? error.message : 'Erro inesperado.';
+}
+
+function isNotFoundError(error: unknown) {
+  return error instanceof Error && error.message.startsWith('API 404:');
+}
+
+function actionLabel(activeAction: ActionName | null, action: ActionName, label: string) {
+  return activeAction === action ? 'Processando...' : label;
+}
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [event, setEvent] = useState<EventResponse | null>(null);
+  const [stats, setStats] = useState<EventStatsResponse | null>(null);
   const [participants, setParticipants] = useState<ParticipantResponse[]>([]);
   const [entries, setEntries] = useState<EntryResponse[]>([]);
   const [winner, setWinner] = useState<WinnerResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [err, setErr] = useState('');
+  const [actionLoading, setActionLoading] = useState<ActionName | null>(null);
 
-  const load = async () => {
-    if (!id) return;
-    try {
-      const [ev, p, e] = await Promise.all([getEvent(id), getParticipants(id), getEntries(id)]);
-      setEvent(ev); setParticipants(p); setEntries(e);
-      try { setWinner(await getWinner(id)); } catch { setWinner(null); }
-    } catch (e: any) { setErr(e.message); }
-    finally { setLoading(false); }
-  };
+  const load = useCallback(async (showLoading = false) => {
+    if (!id) {
+      setEvent(null);
+      setStats(null);
+      setParticipants([]);
+      setEntries([]);
+      setWinner(null);
+      setErr('ID do evento ausente.');
+      setLoading(false);
+      return;
+    }
 
-  useEffect(() => { load(); }, [id]);
-
-  const act = async (fn: () => Promise<any>) => {
+    if (showLoading) setLoading(true);
     setErr('');
-    try { await fn(); await load(); } catch (e: any) { setErr(e.message); }
+
+    try {
+      const [ev, currentStats, currentParticipants, currentEntries] = await Promise.all([
+        getEvent(id),
+        getEventStats(id),
+        getParticipants(id),
+        getEntries(id),
+      ]);
+
+      setEvent(ev);
+      setStats(currentStats);
+      setParticipants(currentParticipants);
+      setEntries(currentEntries);
+
+      try {
+        setWinner(await getWinner(id));
+      } catch (error) {
+        setWinner(null);
+        if (!isNotFoundError(error)) {
+          setErr(`Nao foi possivel carregar vencedor: ${getErrorMessage(error)}`);
+        }
+      }
+    } catch (error) {
+      setErr(getErrorMessage(error));
+    } finally {
+      setLoading(false);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    void load(true);
+  }, [load]);
+
+  const runAction = async <T,>(
+    action: ActionName,
+    request: () => Promise<T>,
+    afterRefresh?: (result: T) => void,
+  ) => {
+    setActionLoading(action);
+    setErr('');
+
+    try {
+      const result = await request();
+      await load();
+      afterRefresh?.(result);
+    } catch (error) {
+      setErr(getErrorMessage(error));
+    } finally {
+      setActionLoading(null);
+    }
   };
 
-  if (loading) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Carregando...</div>;
+  if (loading && !event) return <div className="empty">Carregando evento...</div>;
   if (err && !event) return <div style={{ padding: 40, color: 'var(--danger)' }}>{err}</div>;
-  if (!event) return <div style={{ padding: 40, color: 'var(--text-muted)' }}>Nao encontrado.</div>;
+  if (!event) return <div className="empty">Evento nao encontrado.</div>;
 
-  const sc: Record<string, { c: string; bg: string; l: string }> = {
-    OPEN: { c: 'var(--success)', bg: 'var(--success-bg)', l: 'Aberto' },
-    CLOSED: { c: 'var(--warning)', bg: 'var(--warning-bg)', l: 'Fechado' },
-    COMPLETED: { c: 'var(--brand-light)', bg: 'var(--brand-bg)', l: 'Concluido' },
-    DRAFT: { c: 'var(--text-muted)', bg: 'rgba(255,255,255,0.04)', l: 'Rascunho' },
-    CANCELLED: { c: 'var(--danger)', bg: 'var(--danger-bg)', l: 'Cancelado' },
+  const statusMap: Record<string, { label: string; cls: string }> = {
+    OPEN: { label: 'Aberto', cls: 'pill--open' },
+    CLOSED: { label: 'Fechado', cls: 'pill--closed' },
+    COMPLETED: { label: 'Concluido', cls: 'pill--completed' },
+    DRAWING: { label: 'Sorteando', cls: 'pill--closed' },
+    DRAFT: { label: 'Rascunho', cls: 'pill--draft' },
+    CANCELLED: { label: 'Cancelado', cls: 'pill--cancelled' },
   };
-  const s = sc[event.status] || sc.DRAFT;
+  const st = statusMap[event.status] || statusMap.DRAFT;
+
+  const activeRules = event.rules?.filter((rule) => rule.isActive) ?? [];
+  const modeLabel = event.mode ?? event.rulesMode ?? 'tier';
+  const maxEntries = event.maxEntries ?? event.maxEntriesPerParticipant;
+  const maxLabel = maxEntries && maxEntries > 0 ? `${formatNumber(maxEntries)}/pessoa` : 'ilimitado';
+  const isActionBusy = actionLoading !== null;
+  const canOpen = event.status === 'DRAFT';
+  const canClose = event.status === 'OPEN';
+  const canCancel = event.status === 'OPEN' || event.status === 'DRAFT';
+  const canRecalculate = event.status === 'CLOSED';
+  const canDraw = event.status === 'CLOSED' && !winner;
+  const statItems = stats ? [
+    { label: 'Total votes', value: formatNumber(stats.totalVotes) },
+    { label: 'Total subs', value: formatNumber(stats.totalSubs) },
+    { label: 'Gifted subs', value: formatNumber(stats.totalGiftedSubs) },
+    { label: 'Participantes', value: formatNumber(stats.participants) },
+    { label: 'Total entries', value: formatNumber(stats.totalEntries) },
+    { label: 'Last 24h', value: formatLast24h(stats.last24h), compact: true },
+  ] : [];
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 700 }}>
-      {/* Header */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+    <div style={{ padding: '32px 40px', maxWidth: 920 }}>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24 }}>
         <div>
-          <h1 style={{ fontSize: 20, fontWeight: 510, color: 'var(--text-primary)', letterSpacing: '-0.3px' }}>
-            {event.title}
-          </h1>
+          <h1 className="page-title">{event.title}</h1>
           {event.description && (
-            <p style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4, lineHeight: 1.5 }}>
+            <p className="page-subtitle" style={{ marginBottom: 0 }}>
               {event.description}
             </p>
           )}
+          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
+            Modo: {modeLabel} - Max: {maxLabel} - Regras: {activeRules.length} ativa{activeRules.length !== 1 ? 's' : ''}
+          </div>
         </div>
-        <span style={{
-          fontSize: 11, fontWeight: 510, color: s.c, background: s.bg,
-          padding: '3px 10px', borderRadius: 'var(--radius-full)', whiteSpace: 'nowrap',
-        }}>{s.l}</span>
+        <span className={`pill ${st.cls}`}>{st.label}</span>
       </div>
 
       {err && (
         <div style={{
-          marginBottom: 16, padding: '8px 12px', borderRadius: 'var(--radius)',
-          background: 'var(--danger-bg)', color: 'var(--danger)', fontSize: 13,
-        }}>{err}</div>
+          marginBottom: 16,
+          padding: '8px 12px',
+          borderRadius: 'var(--r)',
+          background: 'var(--danger-bg)',
+          color: 'var(--danger)',
+          fontSize: 13,
+        }}>
+          {err}
+        </div>
       )}
 
-      {/* Actions */}
       <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
+        <button className="btn btn-secondary" disabled={isActionBusy} onClick={() => navigate(`/events/${event.id}/edit`)}>
+          Editar
+        </button>
         {event.status === 'OPEN' && (
           <>
-            <button style={btnBrand} onClick={() => act(() => expressInterest(event.id))}>Participar</button>
-            <button style={btnGhost} onClick={() => act(() => withdrawInterest(event.id))}>Remover interesse</button>
+            <button
+              className="btn btn-primary"
+              disabled={isActionBusy}
+              onClick={() => void runAction('interest', () => expressInterest(event.id))}
+            >
+              {actionLabel(actionLoading, 'interest', 'Participar')}
+            </button>
+            <button
+              className="btn btn-secondary"
+              disabled={isActionBusy}
+              onClick={() => void runAction('withdraw', () => withdrawInterest(event.id))}
+            >
+              {actionLabel(actionLoading, 'withdraw', 'Remover interesse')}
+            </button>
           </>
         )}
-        {event.status === 'DRAFT' && (
-          <button style={{ ...btnGhost, color: 'var(--success)' }} onClick={() => act(() => openEvent(event.id))}>Abrir</button>
-        )}
-        {event.status === 'OPEN' && (
-          <button style={{ ...btnGhost, color: 'var(--warning)' }} onClick={() => act(() => closeEvent(event.id))}>Fechar</button>
-        )}
-        {(event.status === 'OPEN' || event.status === 'DRAFT') && (
-          <button style={{ ...btnGhost, color: 'var(--danger)' }} onClick={() => act(() => cancelEvent(event.id))}>Cancelar</button>
-        )}
-        {event.status === 'CLOSED' && !winner && (
-          <>
-            <button style={btnGhost} onClick={() => act(() => recalculate(event.id))}>Recalcular</button>
-            <button style={{ ...btnBrand, background: 'var(--brand-hover)' }} onClick={() => act(() => executeDraw(event.id))}>Sortear</button>
-          </>
-        )}
+        <button
+          className="btn btn-success"
+          disabled={isActionBusy || !canOpen}
+          onClick={() => void runAction('open', () => openEvent(event.id))}
+        >
+          {actionLabel(actionLoading, 'open', 'Abrir')}
+        </button>
+        <button
+          className="btn btn-warning"
+          disabled={isActionBusy || !canClose}
+          onClick={() => void runAction('close', () => closeEvent(event.id))}
+        >
+          {actionLabel(actionLoading, 'close', 'Fechar')}
+        </button>
+        <button
+          className="btn btn-danger"
+          disabled={isActionBusy || !canCancel}
+          onClick={() => void runAction('cancel', () => cancelEvent(event.id))}
+        >
+          {actionLabel(actionLoading, 'cancel', 'Cancelar')}
+        </button>
+        <button
+          className="btn btn-secondary"
+          disabled={isActionBusy || !canRecalculate}
+          onClick={() => void runAction('recalculate', () => recalculate(event.id))}
+        >
+          {actionLabel(actionLoading, 'recalculate', 'Recalcular')}
+        </button>
+        <button
+          className="btn btn-primary"
+          disabled={isActionBusy || !canDraw}
+          onClick={() => void runAction('draw', () => executeDraw(event.id), setWinner)}
+        >
+          {actionLabel(actionLoading, 'draw', 'Sortear')}
+        </button>
       </div>
 
-      {/* Rules */}
-      {event.rules && event.rules.length > 0 && (
+      <section style={{ marginBottom: 32 }}>
+        <div className="section-label">Stats</div>
+        {stats ? (
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
+            {statItems.map((item) => (
+              <div key={item.label} className="card" style={{ minHeight: 72 }}>
+                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                  {item.label}
+                </div>
+                <div style={{ fontSize: item.compact ? 13 : 20, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.35 }}>
+                  {item.value}
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="empty">Stats indisponiveis.</div>
+        )}
+      </section>
+
+      {activeRules.length > 0 && (
         <section style={{ marginBottom: 32 }}>
-          <SectionTitle>Regras</SectionTitle>
+          <div className="section-label">Regras</div>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {event.rules.filter(r => r.isActive).map(r => (
-              <div key={r.id} style={{
-                fontSize: 13, padding: '10px 14px', background: 'var(--bg-card)',
-                border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              }}>
-                <span style={{ color: 'var(--text-secondary)' }}>
-                  {r.thresholdAmount} {r.actionType === 'vote' ? 'votos' : 'subs'}
+            {activeRules.map((rule) => (
+              <div key={rule.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--fg2)' }}>
+                  {formatNumber(rule.thresholdAmount)} {rule.actionType === 'vote' ? 'votos' : 'subs'}
                 </span>
-                <span style={{ color: 'var(--text-primary)', fontWeight: 510 }}>
-                  {r.entries} {r.entries === 1 ? 'entry' : 'entries'}
+                <span style={{ color: 'var(--fg)', fontWeight: 510 }}>
+                  {formatNumber(rule.entries)} {rule.entries === 1 ? 'entry' : 'entries'}
                 </span>
               </div>
             ))}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 6, fontFamily: 'var(--font-mono)' }}>
-            Modo: {event.rulesMode}{event.maxEntriesPerParticipant > 0 && ` · Max: ${event.maxEntriesPerParticipant}/pessoa`}
-          </div>
         </section>
       )}
 
-      {/* Winner */}
       {winner && (
-        <section style={{
-          marginBottom: 32, padding: '16px 20px',
-          background: 'rgba(94,106,210,0.06)', border: '1px solid rgba(94,106,210,0.15)',
-          borderRadius: 'var(--radius-lg)',
-        }}>
-          <SectionTitle>Vencedor</SectionTitle>
-          <div style={{ fontSize: 14, color: 'var(--text-primary)', fontWeight: 510 }}>{winner.memberId}</div>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2, fontFamily: 'var(--font-mono)' }}>
-            {winner.entriesAtDrawTime} entries · {winner.drawMethod} · seed {winner.drawSeed}
+        <div className="winner-box">
+          <div className="section-label">Vencedor</div>
+          <div className="winner-name">{winner.memberId}</div>
+          <div className="winner-meta">
+            {formatNumber(winner.entriesAtDrawTime)} entries - {winner.drawMethod} - seed {winner.drawSeed}
           </div>
-        </section>
+        </div>
       )}
 
-      {/* Participants */}
       <section style={{ marginBottom: 32 }}>
-        <SectionTitle>Participantes ({participants.length})</SectionTitle>
+        <div className="section-label">
+          Participantes <span className="count">({participants.length})</span>
+        </div>
         {participants.length === 0 ? (
-          <Empty>Ninguem demonstrou interesse ainda.</Empty>
+          <div className="empty">Ninguem demonstrou interesse ainda.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {participants.map(p => (
-              <div key={p.memberId} style={{
-                display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-                padding: '10px 14px', background: 'var(--bg-card)',
-                border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
-              }}>
-                <span style={{ fontSize: 13, color: 'var(--text-primary)' }}>{p.displayName || p.blazeUsername}</span>
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {p.lastCalculatedEntries ?? 0} entries
+            {participants.map((participant) => (
+              <div key={participant.memberId} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
+                <span style={{ fontSize: 13, color: 'var(--fg)' }}>
+                  {participant.displayName || participant.blazeUsername || participant.memberId}
+                </span>
+                <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+                  {formatNumber(participant.lastCalculatedEntries)} entries
                 </span>
               </div>
             ))}
@@ -166,28 +327,26 @@ export default function EventDetail() {
         )}
       </section>
 
-      {/* Entries */}
       <section>
-        <SectionTitle>Entries ({entries.length})</SectionTitle>
+        <div className="section-label">
+          Entries <span className="count">({entries.length})</span>
+        </div>
         {entries.length === 0 ? (
-          <Empty>Nenhuma entrada registrada.</Empty>
+          <div className="empty">Nenhuma entrada registrada.</div>
         ) : (
           <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {entries.map(e => (
-              <div key={e.id} style={{
-                padding: '10px 14px', background: 'var(--bg-card)',
-                border: '1px solid var(--border-card)', borderRadius: 'var(--radius-md)',
-              }}>
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 510, color: 'var(--text-primary)' }}>
-                    {e.amount} {e.actionType}
+            {entries.map((entry) => (
+              <div key={entry.id} className="card">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 2 }}>
+                  <span style={{ fontSize: 13, fontWeight: 510, color: 'var(--fg)' }}>
+                    {formatNumber(entry.amount)} {entry.actionType}
                   </span>
-                  <span style={{ fontSize: 12, fontWeight: 510, color: 'var(--brand-light)' }}>
-                    {e.entriesGranted} entries
+                  <span style={{ fontSize: 12, fontWeight: 510, color: 'var(--accent-light)' }}>
+                    {formatNumber(entry.entriesGranted)} entries
                   </span>
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', fontFamily: 'var(--font-mono)' }}>
-                  {e.calculationReason}
+                <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+                  {entry.calculationReason}
                 </div>
               </div>
             ))}
@@ -196,11 +355,4 @@ export default function EventDetail() {
       </section>
     </div>
   );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 11, fontWeight: 510, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 10 }}>{children}</div>;
-}
-function Empty({ children }: { children: React.ReactNode }) {
-  return <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: '20px 0', textAlign: 'center' }}>{children}</div>;
 }
