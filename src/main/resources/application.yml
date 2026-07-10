@@ -30,7 +30,7 @@ eventhub:
   blaze:
     client-id: ${BLAZE_CLIENT_ID:}
     client-secret: ${BLAZE_CLIENT_SECRET:}
-    redirect-uri: ${BLAZE_REDIRECT_URI:http://localhost:9090/api/blaze/oauth/callback}
+    redirect-uri: ${BLAZE_REDIRECT_URI:https://blaze-event-hub.onrender.com/api/blaze/oauth/callback}
     auth-base-url: ${BLAZE_AUTH_BASE_URL:https://blaze.stream}
     api-base-url: ${BLAZE_API_BASE_URL:https://api.blaze.stream}
     socket-url: ${BLAZE_SOCKET_URL:https://blaze.stream}
