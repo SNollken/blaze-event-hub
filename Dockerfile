@@ -15,7 +15,8 @@ RUN chmod +x ./mvnw && ./mvnw -B dependency:go-offline || true
 COPY . .
 # Copia o build do frontend pro static/ (servido pelo Spring Boot)
 COPY --from=frontend /app/frontend/dist ./src/main/resources/static
-RUN ./mvnw -B clean package -DskipTests
+# mvnw vem do Windows sem bit de execução; garante +x antes de rodar
+RUN chmod +x ./mvnw && ./mvnw -B clean package -DskipTests
 
 # ── Stage 3: runtime ──
 FROM eclipse-temurin:21-jre
