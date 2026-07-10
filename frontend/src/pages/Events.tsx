@@ -2,20 +2,23 @@ import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { getEvents } from '../api/client';
 import type { EventResponse } from '../api/client';
+import { useI18n } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/translations';
 
-const STATUS_MAP: Record<string, { pill: string; label: string }> = {
-  OPEN:      { pill: 'pill--open',      label: 'Aberto' },
-  CLOSED:    { pill: 'pill--closed',    label: 'Encerrado' },
-  DRAWING:   { pill: 'pill--completed', label: 'Sorteando' },
-  COMPLETED: { pill: 'pill--completed', label: 'Concluido' },
-  CANCELLED: { pill: 'pill--cancelled', label: 'Cancelado' },
-  DRAFT:     { pill: 'pill--draft',     label: 'Rascunho' },
+const STATUS_MAP: Record<string, { pill: string; labelKey: TranslationKey }> = {
+  OPEN:      { pill: 'pill--open',      labelKey: 'statusOpen' },
+  CLOSED:    { pill: 'pill--closed',    labelKey: 'statusClosed' },
+  DRAWING:   { pill: 'pill--completed', labelKey: 'statusDrawing' },
+  COMPLETED: { pill: 'pill--completed', labelKey: 'statusCompleted' },
+  CANCELLED: { pill: 'pill--cancelled', labelKey: 'statusCancelled' },
+  DRAFT:     { pill: 'pill--draft',     labelKey: 'statusDraft' },
 };
 
 export default function Events() {
+  const { t } = useI18n();
   const [events, setEvents] = useState<EventResponse[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [error, setError] = useState<TranslationKey | null>(null);
 
   useEffect(() => {
     let alive = true;
@@ -30,7 +33,7 @@ export default function Events() {
       } catch {
         if (alive) {
           setEvents([]);
-          setError('Nao foi possivel carregar os eventos.');
+          setError('eventsLoadError');
         }
       } finally {
         if (alive) setLoading(false);
@@ -47,10 +50,12 @@ export default function Events() {
   const openEvents = events.filter((e) => e.status === 'OPEN');
   const closedEvents = events.filter((e) => e.status !== 'OPEN');
   const summary = loading
-    ? 'Carregando eventos...'
+    ? t('eventsLoading')
     : error
-      ? 'Falha ao carregar eventos'
-      : `${events.length} evento${events.length !== 1 ? 's' : ''} encontrado${events.length !== 1 ? 's' : ''}`;
+      ? t('eventsLoadFailed')
+      : events.length === 1
+        ? t('eventFound', { count: events.length })
+        : t('eventsFoundCount', { count: events.length });
 
   return (
     <div style={{ padding: '32px 40px' }}>
@@ -60,30 +65,30 @@ export default function Events() {
       }}>
         <div>
           <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--fg)', letterSpacing: '-0.3px', margin: 0 }}>
-            Eventos
+            {t('eventsTitle')}
           </h1>
           <p style={{ fontSize: 13, color: 'var(--muted)', marginTop: 2 }}>
             {summary}
           </p>
         </div>
         <Link to="/events/create" className="btn btn-primary">
-          Criar evento
+          {t('createBtn')}
         </Link>
       </div>
 
       {loading && (
-        <div className="empty">Carregando eventos...</div>
+        <div className="empty">{t('eventsLoading')}</div>
       )}
 
       {!loading && error && (
         <div className="empty" style={{ color: 'var(--danger)' }}>
-          {error}
+          {t(error)}
         </div>
       )}
 
       {!loading && !error && events.length === 0 ? (
         <div className="empty">
-          Nenhum evento ainda
+          {t('noEventsYet')}
         </div>
       ) : null}
 
@@ -91,7 +96,7 @@ export default function Events() {
         <>
           {openEvents.length > 0 && (
             <Section
-              label="Abertos"
+              label={t('filterOpen')}
               count={openEvents.length}
               events={openEvents}
             />
@@ -99,7 +104,7 @@ export default function Events() {
 
           {closedEvents.length > 0 && (
             <Section
-              label="Encerrados"
+              label={t('closedEvents')}
               count={closedEvents.length}
               events={closedEvents}
             />
@@ -131,6 +136,7 @@ function Section({ label, count, events }: { label: string; count: number; event
 }
 
 function EventCard({ event }: { event: EventResponse }) {
+  const { t } = useI18n();
   const status = STATUS_MAP[event.status] || STATUS_MAP.DRAFT;
   const rulesCount = event.rules?.length ?? 0;
 
@@ -141,7 +147,7 @@ function EventCard({ event }: { event: EventResponse }) {
       style={{ display: 'flex', flexDirection: 'column', gap: 8, padding: '14px 16px' }}
     >
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <span className={`pill ${status.pill}`}>{status.label}</span>
+        <span className={`pill ${status.pill}`}>{t(status.labelKey)}</span>
       </div>
 
       <div className="card-title" style={{ fontSize: 14 }}>
@@ -149,7 +155,7 @@ function EventCard({ event }: { event: EventResponse }) {
       </div>
 
       <div className="card-desc" style={{ whiteSpace: 'normal', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', overflow: 'hidden' }}>
-        {event.description?.slice(0, 120) || 'Sem descricao'}
+        {event.description?.slice(0, 120) || t('noDescription')}
       </div>
 
       <div style={{
@@ -159,10 +165,14 @@ function EventCard({ event }: { event: EventResponse }) {
         fontSize: 12, color: 'var(--muted)',
       }}>
         <span>
-          {rulesCount > 0 ? `${rulesCount} regra${rulesCount > 1 ? 's' : ''}` : 'Sem regras'}
+          {rulesCount === 0
+            ? t('noRules')
+            : rulesCount === 1
+              ? t('ruleCountOne', { count: rulesCount })
+              : t('ruleCount', { count: rulesCount })}
         </span>
         <span style={{ color: 'var(--accent-light)', fontWeight: 510 }}>
-          Ver
+          {t('view')}
         </span>
       </div>
     </Link>

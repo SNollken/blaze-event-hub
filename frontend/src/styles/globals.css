@@ -700,6 +700,7 @@ a.card {
 .pill--open { color: var(--success); background: var(--success-bg); }
 .pill--closed { color: var(--warning); background: var(--warning-bg); }
 .pill--draft { color: var(--muted); background: rgba(255,255,255,0.04); }
+.pill--drawing { color: var(--accent-light); background: var(--accent-bg); }
 .pill--completed { color: var(--accent-light); background: var(--accent-bg); }
 .pill--cancelled { color: var(--danger); background: var(--danger-bg); }
 

@@ -1,14 +1,17 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useI18n } from '../i18n/I18nContext';
 import {
   addEventRule,
   getEvent,
+  getMe,
   removeEventRule,
   updateEvent,
   updateEventRule,
 } from '../api/client';
-import type { CreateRuleRequest, EventResponse, RuleResponse, UpdateRuleRequest } from '../api/types';
+import type { CreateRuleRequest, EventResponse, MemberProfile, RuleResponse, UpdateRuleRequest } from '../api/types';
+import type { TranslationKey } from '../i18n/translations';
 
 type ActionType = 'vote' | 'sub' | 'gifted_sub';
 
@@ -21,10 +24,12 @@ type RuleDraft = {
   isActive?: boolean;
 };
 
-const ACTION_OPTIONS: Array<{ value: ActionType; label: string; unit: string }> = [
-  { value: 'vote', label: 'Voto', unit: 'votos' },
-  { value: 'sub', label: 'Sub', unit: 'subs' },
-  { value: 'gifted_sub', label: 'Gifted sub', unit: 'gifted subs' },
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+const ACTION_OPTIONS: Array<{ value: ActionType; labelKey: TranslationKey; unitKey: TranslationKey }> = [
+  { value: 'vote', labelKey: 'actionVote', unitKey: 'actionVote' },
+  { value: 'sub', labelKey: 'actionSub', unitKey: 'actionSub' },
+  { value: 'gifted_sub', labelKey: 'actionGiftedSub', unitKey: 'actionGiftedSub' },
 ];
 
 function newRuleKey() {
@@ -87,18 +92,19 @@ function hasRuleChanged(original: RuleDraft, current: RuleDraft) {
     || (original.isActive ?? true) !== (current.isActive ?? true);
 }
 
-function actionUnit(actionType: ActionType) {
-  return ACTION_OPTIONS.find((option) => option.value === actionType)?.unit ?? actionType;
+function actionUnit(t: Translate, actionType: ActionType) {
+  const option = ACTION_OPTIONS.find((candidate) => candidate.value === actionType);
+  return option ? t(option.unitKey) : actionType;
 }
 
-function validateRules(rules: RuleDraft[]) {
-  if (rules.length === 0) return 'Adicione pelo menos uma regra.';
-  if (rules.some((rule) => !rule.actionType)) return 'Todas as regras precisam de um tipo de acao.';
+function validateRules(rules: RuleDraft[], t: Translate) {
+  if (rules.length === 0) return t('ruleRequired');
+  if (rules.some((rule) => !rule.actionType)) return t('ruleActionRequired');
   if (rules.some((rule) => !positiveInteger(rule.thresholdAmount))) {
-    return 'Os marcos das regras precisam ser numeros inteiros maiores que zero.';
+    return t('ruleThresholdInvalid');
   }
   if (rules.some((rule) => !positiveInteger(rule.entries))) {
-    return 'As entries das regras precisam ser numeros inteiros maiores que zero.';
+    return t('ruleEntriesInvalid');
   }
   return '';
 }
@@ -106,9 +112,11 @@ function validateRules(rules: RuleDraft[]) {
 export default function EditEvent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { t } = useI18n();
   const originalRulesRef = useRef<RuleDraft[]>([]);
 
   const [event, setEvent] = useState<EventResponse | null>(null);
+  const [channelName, setChannelName] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
   const [rulesMode, setRulesMode] = useState('tier');
@@ -126,7 +134,7 @@ export default function EditEvent() {
 
     async function loadEvent() {
       if (!id) {
-        setError('Evento invalido.');
+        setError(t('eventInvalid'));
         setIsLoading(false);
         return;
       }
@@ -155,9 +163,18 @@ export default function EditEvent() {
           entries: 1,
           isActive: true,
         }]);
+
+        try {
+          const me: MemberProfile = await getMe();
+          if (!isActive) return;
+          setChannelName(me.blazeUsername || me.displayName || null);
+        } catch {
+          if (!isActive) return;
+          setChannelName(null);
+        }
       } catch (err) {
         if (!isActive) return;
-        setError(err instanceof Error ? err.message : 'Erro ao carregar evento.');
+        setError(err instanceof Error ? err.message : t('eventLoadError'));
       } finally {
         if (isActive) setIsLoading(false);
       }
@@ -168,18 +185,18 @@ export default function EditEvent() {
     return () => {
       isActive = false;
     };
-  }, [id]);
+  }, [id, t]);
 
   const isDraft = event?.status === 'DRAFT';
   const disabled = isSaving || !isDraft;
-  const channelLabel = event?.channelSlug || event?.creatorChannelId || 'Canal nao informado';
-  const rulesError = useMemo(() => validateRules(rules), [rules]);
+  const channelLabel = channelName || event?.channelSlug || event?.creatorChannelId || t('channelUnavailable');
+  const rulesError = useMemo(() => validateRules(rules, t), [rules, t]);
   const dateError = useMemo(() => {
     if (!startsAt || !endsAt) return '';
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime()
-      ? 'A data final precisa ser posterior a data inicial.'
+      ? t('dateOrderError')
       : '';
-  }, [startsAt, endsAt]);
+  }, [startsAt, endsAt, t]);
 
   const canSave = Boolean(id)
     && Boolean(title.trim())
@@ -213,8 +230,8 @@ export default function EditEvent() {
   };
 
   const validateForm = () => {
-    if (!isDraft) return 'Apenas eventos em DRAFT podem ser editados.';
-    if (!title.trim()) return 'Defina um titulo para o evento.';
+    if (!isDraft) return t('draftOnly');
+    if (!title.trim()) return t('titleRequired');
     if (rulesError) return rulesError;
     if (dateError) return dateError;
     return '';
@@ -276,34 +293,34 @@ export default function EditEvent() {
       await syncRules(id);
       navigate(`/events/${id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao salvar evento.');
+      setError(err instanceof Error ? err.message : t('editSaveError'));
     } finally {
       setIsSaving(false);
     }
   };
 
   if (isLoading) {
-    return <div className="empty">Carregando...</div>;
+    return <div className="empty">{t('eventLoading')}</div>;
   }
 
   if (!event && error) {
     return (
       <div style={{ maxWidth: 760 }}>
-        <h1 className="page-title">Editar evento</h1>
+        <h1 className="page-title">{t('editTitle')}</h1>
         <div className="toast toast-error" style={{ position: 'static', marginBottom: 24 }}>{error}</div>
-        <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>Voltar</button>
+        <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>{t('back')}</button>
       </div>
     );
   }
 
   return (
     <div style={{ maxWidth: 760 }}>
-      <h1 className="page-title">Editar evento</h1>
-      <p className="page-subtitle">Atualize os dados principais e as regras do evento.</p>
+      <h1 className="page-title">{t('editTitle')}</h1>
+      <p className="page-subtitle">{t('editSubtitle')}</p>
 
       {!isDraft && (
         <div className="toast toast-warning" style={{ position: 'static', marginBottom: 24 }}>
-          Evento com status {event?.status}. Edicao disponivel somente para DRAFT.
+          {t('statusDraftOnly', { status: event?.status || '' })}
         </div>
       )}
 
@@ -311,13 +328,13 @@ export default function EditEvent() {
 
       <form onSubmit={handleSubmit} autoComplete="off">
         <div className="form-section">
-          <label className="form-label" htmlFor="event-title">Titulo</label>
+          <label className="form-label" htmlFor="event-title">{t('title')}</label>
           <div className="form-field">
             <input
               id="event-title"
               value={title}
               onChange={(changeEvent) => setTitle(changeEvent.target.value)}
-              placeholder="Ex: Giveaway 50 votos"
+              placeholder={t('titlePh')}
               disabled={disabled}
               required
             />
@@ -325,20 +342,20 @@ export default function EditEvent() {
         </div>
 
         <div className="form-section">
-          <label className="form-label" htmlFor="event-description">Descricao</label>
+          <label className="form-label" htmlFor="event-description">{t('description')}</label>
           <div className="form-field">
             <textarea
               id="event-description"
               value={description}
               onChange={(changeEvent) => setDescription(changeEvent.target.value)}
-              placeholder="Descreva as regras do evento para os participantes"
+              placeholder={t('descPh')}
               disabled={disabled}
             />
           </div>
         </div>
 
         <div className="form-section">
-          <label className="form-label" htmlFor="event-channel">Canal Blaze</label>
+          <label className="form-label" htmlFor="event-channel">{t('channelBlaze')}</label>
           <div className="form-field form-field--ok">
             <input id="event-channel" value={channelLabel} readOnly disabled />
           </div>
@@ -363,19 +380,19 @@ export default function EditEvent() {
             <div>
               <div className="ch-name">{channelLabel}</div>
               <div className="ch-meta">
-                Readonly
+                {t('readonly')}
                 <span style={{ opacity: 0.35 }}>.</span>
                 <span className="ch-id">{event?.creatorChannelId}</span>
               </div>
             </div>
           </div>
-          <div className="form-helper">O canal nao pode ser alterado apos a criacao.</div>
+          <div className="form-helper">{t('channelReadonly')}</div>
         </div>
 
         <div className="form-section">
           <div className="form-row">
             <div>
-              <label className="form-label" htmlFor="event-rules-mode">Modo das regras</label>
+              <label className="form-label" htmlFor="event-rules-mode">{t('rulesMode')}</label>
               <div className="form-field">
                 <select
                   id="event-rules-mode"
@@ -383,13 +400,13 @@ export default function EditEvent() {
                   onChange={(changeEvent) => setRulesMode(changeEvent.target.value)}
                   disabled={disabled}
                 >
-                  <option value="tier">Tier - maior marco</option>
-                  <option value="cumulative">Acumulativo</option>
+                  <option value="tier">{t('modeTier')}</option>
+                  <option value="cumulative">{t('modeCumulative')}</option>
                 </select>
               </div>
             </div>
             <div>
-              <label className="form-label" htmlFor="event-max-entries">Max entries/pessoa</label>
+              <label className="form-label" htmlFor="event-max-entries">{t('maxEntries')}</label>
               <div className="form-field">
                 <input
                   id="event-max-entries"
@@ -397,7 +414,7 @@ export default function EditEvent() {
                   min={0}
                   value={maxEntriesPerParticipant || ''}
                   onChange={(changeEvent) => setMaxEntriesPerParticipant(Number(changeEvent.target.value) || 0)}
-                  placeholder="0 = ilimitado"
+                  placeholder={t('maxEntriesPh')}
                   disabled={disabled}
                 />
               </div>
@@ -408,7 +425,7 @@ export default function EditEvent() {
         <div className="form-section">
           <div className="form-row">
             <div>
-              <label className="form-label" htmlFor="event-starts-at">Inicio</label>
+              <label className="form-label" htmlFor="event-starts-at">{t('startAt')}</label>
               <div className="form-field">
                 <input
                   id="event-starts-at"
@@ -420,7 +437,7 @@ export default function EditEvent() {
               </div>
             </div>
             <div>
-              <label className="form-label" htmlFor="event-ends-at">Fim</label>
+              <label className="form-label" htmlFor="event-ends-at">{t('endAt')}</label>
               <div className="form-field">
                 <input
                   id="event-ends-at"
@@ -443,22 +460,22 @@ export default function EditEvent() {
               onChange={(changeEvent) => setRequiresInterestBeforeAction(changeEvent.target.checked)}
               disabled={disabled}
             />
-            Exigir interesse antes da acao
+            {t('requiresInterest')}
           </label>
         </div>
 
         <div className="form-section">
           <div className="section-header" style={{ marginBottom: 12 }}>
-            <label className="form-label" style={{ margin: 0 }}>Regras de entries</label>
+            <label className="form-label" style={{ margin: 0 }}>{t('rulesOfEntries')}</label>
             <button type="button" className="btn-add-rule" onClick={addRule} disabled={disabled}>
-              + Adicionar regra
+              {t('addRule')}
             </button>
           </div>
 
           <div className="flex flex-col gap-sm">
             {rules.map((rule, index) => (
               <div className="rule-card" key={rule.clientKey}>
-                <span className="r-sep">A cada</span>
+                <span className="r-sep">{t('each')}</span>
                 <input
                   className="r-input"
                   type="number"
@@ -475,10 +492,10 @@ export default function EditEvent() {
                   disabled={disabled}
                 >
                   {ACTION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
                   ))}
                 </select>
-                <span className="r-sep">=</span>
+                <span className="r-sep">{t('equals')}</span>
                 <input
                   className="r-input"
                   type="number"
@@ -487,13 +504,19 @@ export default function EditEvent() {
                   onChange={(changeEvent) => updateRule(index, 'entries', Number(changeEvent.target.value) || 0)}
                   disabled={disabled}
                 />
-                <span className="r-sep">{rule.entries === 1 ? 'entry' : 'entries'} por {actionUnit(rule.actionType)}</span>
+                <span className="r-sep">
+                  {t('ruleEntriesPerAction', {
+                    entries: rule.entries,
+                    entryLabel: t('entriesUnit'),
+                    action: actionUnit(t, rule.actionType),
+                  })}
+                </span>
                 <button
                   type="button"
                   className="r-close"
                   onClick={() => removeRule(index)}
                   disabled={disabled || rules.length === 1}
-                  aria-label="Remover regra"
+                  aria-label={t('removeRule')}
                 >
                   x
                 </button>
@@ -505,10 +528,10 @@ export default function EditEvent() {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-lg" disabled={!canSave}>
-            {isSaving ? 'Salvando...' : 'Salvar alteracoes'}
+            {isSaving ? t('saving') : t('saveChanges')}
           </button>
           <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(`/events/${id}`)} disabled={isSaving}>
-            Cancelar
+            {t('cancel')}
           </button>
         </div>
       </form>

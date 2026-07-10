@@ -1,24 +1,44 @@
-import { ReactNode } from 'react';
+import { type ReactNode, useState } from 'react';
 import { Sidebar } from './Sidebar';
-import { Header } from './Header';
-import { ToastContainer } from './Toast';
+import { useI18n } from '../i18n/I18nContext';
 
 interface LayoutProps {
-  title: string;
-  subtitle?: string;
   children: ReactNode;
-  headerActions?: ReactNode;
 }
 
-export function Layout({ title, subtitle, children, headerActions }: LayoutProps) {
+export function Layout({ children }: LayoutProps) {
+  const { t } = useI18n();
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  const closeSidebar = () => setSidebarOpen(false);
+
   return (
     <div className="app-layout">
-      <Sidebar />
+      {/* Mobile hamburger button */}
+      <button
+        className="mobile-menu-btn"
+        onClick={() => setSidebarOpen(true)}
+        aria-label={t('menuLabel')}
+      >
+        ☰
+      </button>
+
+      {/* Sidebar overlay — closes sidebar on click */}
+      <div
+        id="sidebar-overlay"
+        className={sidebarOpen ? 'show' : undefined}
+        onClick={closeSidebar}
+      />
+
+      {/* Sidebar */}
+      <Sidebar open={sidebarOpen} onClose={closeSidebar} />
+
+      {/* Main content area */}
       <div className="main-content">
-        <Header title={title} subtitle={subtitle} actions={headerActions} />
-        <main className="page-content">{children}</main>
+        <div className="page-content">
+          {children}
+        </div>
       </div>
-      <ToastContainer />
     </div>
   );
 }

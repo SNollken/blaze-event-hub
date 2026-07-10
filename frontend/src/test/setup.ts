@@ -43,9 +43,50 @@ const responses: Record<string, unknown> = {
     status: 'ACTIVE',
   },
   '/api/events': [],
+  '/api/events/my/history': {
+    drafts: [],
+    upcoming: [],
+    past: [],
+  },
+  '/api/events/event-1': {
+    id: 'event-1',
+    creatorMemberId: 'user-1',
+    creatorChannelId: 'blaze-1',
+    title: 'Sorteio de teste',
+    description: 'Evento usado pelo smoke test.',
+    status: 'CLOSED',
+    rulesMode: 'tier',
+    maxEntriesPerParticipant: 0,
+    requiresInterestBeforeAction: false,
+    startsAt: null,
+    endsAt: null,
+    rules: [],
+  },
+  '/api/events/event-1/stats': {
+    totalVotes: 10,
+    totalSubs: 1,
+    totalGiftedSubs: 0,
+    participants: 1,
+    totalEntries: 10,
+    last24h: {
+      votes: 10,
+      subs: 1,
+      giftedSubs: 0,
+    },
+  },
+  '/api/events/event-1/interest/participants': [
+    {
+      memberId: 'user-1',
+      blazeUsername: 'sofia',
+      displayName: 'Sofia',
+      status: 'ACTIVE',
+      lastCalculatedEntries: 10,
+    },
+  ],
 };
 
 beforeEach(() => {
+  localStorage.clear();
   vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
     const url = typeof input === 'string' ? input : input.toString();
     const path = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0];

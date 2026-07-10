@@ -51,3 +51,6 @@ build/
 
 ### VS Code ###
 .vscode/
+
+# Frontend build output (generated inside Docker at build time)
+src/main/resources/static/assets/

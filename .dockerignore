@@ -1,0 +1,13 @@
+# Evita copiar lixo pro contexto do build (o Maven copiaria isso pro jar)
+node_modules
+**/node_modules
+frontend/dist
+frontend/tsconfig.tsbuildinfo
+target
+**/target
+.git
+**/.git
+*.md
+orchestration-runs
+.env
+**/*.log

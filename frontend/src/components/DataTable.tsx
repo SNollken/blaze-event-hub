@@ -1,5 +1,6 @@
 import { useState, useMemo, ReactNode } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface Column<T = unknown> {
   key: string;
@@ -29,14 +30,17 @@ export function DataTable<T>({
   columns,
   data,
   filterable = false,
-  filterPlaceholder = 'Filtrar...',
+  filterPlaceholder,
   filterKeys,
-  emptyMessage = 'Nenhum registro encontrado.',
+  emptyMessage,
   onRowClick,
 }: DataTableProps<T>) {
+  const { t } = useI18n();
   const [filter, setFilter] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc');
+  const resolvedFilterPlaceholder = filterPlaceholder ?? t('dataTableFilter');
+  const resolvedEmptyMessage = emptyMessage ?? t('dataTableEmpty');
 
   const handleSort = (key: string) => {
     if (sortKey === key) {
@@ -79,9 +83,9 @@ export function DataTable<T>({
           <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
           <input
             className="input"
-            aria-label={filterPlaceholder}
+            aria-label={resolvedFilterPlaceholder}
             style={{ paddingLeft: 32 }}
-            placeholder={filterPlaceholder}
+            placeholder={resolvedFilterPlaceholder}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
           />
@@ -117,7 +121,7 @@ export function DataTable<T>({
                 <td colSpan={columns.length}>
                   <div className="empty-state">
                     <Search size={24} />
-                    {emptyMessage}
+                    {resolvedEmptyMessage}
                   </div>
                 </td>
               </tr>

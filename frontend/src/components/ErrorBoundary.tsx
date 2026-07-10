@@ -1,4 +1,5 @@
 import { Component, ReactNode } from 'react';
+import { useI18n } from '../i18n/I18nContext';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -6,6 +7,17 @@ interface ErrorBoundaryProps {
 
 interface ErrorBoundaryState {
   failed: boolean;
+}
+
+function ErrorFallback() {
+  const { t } = useI18n();
+
+  return (
+    <div className="empty-state" style={{ minHeight: '100vh' }}>
+      <strong>{t('errorBoundaryTitle')}</strong>
+      <span>{t('errorBoundaryDescription')}</span>
+    </div>
+  );
 }
 
 export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
@@ -17,12 +29,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
 
   render() {
     if (this.state.failed) {
-      return (
-        <div className="empty-state" style={{ minHeight: '100vh' }}>
-          <strong>Algo falhou ao carregar esta tela.</strong>
-          <span>Recarregue a pagina ou verifique o backend.</span>
-        </div>
-      );
+      return <ErrorFallback />;
     }
     return this.props.children;
   }

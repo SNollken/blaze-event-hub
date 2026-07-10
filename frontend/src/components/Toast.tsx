@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { X, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 export interface ToastMessage {
   id: number;
@@ -34,6 +35,7 @@ const icons = {
 };
 
 export function ToastContainer() {
+  const { t } = useI18n();
   const [items, setItems] = useState<ToastMessage[]>([]);
   const listenerRef = useRef(setItems);
   listenerRef.current = setItems;
@@ -49,13 +51,13 @@ export function ToastContainer() {
 
   return (
     <div className="toast-container">
-      {items.map((t) => (
-        <div key={t.id} className={`toast toast-${t.type}`}>
-          {icons[t.type]}
-          <span style={{ flex: 1 }}>{t.text}</span>
+      {items.map((toast) => (
+        <div key={toast.id} className={`toast toast-${toast.type}`}>
+          {icons[toast.type]}
+          <span style={{ flex: 1 }}>{toast.text}</span>
           <button
-            aria-label="Fechar notificacao"
-            onClick={() => removeToast(t.id)}
+            aria-label={t('closeNotification')}
+            onClick={() => removeToast(toast.id)}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
           >
             <X size={14} />
@@ -68,6 +70,7 @@ export function ToastContainer() {
 
 /** Hook for initial loading plus explicit refresh. */
 export function usePolling<T>(fetcher: () => Promise<T>, _intervalMs = 10000) {
+  const { t } = useI18n();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -78,11 +81,11 @@ export function usePolling<T>(fetcher: () => Promise<T>, _intervalMs = 10000) {
       setData(result);
       setError(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro desconhecido');
+      setError(e instanceof Error ? e.message : t('unknownError'));
     } finally {
       setLoading(false);
     }
-  }, [fetcher]);
+  }, [fetcher, t]);
 
 	useEffect(() => {
 		load();

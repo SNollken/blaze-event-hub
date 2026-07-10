@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useI18n } from '../i18n/I18nContext';
 import { getMe, getOAuthSession, startOAuth } from '../api/client';
 import type { MemberProfile, OAuthSessionResponse } from '../api/client';
 
@@ -8,6 +9,7 @@ function getErrorMessage(error: unknown, fallback: string) {
 }
 
 export default function Login() {
+  const { t } = useI18n();
   const [session, setSession] = useState<OAuthSessionResponse | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,18 +37,17 @@ export default function Login() {
           }
         }
       } catch (err) {
-        if (alive) setError(getErrorMessage(err, 'Nao foi possivel verificar a sessao Blaze.'));
+        if (alive) setError(getErrorMessage(err, t('sessionCheckError')));
       } finally {
         if (alive) setLoading(false);
       }
     }
 
-    loadSession();
-
+    void loadSession();
     return () => {
       alive = false;
     };
-  }, []);
+  }, [t]);
 
   const handleConnect = async () => {
     setConnecting(true);
@@ -56,102 +57,70 @@ export default function Login() {
       const { authorizationUrl } = await startOAuth();
       window.location.href = authorizationUrl;
     } catch (err) {
-      setError(getErrorMessage(err, 'Nao foi possivel iniciar o OAuth Blaze.'));
+      setError(getErrorMessage(err, t('loginOAuthStartError')));
       setConnecting(false);
     }
   };
 
   const connected = session?.connected === true;
-  const displayName = member?.displayName || session?.profile?.displayName || session?.profile?.username || 'Conta Blaze conectada';
-  const avatarUrl = member?.avatarUrl || session?.profile?.avatarUrl || null;
-  const nextAction = session?.nextRecommendedAction;
+  const displayName = member?.displayName
+    || session?.profile?.displayName
+    || session?.profile?.username
+    || '';
+  const avatarUrl = member?.avatarUrl
+    || session?.profile?.avatarUrl
+    || null;
 
   return (
-    <div style={{
-      display: 'flex',
-      alignItems: 'center',
-      justifyContent: 'center',
-      minHeight: '100vh',
-      background: 'var(--bg-deep)',
-      padding: 24,
-    }}>
-      <div className="card" style={{ maxWidth: 460, width: '100%', padding: '36px 40px', textAlign: 'center' }}>
-        <div style={{
-          width: 56,
-          height: 56,
-          background: 'var(--accent-bg)',
-          borderRadius: 'var(--r-lg)',
-          display: 'inline-flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          marginBottom: 20,
-          color: 'var(--accent-light)',
-          overflow: 'hidden',
-        }}>
-          {avatarUrl ? (
+    <div className="login-center">
+      <div className="login-card">
+        {connected && avatarUrl ? (
+          <div className="login-logo" style={{ padding: 0, overflow: 'hidden' }}>
             <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-          ) : (
-            <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-              <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4M10 17l5-5-5-5M15 12H3" />
-            </svg>
-          )}
-        </div>
+          </div>
+        ) : (
+          <div className="login-logo">BEH</div>
+        )}
 
-        <h1 style={{ fontSize: 20, fontWeight: 600, color: 'var(--fg)', marginBottom: 8 }}>
-          {connected ? displayName : 'Conectar com Blaze'}
-        </h1>
+        <h2>{t('loginTitle')}</h2>
+        <div className="login-headline">{t('loginHeadline')}</div>
 
         {loading ? (
-          <div className="empty" style={{ padding: '16px 0' }}>Verificando sessao...</div>
-        ) : (
+          <div className="empty">{t('checkingSession')}</div>
+        ) : connected ? (
           <>
-            <p style={{ fontSize: 13, color: 'var(--muted)', marginBottom: 24, lineHeight: 1.55 }}>
-              {connected
-                ? 'Sessao Blaze ativa. Use o hub para criar eventos, acompanhar participacao e executar sorteios.'
-                : 'Faca login com sua conta Blaze.stream para criar eventos, participar de giveaways e gerenciar suas inscricoes.'}
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'center', gap: 8, marginBottom: 24, flexWrap: 'wrap' }}>
-              <span className={`pill ${connected ? 'pill--open' : 'pill--draft'}`}>
-                {connected ? 'Conectado' : 'Desconectado'}
-              </span>
-              {session?.profilePresent && <span className="pill pill--completed">Perfil sincronizado</span>}
-            </div>
-
-            {nextAction && (
-              <div className="form-helper" style={{ justifyContent: 'center', marginBottom: 16 }}>
-                {nextAction}
+            {displayName && (
+              <div style={{ marginBottom: 20, fontSize: 14, fontWeight: 600, color: 'var(--fg2)' }}>
+                {displayName}
               </div>
             )}
 
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
+              <Link to="/" className="btn btn-primary">{t('navDashboard')}</Link>
+              <Link to="/events" className="btn btn-secondary">{t('navAllEvents')}</Link>
+              <Link to="/my-events" className="btn btn-secondary">{t('navMyEvents')}</Link>
+            </div>
+          </>
+        ) : (
+          <>
             {error && (
               <div className="toast toast-error" style={{ position: 'static', marginBottom: 16, textAlign: 'left' }}>
                 {error}
               </div>
             )}
 
-            {connected ? (
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-                <Link to="/" className="btn btn-primary">Dashboard</Link>
-                <Link to="/events" className="btn btn-secondary">Eventos</Link>
-                <Link to="/my-events" className="btn btn-secondary">Meus eventos</Link>
-              </div>
-            ) : (
-              <button
-                onClick={handleConnect}
-                className="btn btn-primary"
-                disabled={connecting}
-                style={{ width: '100%', padding: '12px', fontSize: 14 }}
-              >
-                {connecting ? 'Redirecionando...' : 'Conectar com Blaze.stream'}
-              </button>
-            )}
+            <button onClick={handleConnect} className="btn btn-primary" disabled={connecting}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
+                <polyline points="10 17 15 12 10 7" />
+                <line x1="15" y1="12" x2="3" y2="12" />
+              </svg>
+              {connecting ? t('connecting') : t('loginBtn')}
+            </button>
           </>
         )}
 
-        <div style={{ marginTop: 16, fontSize: 11, color: 'var(--muted2)' }}>
-          Tokens e credenciais nao sao exibidos nesta interface.
-        </div>
+        <div className="login-footer">{t('loginFooter')}</div>
       </div>
     </div>
   );

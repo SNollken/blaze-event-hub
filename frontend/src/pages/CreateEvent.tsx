@@ -1,15 +1,10 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import type { FormEvent } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { createEvent, getChannels } from '../api/client';
-import type { CreateRuleRequest } from '../api/types';
-
-type ChannelInfo = {
-  id: string;
-  slug: string;
-  displayName: string;
-  avatarUrl: string | null;
-};
+import { useI18n } from '../i18n/I18nContext';
+import { createEvent, getMe } from '../api/client';
+import type { CreateRuleRequest, MemberProfile } from '../api/types';
+import type { TranslationKey } from '../i18n/translations';
 
 type ActionType = 'vote' | 'sub' | 'gifted_sub';
 
@@ -19,12 +14,12 @@ type RuleDraft = {
   entries: number;
 };
 
-type ChannelState = 'idle' | 'searching' | 'found' | 'not-found';
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
 
-const ACTION_OPTIONS: Array<{ value: ActionType; label: string; unit: string }> = [
-  { value: 'vote', label: 'Voto', unit: 'votos' },
-  { value: 'sub', label: 'Sub', unit: 'subs' },
-  { value: 'gifted_sub', label: 'Gifted sub', unit: 'gifted subs' },
+const ACTION_OPTIONS: Array<{ value: ActionType; labelKey: TranslationKey; unitKey: TranslationKey }> = [
+  { value: 'vote', labelKey: 'actionVote', unitKey: 'actionVote' },
+  { value: 'sub', labelKey: 'actionSub', unitKey: 'actionSub' },
+  { value: 'gifted_sub', labelKey: 'actionGiftedSub', unitKey: 'actionGiftedSub' },
 ];
 
 const defaultRule = (): RuleDraft => ({
@@ -32,10 +27,6 @@ const defaultRule = (): RuleDraft => ({
   thresholdAmount: 50,
   entries: 1,
 });
-
-function normalizeSlug(value: string) {
-  return value.trim().replace(/^@+/, '');
-}
 
 function positiveInteger(value: number) {
   return Number.isFinite(value) && Number.isInteger(value) && value > 0;
@@ -47,32 +38,32 @@ function toIsoDate(value: string) {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-function actionUnit(actionType: ActionType) {
-  return ACTION_OPTIONS.find((option) => option.value === actionType)?.unit ?? actionType;
+function actionUnit(t: Translate, actionType: ActionType) {
+  const option = ACTION_OPTIONS.find((candidate) => candidate.value === actionType);
+  return option ? t(option.unitKey) : actionType;
 }
 
-function validateRules(rules: RuleDraft[]) {
-  if (rules.length === 0) return 'Adicione pelo menos uma regra.';
-  if (rules.some((rule) => !rule.actionType)) return 'Todas as regras precisam de um tipo de acao.';
+function validateRules(rules: RuleDraft[], t: Translate) {
+  if (rules.length === 0) return t('ruleRequired');
+  if (rules.some((rule) => !rule.actionType)) return t('ruleActionRequired');
   if (rules.some((rule) => !positiveInteger(rule.thresholdAmount))) {
-    return 'Os marcos das regras precisam ser numeros inteiros maiores que zero.';
+    return t('ruleThresholdInvalid');
   }
   if (rules.some((rule) => !positiveInteger(rule.entries))) {
-    return 'As entries das regras precisam ser numeros inteiros maiores que zero.';
+    return t('ruleEntriesInvalid');
   }
   return '';
 }
 
 export default function CreateEvent() {
   const navigate = useNavigate();
-  const resolveToken = useRef(0);
+  const { t } = useI18n();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
-  const [channelQuery, setChannelQuery] = useState('');
-  const [channel, setChannel] = useState<ChannelInfo | null>(null);
-  const [channelState, setChannelState] = useState<ChannelState>('idle');
-  const [channelError, setChannelError] = useState('');
+  const [me, setMe] = useState<MemberProfile | null>(null);
+  const [isLoadingMe, setIsLoadingMe] = useState(true);
+  const [meError, setMeError] = useState('');
   const [rulesMode, setRulesMode] = useState('tier');
   const [maxEntriesPerParticipant, setMaxEntriesPerParticipant] = useState(0);
   const [requiresInterestBeforeAction, setRequiresInterestBeforeAction] = useState(false);
@@ -82,53 +73,41 @@ export default function CreateEvent() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  const slug = useMemo(() => normalizeSlug(channelQuery), [channelQuery]);
-
   useEffect(() => {
-    const token = resolveToken.current + 1;
-    resolveToken.current = token;
+    let ignore = false;
 
-    if (!slug) {
-      setChannel(null);
-      setChannelState('idle');
-      setChannelError('');
-      return;
-    }
+    getMe()
+      .then((profile) => {
+        if (!ignore) setMe(profile);
+      })
+      .catch((err) => {
+        if (!ignore) {
+          setMe(null);
+          setMeError(err instanceof Error ? err.message : t('creatorChannelLoadError'));
+        }
+      })
+      .finally(() => {
+        if (!ignore) setIsLoadingMe(false);
+      });
 
-    setChannel(null);
-    setChannelState('searching');
-    setChannelError('');
+    return () => {
+      ignore = true;
+    };
+  }, [t]);
 
-    const timeout = window.setTimeout(async () => {
-      try {
-        const resolved = await getChannels(slug);
-        if (resolveToken.current !== token) return;
-        setChannel(resolved);
-        setChannelState('found');
-      } catch {
-        if (resolveToken.current !== token) return;
-        setChannel(null);
-        setChannelState('not-found');
-        setChannelError('Canal nao encontrado.');
-      }
-    }, 500);
-
-    return () => window.clearTimeout(timeout);
-  }, [slug]);
-
-  const rulesError = useMemo(() => validateRules(rules), [rules]);
+  const rulesError = useMemo(() => validateRules(rules, t), [rules, t]);
   const dateError = useMemo(() => {
     if (!startsAt || !endsAt) return '';
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime()
-      ? 'A data final precisa ser posterior a data inicial.'
+      ? t('dateOrderError')
       : '';
-  }, [startsAt, endsAt]);
+  }, [startsAt, endsAt, t]);
 
   const canSubmit = Boolean(title.trim())
-    && Boolean(channel)
+    && Boolean(me)
     && !rulesError
     && !dateError
-    && channelState !== 'searching'
+    && !isLoadingMe
     && !isSubmitting;
 
   const updateRule = <K extends keyof RuleDraft>(index: number, field: K, value: RuleDraft[K]) => {
@@ -146,9 +125,9 @@ export default function CreateEvent() {
   };
 
   const validateForm = () => {
-    if (!title.trim()) return 'Defina um titulo para o evento.';
-    if (!slug) return 'Informe o nome do canal.';
-    if (!channel) return channelState === 'searching' ? 'Aguarde a validacao do canal.' : 'Selecione um canal valido.';
+    if (!title.trim()) return t('titleRequired');
+    if (isLoadingMe) return t('creatorChannelLoading');
+    if (!me) return meError || t('creatorChannelUnavailable');
     if (rulesError) return rulesError;
     if (dateError) return dateError;
     return '';
@@ -165,10 +144,16 @@ export default function CreateEvent() {
     setIsSubmitting(true);
     setError('');
 
+    if (!me) {
+      setError(t('creatorChannelUnavailable'));
+      setIsSubmitting(false);
+      return;
+    }
+
     const payload = {
       title: title.trim(),
       description: description.trim() || undefined,
-      creatorChannelId: channel!.id,
+      creatorChannelId: me.blazeUserId,
       rulesMode,
       maxEntriesPerParticipant: Math.max(0, Math.trunc(maxEntriesPerParticipant || 0)),
       requiresInterestBeforeAction,
@@ -185,34 +170,28 @@ export default function CreateEvent() {
       const created = await createEvent(payload);
       navigate(`/events/${created.id}`);
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Erro ao criar evento.');
+      setError(err instanceof Error ? err.message : t('createEventError'));
     } finally {
       setIsSubmitting(false);
     }
   };
 
-  const channelFieldClass = [
-    'form-field',
-    channelState === 'found' ? 'form-field--ok' : '',
-    channelState === 'not-found' ? 'form-field--err' : '',
-  ].filter(Boolean).join(' ');
-
   return (
     <div style={{ maxWidth: 760 }}>
-      <h1 className="page-title">Criar evento</h1>
-      <p className="page-subtitle">Configure o canal monitorado e as regras de entries.</p>
+      <h1 className="page-title">{t('createTitle')}</h1>
+      <p className="page-subtitle">{t('createSubtitle')}</p>
 
       {error && <div className="toast toast-error" style={{ position: 'static', marginBottom: 24 }}>{error}</div>}
 
       <form onSubmit={handleSubmit} autoComplete="off">
         <div className="form-section">
-          <label className="form-label" htmlFor="event-title">Titulo</label>
+          <label className="form-label" htmlFor="event-title">{t('title')}</label>
           <div className="form-field">
             <input
               id="event-title"
               value={title}
               onChange={(event) => setTitle(event.target.value)}
-              placeholder="Ex: Giveaway 50 votos"
+              placeholder={t('titlePh')}
               disabled={isSubmitting}
               required
             />
@@ -220,45 +199,26 @@ export default function CreateEvent() {
         </div>
 
         <div className="form-section">
-          <label className="form-label" htmlFor="event-description">Descricao</label>
+          <label className="form-label" htmlFor="event-description">{t('description')}</label>
           <div className="form-field">
             <textarea
               id="event-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder="Descreva as regras do evento para os participantes"
+              placeholder={t('descPh')}
               disabled={isSubmitting}
             />
           </div>
         </div>
 
         <div className="form-section">
-          <label className="form-label" htmlFor="event-channel">Canal Blaze</label>
-          <div className={channelFieldClass}>
-            <input
-              id="event-channel"
-              value={channelQuery}
-              onChange={(event) => setChannelQuery(event.target.value)}
-              placeholder="Nome do canal"
-              autoComplete="off"
-              spellCheck={false}
-              disabled={isSubmitting}
-            />
-            {channelState === 'searching' && (
-              <span className="search-dots" style={{ position: 'absolute', right: 16, top: 18 }}>
-                <span />
-                <span />
-                <span />
-              </span>
-            )}
-          </div>
-
-          {channelError && <div className="form-helper form-helper--err">{channelError}</div>}
-
-          {channel && (
+          <div className="form-label">{t('channelBlaze')}</div>
+          {isLoadingMe && <div className="form-helper">{t('creatorChannelLoading')}</div>}
+          {meError && <div className="form-helper form-helper--err">{meError}</div>}
+          {me && (
             <div className="channel-preview">
-              {channel.avatarUrl ? (
-                <img src={channel.avatarUrl} alt="" />
+              {me.avatarUrl ? (
+                <img src={me.avatarUrl} alt="" />
               ) : (
                 <div
                   aria-hidden="true"
@@ -275,15 +235,15 @@ export default function CreateEvent() {
                     flexShrink: 0,
                   }}
                 >
-                  {(channel.displayName || channel.slug || '?')[0].toUpperCase()}
+                  {(me.displayName || me.blazeUsername || '?')[0].toUpperCase()}
                 </div>
               )}
               <div>
-                <div className="ch-name">{channel.displayName || channel.slug}</div>
+                <div className="ch-name">{me.displayName || me.blazeUsername}</div>
                 <div className="ch-meta">
-                  @{channel.slug}
+                  @{me.blazeUsername}
                   <span style={{ opacity: 0.35 }}>.</span>
-                  <span className="ch-id">{channel.id}</span>
+                  <span className="ch-id">{me.blazeUserId}</span>
                 </div>
               </div>
             </div>
@@ -293,7 +253,7 @@ export default function CreateEvent() {
         <div className="form-section">
           <div className="form-row">
             <div>
-              <label className="form-label" htmlFor="event-rules-mode">Modo das regras</label>
+              <label className="form-label" htmlFor="event-rules-mode">{t('rulesMode')}</label>
               <div className="form-field">
                 <select
                   id="event-rules-mode"
@@ -301,13 +261,13 @@ export default function CreateEvent() {
                   onChange={(event) => setRulesMode(event.target.value)}
                   disabled={isSubmitting}
                 >
-                  <option value="tier">Tier - maior marco</option>
-                  <option value="cumulative">Acumulativo</option>
+                  <option value="tier">{t('modeTier')}</option>
+                  <option value="cumulative">{t('modeCumulative')}</option>
                 </select>
               </div>
             </div>
             <div>
-              <label className="form-label" htmlFor="event-max-entries">Max entries/pessoa</label>
+              <label className="form-label" htmlFor="event-max-entries">{t('maxEntries')}</label>
               <div className="form-field">
                 <input
                   id="event-max-entries"
@@ -315,7 +275,7 @@ export default function CreateEvent() {
                   min={0}
                   value={maxEntriesPerParticipant || ''}
                   onChange={(event) => setMaxEntriesPerParticipant(Number(event.target.value) || 0)}
-                  placeholder="0 = ilimitado"
+                  placeholder={t('maxEntriesPh')}
                   disabled={isSubmitting}
                 />
               </div>
@@ -326,7 +286,7 @@ export default function CreateEvent() {
         <div className="form-section">
           <div className="form-row">
             <div>
-              <label className="form-label" htmlFor="event-starts-at">Inicio</label>
+              <label className="form-label" htmlFor="event-starts-at">{t('startAt')}</label>
               <div className="form-field">
                 <input
                   id="event-starts-at"
@@ -338,7 +298,7 @@ export default function CreateEvent() {
               </div>
             </div>
             <div>
-              <label className="form-label" htmlFor="event-ends-at">Fim</label>
+              <label className="form-label" htmlFor="event-ends-at">{t('endAt')}</label>
               <div className="form-field">
                 <input
                   id="event-ends-at"
@@ -361,22 +321,22 @@ export default function CreateEvent() {
               onChange={(event) => setRequiresInterestBeforeAction(event.target.checked)}
               disabled={isSubmitting}
             />
-            Exigir interesse antes da acao
+            {t('requiresInterest')}
           </label>
         </div>
 
         <div className="form-section">
           <div className="section-header" style={{ marginBottom: 12 }}>
-            <label className="form-label" style={{ margin: 0 }}>Regras de entries</label>
+            <label className="form-label" style={{ margin: 0 }}>{t('rulesOfEntries')}</label>
             <button type="button" className="btn-add-rule" onClick={addRule} disabled={isSubmitting}>
-              + Adicionar regra
+              {t('addRule')}
             </button>
           </div>
 
           <div className="flex flex-col gap-sm">
             {rules.map((rule, index) => (
               <div className="rule-card" key={`${rule.actionType}-${index}`}>
-                <span className="r-sep">A cada</span>
+                <span className="r-sep">{t('each')}</span>
                 <input
                   className="r-input"
                   type="number"
@@ -393,10 +353,10 @@ export default function CreateEvent() {
                   disabled={isSubmitting}
                 >
                   {ACTION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{option.label}</option>
+                    <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
                   ))}
                 </select>
-                <span className="r-sep">=</span>
+                <span className="r-sep">{t('equals')}</span>
                 <input
                   className="r-input"
                   type="number"
@@ -405,13 +365,19 @@ export default function CreateEvent() {
                   onChange={(event) => updateRule(index, 'entries', Number(event.target.value) || 0)}
                   disabled={isSubmitting}
                 />
-                <span className="r-sep">{rule.entries === 1 ? 'entry' : 'entries'} por {actionUnit(rule.actionType)}</span>
+                <span className="r-sep">
+                  {t('ruleEntriesPerAction', {
+                    entries: rule.entries,
+                    entryLabel: t('entriesUnit'),
+                    action: actionUnit(t, rule.actionType),
+                  })}
+                </span>
                 <button
                   type="button"
                   className="r-close"
                   onClick={() => removeRule(index)}
                   disabled={isSubmitting || rules.length === 1}
-                  aria-label="Remover regra"
+                  aria-label={t('removeRule')}
                 >
                   x
                 </button>
@@ -423,10 +389,10 @@ export default function CreateEvent() {
 
         <div className="form-actions">
           <button type="submit" className="btn btn-primary btn-lg" disabled={!canSubmit}>
-            {isSubmitting ? 'Criando...' : 'Criar evento'}
+            {isSubmitting ? t('creating') : t('createBtn')}
           </button>
           <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(-1)} disabled={isSubmitting}>
-            Cancelar
+            {t('cancel')}
           </button>
         </div>
       </form>

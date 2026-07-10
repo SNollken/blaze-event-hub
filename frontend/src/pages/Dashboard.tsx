@@ -1,35 +1,38 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { getEventStats, getEvents, getOAuthSession, startOAuth } from '../api/client';
 import type { EventResponse, EventStatsResponse, OAuthSessionResponse } from '../api/client';
+import { useI18n } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/translations';
 
-const numberFormatter = new Intl.NumberFormat('pt-BR');
-
-function formatNumber(value: number | null | undefined) {
-  return numberFormatter.format(value ?? 0);
-}
-
-function formatLast24h(last24h: EventStatsResponse['last24h'] | undefined) {
+function formatLast24h(
+  last24h: EventStatsResponse['last24h'] | undefined,
+  formatNumber: (value: number | null | undefined) => string,
+  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
+) {
   if (typeof last24h === 'number') {
-    return `${formatNumber(last24h)} acoes`;
+    return t('actionsCount', { count: formatNumber(last24h) });
   }
 
   const votes = formatNumber(last24h?.votes);
   const subs = formatNumber(last24h?.subs);
   const giftedSubs = formatNumber(last24h?.giftedSubs);
 
-  return `${votes} votos / ${subs} subs / ${giftedSubs} gifts`;
+  return t('dashboardLast24hBreakdown', { votes, subs, giftedSubs });
 }
 
 export default function Dashboard() {
+  const { lang, t } = useI18n();
   const [events, setEvents] = useState<EventResponse[]>([]);
   const [stats, setStats] = useState<EventStatsResponse | null>(null);
   const [oauth, setOAuth] = useState<OAuthSessionResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [statsError, setStatsError] = useState<string | null>(null);
-  const [oauthError, setOAuthError] = useState<string | null>(null);
-  const [connectError, setConnectError] = useState<string | null>(null);
+  const [error, setError] = useState<TranslationKey | null>(null);
+  const [statsError, setStatsError] = useState<TranslationKey | null>(null);
+  const [oauthError, setOAuthError] = useState<TranslationKey | null>(null);
+  const [connectError, setConnectError] = useState<TranslationKey | null>(null);
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(lang), [lang]);
+  const formatNumber = (value: number | null | undefined) => numberFormatter.format(value ?? 0);
 
   useEffect(() => {
     let alive = true;
@@ -53,12 +56,12 @@ export default function Dashboard() {
           setOAuth(oauthResult.value);
         } else {
           setOAuth(null);
-          setOAuthError('Nao foi possivel verificar a conexao OAuth.');
+          setOAuthError('oauthStatusError');
         }
 
         if (eventsResult.status === 'rejected') {
           setEvents([]);
-          setError('Nao foi possivel carregar os eventos abertos.');
+          setError('openEventsLoadError');
           return;
         }
 
@@ -73,7 +76,7 @@ export default function Dashboard() {
           if (alive) setStats(eventStats);
         } catch {
           if (alive) {
-            setStatsError('Nao foi possivel carregar as estatisticas do evento em destaque.');
+            setStatsError('featuredStatsLoadError');
           }
         }
       } finally {
@@ -94,7 +97,7 @@ export default function Dashboard() {
       const { authorizationUrl } = await startOAuth();
       window.location.href = authorizationUrl;
     } catch {
-      setConnectError('Nao foi possivel iniciar a conexao OAuth.');
+      setConnectError('oauthStartError');
     }
   };
 
@@ -102,59 +105,59 @@ export default function Dashboard() {
   const featuredEvent = events[0] ?? null;
   const statCards = stats
     ? [
-        { value: formatNumber(stats.totalVotes), label: 'Votos' },
-        { value: formatNumber(stats.totalSubs), label: 'Subs' },
-        { value: formatNumber(stats.totalGiftedSubs), label: 'Gifted subs' },
-        { value: formatNumber(stats.participants), label: 'Participantes' },
-        { value: formatNumber(stats.totalEntries), label: 'Entradas' },
-        { value: formatLast24h(stats.last24h), label: 'Ultimas 24h' },
+        { value: formatNumber(stats.totalVotes), label: t('totalVotes') },
+        { value: formatNumber(stats.totalSubs), label: t('totalSubs') },
+        { value: formatNumber(stats.totalGiftedSubs), label: t('totalGiftedSubs') },
+        { value: formatNumber(stats.participants), label: t('participants') },
+        { value: formatNumber(stats.totalEntries), label: t('totalEntries') },
+        { value: formatLast24h(stats.last24h, formatNumber, t), label: t('last24h'), isLast24h: true },
       ]
     : [];
 
   return (
     <div style={{ padding: '32px 40px', maxWidth: 960 }}>
-      <h1 className="page-title">Blaze Event Hub</h1>
-      <p className="page-subtitle">Eventos comunitarios para a Blaze.stream</p>
+      <h1 className="page-title">{t('dashTitle')}</h1>
+      <p className="page-subtitle">{t('dashSub')}</p>
 
       {!connected && (
         <div className="cta-banner">
           <div>
-            <h3>Conecte sua conta Blaze</h3>
-            <p>{oauthError || 'Necessario para criar eventos e participar de giveaways'}</p>
+            <h3>{t('connectTitle')}</h3>
+            <p>{oauthError ? t(oauthError) : t('connectDesc')}</p>
           </div>
           <button onClick={handleConnect} className="btn btn-primary" style={{ flexShrink: 0 }}>
-            Conectar
+            {t('connectBtn')}
           </button>
         </div>
       )}
 
       {connectError && (
         <div className="empty" style={{ color: 'var(--danger)', padding: '0 0 24px' }}>
-          {connectError}
+          {t(connectError)}
         </div>
       )}
 
-      {loading && <div className="empty">Carregando dashboard...</div>}
+      {loading && <div className="empty">{t('dashboardLoading')}</div>}
 
       {!loading && error && (
         <div className="empty" style={{ color: 'var(--danger)' }}>
-          {error}
+          {t(error)}
         </div>
       )}
 
       {!loading && !error && !featuredEvent && (
         <>
           <div className="section-label">
-            Eventos Abertos <span className="count">0</span>
+            {t('sectionOpen')} <span className="count">0</span>
           </div>
-          <div className="empty">Nenhum evento aberto no momento</div>
+          <div className="empty">{t('noOpenEvents')}</div>
         </>
       )}
 
       {!loading && !error && featuredEvent && (
         <>
           <div className="section-label">
-            Evento em destaque <span className="count">OPEN</span>
+            {t('featuredEvent')} <span className="count">{t('statusOpen')}</span>
           </div>
 
           <Link
@@ -168,7 +171,7 @@ export default function Dashboard() {
               marginBottom: 14,
             }}
           >
-            <span className="pill pill--open">Aberto</span>
+            <span className="pill pill--open">{t('statusOpen')}</span>
             <div className="card-title" style={{ fontSize: 16 }}>
               {featuredEvent.title}
             </div>
@@ -182,7 +185,7 @@ export default function Dashboard() {
                 WebkitBoxOrient: 'vertical',
               }}
             >
-              {featuredEvent.description || 'Sem descricao'}
+              {featuredEvent.description || t('noDescription')}
             </div>
             <div
               style={{
@@ -194,13 +197,13 @@ export default function Dashboard() {
                 fontWeight: 510,
               }}
             >
-              Ver evento
+              {t('viewEvent')}
             </div>
           </Link>
 
           {statsError ? (
             <div className="empty" style={{ color: 'var(--danger)', padding: '18px 0 32px' }}>
-              {statsError}
+              {t(statsError)}
             </div>
           ) : (
             <div style={{
@@ -212,7 +215,7 @@ export default function Dashboard() {
               {statCards.map((item) => (
                 <div key={item.label} className="card" style={{ padding: '16px 18px' }}>
                   <div style={{
-                    fontSize: item.label === 'Ultimas 24h' ? 14 : 24,
+                    fontSize: item.isLast24h ? 14 : 24,
                     fontWeight: 600,
                     color: 'var(--fg)',
                     fontFamily: 'var(--font-mono)',
@@ -236,7 +239,7 @@ export default function Dashboard() {
           )}
 
           <div className="section-label">
-            Eventos Abertos <span className="count">{events.length}</span>
+            {t('sectionOpen')} <span className="count">{events.length}</span>
           </div>
 
           <div style={{
@@ -258,7 +261,7 @@ export default function Dashboard() {
                   minHeight: 140,
                 }}
               >
-                <span className="pill pill--open">Aberto</span>
+                <span className="pill pill--open">{t('statusOpen')}</span>
                 <div className="card-title" style={{
                   display: '-webkit-box',
                   WebkitLineClamp: 2,
@@ -275,7 +278,7 @@ export default function Dashboard() {
                   WebkitLineClamp: 2,
                   WebkitBoxOrient: 'vertical',
                 }}>
-                  {ev.description?.slice(0, 80) || 'Sem descricao'}
+                  {ev.description?.slice(0, 80) || t('noDescription')}
                 </div>
                 <div style={{
                   display: 'flex',
@@ -289,8 +292,8 @@ export default function Dashboard() {
                   fontFamily: 'var(--font-mono)',
                   letterSpacing: '0.02em',
                 }}>
-                  <span>{ev.rules?.length || 0} regras / {ev.participantCount || 0} part.</span>
-                  <span style={{ color: 'var(--accent-light)' }}>Ver</span>
+                  <span>{t('rulesParticipantsMeta', { rules: ev.rules?.length || 0, participants: ev.participantCount || 0 })}</span>
+                  <span style={{ color: 'var(--accent-light)' }}>{t('view')}</span>
                 </div>
               </Link>
             ))}
@@ -300,8 +303,8 @@ export default function Dashboard() {
 
       {connected && (
         <div style={{ marginTop: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link to="/events/create" className="btn btn-secondary">+ Criar evento</Link>
-          <Link to="/events" className="btn btn-secondary">Ver todos os eventos</Link>
+          <Link to="/events/create" className="btn btn-secondary">{t('quickCreate')}</Link>
+          <Link to="/events" className="btn btn-secondary">{t('viewAllEvents')}</Link>
         </div>
       )}
     </div>

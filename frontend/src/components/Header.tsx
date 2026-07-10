@@ -2,6 +2,7 @@ import { usePolling } from './Toast';
 import { getStatus } from '../api/client';
 import { StatusDot } from './Badge';
 import { RefreshCw } from 'lucide-react';
+import { useI18n } from '../i18n/I18nContext';
 
 interface HeaderProps {
   title: string;
@@ -10,7 +11,8 @@ interface HeaderProps {
 }
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
-  const { data: status, reload } = usePolling(() => getStatus(), 15000);
+  const { t } = useI18n();
+  const { data: status, reload } = usePolling(getStatus, 15000);
 
   const isOnline = !!status;
 
@@ -35,8 +37,8 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {actions}
-        <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? 'Online' : 'Offline'} />
-        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title="Atualizar status" aria-label="Atualizar status">
+        <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? t('online') : t('offline')} />
+        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title={t('refreshStatus')} aria-label={t('refreshStatus')}>
           <RefreshCw size={14} />
         </button>
       </div>
