@@ -119,6 +119,9 @@ export default function EditEvent() {
   const [channelName, setChannelName] = useState<string | null>(null);
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [prizeTypeSelect, setPrizeTypeSelect] = useState('');
+  const [prizeTypeOther, setPrizeTypeOther] = useState('');
+  const [prizeDescription, setPrizeDescription] = useState('');
   const [rulesMode, setRulesMode] = useState('tier');
   const [maxEntriesPerParticipant, setMaxEntriesPerParticipant] = useState(0);
   const [requiresInterestBeforeAction, setRequiresInterestBeforeAction] = useState(false);
@@ -151,6 +154,14 @@ export default function EditEvent() {
         setEvent(loaded);
         setTitle(loaded.title || '');
         setDescription(loaded.description || '');
+        setPrizeDescription(loaded.prizeDescription || '');
+        const KNOWN_PRIZE_TYPES = ['bits', 'pix', 'steam', 'giftcard', 'physical'];
+        if (loaded.prizeType && !KNOWN_PRIZE_TYPES.includes(loaded.prizeType)) {
+          setPrizeTypeSelect('outro');
+          setPrizeTypeOther(loaded.prizeType);
+        } else {
+          setPrizeTypeSelect(loaded.prizeType || '');
+        }
         setRulesMode(loaded.rulesMode || loaded.mode || 'tier');
         setMaxEntriesPerParticipant(loaded.maxEntriesPerParticipant ?? loaded.maxEntries ?? 0);
         setRequiresInterestBeforeAction(Boolean(loaded.requiresInterestBeforeAction));
@@ -288,6 +299,8 @@ export default function EditEvent() {
         requiresInterestBeforeAction,
         startsAt: toIsoDate(startsAt),
         endsAt: toIsoDate(endsAt),
+        prizeType: prizeTypeSelect === 'outro' ? (prizeTypeOther.trim() || undefined) : (prizeTypeSelect || undefined),
+        prizeDescription: prizeDescription.trim() || undefined,
       });
 
       await syncRules(id);
@@ -349,6 +362,48 @@ export default function EditEvent() {
               value={description}
               onChange={(changeEvent) => setDescription(changeEvent.target.value)}
               placeholder={t('descPh')}
+              disabled={disabled}
+            />
+          </div>
+        </div>
+
+        <div className="form-section">
+          <div className="section-label">{t('prizeSection')}</div>
+          <label className="form-label" htmlFor="event-prize-type">{t('prizeType')}</label>
+          <div className="form-field">
+            <select
+              id="event-prize-type"
+              value={prizeTypeSelect}
+              onChange={(changeEvent) => setPrizeTypeSelect(changeEvent.target.value)}
+              disabled={disabled}
+            >
+              <option value="">{t('prizeType')}</option>
+              <option value="bits">{t('prizeOptBits')}</option>
+              <option value="pix">{t('prizeOptPix')}</option>
+              <option value="steam">{t('prizeOptSteam')}</option>
+              <option value="giftcard">{t('prizeOptGiftcard')}</option>
+              <option value="physical">{t('prizeOptPhysical')}</option>
+              <option value="outro">{t('prizeTypeOther')}</option>
+            </select>
+          </div>
+          {prizeTypeSelect === 'outro' && (
+            <div className="form-field" style={{ marginTop: 12 }}>
+              <input
+                id="event-prize-type-other"
+                value={prizeTypeOther}
+                onChange={(changeEvent) => setPrizeTypeOther(changeEvent.target.value)}
+                placeholder={t('prizeTypeOtherPh')}
+                disabled={disabled}
+                maxLength={80}
+              />
+            </div>
+          )}
+          <div className="form-field" style={{ marginTop: 12 }}>
+            <textarea
+              id="event-prize-description"
+              value={prizeDescription}
+              onChange={(changeEvent) => setPrizeDescription(changeEvent.target.value)}
+              placeholder={t('prizeDescPh')}
               disabled={disabled}
             />
           </div>

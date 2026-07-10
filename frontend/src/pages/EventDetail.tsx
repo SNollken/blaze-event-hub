@@ -329,6 +329,32 @@ export default function EventDetail() {
         </section>
       )}
 
+      {(event.prizeType || event.prizeDescription) && (
+        <section style={{ marginBottom: 32 }}>
+          <div className="section-label">{t('prizeSection')}</div>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+            {event.prizeType && (
+              <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <span style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
+                  {t('prizeType')}
+                </span>
+                <span style={{ color: 'var(--fg)', fontWeight: 510 }}>{event.prizeType}</span>
+              </div>
+            )}
+            {event.prizeDescription && (
+              <div className="card">
+                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
+                  {t('prizeDescription')}
+                </div>
+                <div style={{ fontSize: 13, color: 'var(--fg)', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
+                  {event.prizeDescription}
+                </div>
+              </div>
+            )}
+          </div>
+        </section>
+      )}
+
       {winner && (
         <div className="winner-box">
           <div className="section-label">{t('drawWinner')}</div>

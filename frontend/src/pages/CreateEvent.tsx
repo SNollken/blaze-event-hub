@@ -61,6 +61,9 @@ export default function CreateEvent() {
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
+  const [prizeTypeSelect, setPrizeTypeSelect] = useState('');
+  const [prizeTypeOther, setPrizeTypeOther] = useState('');
+  const [prizeDescription, setPrizeDescription] = useState('');
   const [me, setMe] = useState<MemberProfile | null>(null);
   const [isLoadingMe, setIsLoadingMe] = useState(true);
   const [meError, setMeError] = useState('');
@@ -157,6 +160,8 @@ export default function CreateEvent() {
       rulesMode,
       maxEntriesPerParticipant: Math.max(0, Math.trunc(maxEntriesPerParticipant || 0)),
       requiresInterestBeforeAction,
+      prizeType: prizeTypeSelect === 'outro' ? (prizeTypeOther.trim() || undefined) : (prizeTypeSelect || undefined),
+      prizeDescription: prizeDescription.trim() || undefined,
       startsAt: toIsoDate(startsAt),
       endsAt: toIsoDate(endsAt),
       rules: rules.map<CreateRuleRequest>((rule) => ({
@@ -206,6 +211,48 @@ export default function CreateEvent() {
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               placeholder={t('descPh')}
+              disabled={isSubmitting}
+            />
+          </div>
+        </div>
+
+        <div className="form-section">
+          <div className="section-label">{t('prizeSection')}</div>
+          <label className="form-label" htmlFor="event-prize-type">{t('prizeType')}</label>
+          <div className="form-field">
+            <select
+              id="event-prize-type"
+              value={prizeTypeSelect}
+              onChange={(event) => setPrizeTypeSelect(event.target.value)}
+              disabled={isSubmitting}
+            >
+              <option value="">{t('prizeType')}</option>
+              <option value="bits">{t('prizeOptBits')}</option>
+              <option value="pix">{t('prizeOptPix')}</option>
+              <option value="steam">{t('prizeOptSteam')}</option>
+              <option value="giftcard">{t('prizeOptGiftcard')}</option>
+              <option value="physical">{t('prizeOptPhysical')}</option>
+              <option value="outro">{t('prizeTypeOther')}</option>
+            </select>
+          </div>
+          {prizeTypeSelect === 'outro' && (
+            <div className="form-field" style={{ marginTop: 12 }}>
+              <input
+                id="event-prize-type-other"
+                value={prizeTypeOther}
+                onChange={(event) => setPrizeTypeOther(event.target.value)}
+                placeholder={t('prizeTypeOtherPh')}
+                disabled={isSubmitting}
+                maxLength={80}
+              />
+            </div>
+          )}
+          <div className="form-field" style={{ marginTop: 12 }}>
+            <textarea
+              id="event-prize-description"
+              value={prizeDescription}
+              onChange={(event) => setPrizeDescription(event.target.value)}
+              placeholder={t('prizeDescPh')}
               disabled={isSubmitting}
             />
           </div>
