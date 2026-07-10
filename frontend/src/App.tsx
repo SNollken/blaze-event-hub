@@ -3,6 +3,7 @@ import { Routes, Route } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { Layout } from './components/Layout';
 import { LanguageSwitcher } from './components/LanguageSwitcher';
+import RequireAuth from './components/RequireAuth';
 import { useI18n } from './i18n/I18nContext';
 
 const Dashboard = lazy(() => import('./pages/Dashboard'));
@@ -25,11 +26,11 @@ export default function App() {
           <Routes>
             <Route path="/" element={<Dashboard />} />
             <Route path="/events" element={<Events />} />
-            <Route path="/events/create" element={<CreateEvent />} />
+            <Route path="/events/create" element={<RequireAuth><CreateEvent /></RequireAuth>} />
             <Route path="/events/:id" element={<EventDetail />} />
-            <Route path="/events/:id/edit" element={<EditEvent />} />
-            <Route path="/events/:id/draw" element={<LiveDraw />} />
-            <Route path="/my-events" element={<MyEvents />} />
+            <Route path="/events/:id/edit" element={<RequireAuth><EditEvent /></RequireAuth>} />
+            <Route path="/events/:id/draw" element={<RequireAuth><LiveDraw /></RequireAuth>} />
+            <Route path="/my-events" element={<RequireAuth><MyEvents /></RequireAuth>} />
             <Route path="/login" element={<Login />} />
             <Route path="*" element={<Dashboard />} />
           </Routes>
