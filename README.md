@@ -78,7 +78,7 @@ Variáveis que devem ser configuradas no provedor, nunca no repositório:
 | `EVENTHUB_DB_PASSWORD` | Senha do banco |
 | `EVENTHUB_API_KEY` | Chave opcional para integração interna server-to-server |
 
-Em Render + Supabase, use a conexão IPv4/session pooler indicada pelo Supabase e TLS. O banco deve começar vazio: deixe o Flyway criar `flyway_schema_history` e aplicar, em ordem, as migrations de `db/migration/common` e `db/migration/postgresql`. Não aplique as mesmas migrations manualmente antes do primeiro start sem uma estratégia explícita de baseline.
+Em Render + Supabase, use a conexão IPv4/session pooler indicada pelo Supabase e TLS. O banco deve começar vazio: deixe o Flyway criar `flyway_schema_history` e aplicar, em ordem, as migrations de `db/migration/common` e `db/migration/postgresql`. Não aplique as mesmas migrations manualmente antes do primeiro start sem uma estratégia explícita de baseline. Como o produto acessa o PostgreSQL somente pelo Spring/JDBC, mantenha a Data API desativada no painel do Supabase; a migration PostgreSQL também ativa RLS e revoga os papéis da Data API como defesa em profundidade.
 
 Build e execução local da imagem:
 

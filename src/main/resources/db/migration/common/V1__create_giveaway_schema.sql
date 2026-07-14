@@ -74,6 +74,8 @@ CREATE TABLE IF NOT EXISTS event_draw_results (
     selected_at TIMESTAMP WITH TIME ZONE NOT NULL,
     selected_by VARCHAR(64) NOT NULL,
     CONSTRAINT fk_event_draw_results_event FOREIGN KEY (event_id) REFERENCES events(id),
+    CONSTRAINT fk_event_draw_results_winner FOREIGN KEY (event_id, winner_blaze_user_id)
+        REFERENCES event_participants(event_id, blaze_user_id),
     CONSTRAINT fk_event_draw_results_member FOREIGN KEY (selected_by) REFERENCES members(id),
     CONSTRAINT chk_event_draw_participant_count CHECK (participant_count > 0)
 );
@@ -92,5 +94,9 @@ CREATE TABLE IF NOT EXISTS chat_polling_cursors (
 CREATE INDEX IF NOT EXISTS idx_events_status ON events(status);
 CREATE INDEX IF NOT EXISTS idx_events_creator ON events(creator_member_id);
 CREATE INDEX IF NOT EXISTS idx_events_open_channel ON events(creator_channel_id, status);
-CREATE INDEX IF NOT EXISTS idx_event_participants_event ON event_participants(event_id);
+CREATE INDEX IF NOT EXISTS idx_events_creator_created ON events(creator_member_id, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_events_status_created ON events(status, created_at DESC);
+CREATE INDEX IF NOT EXISTS idx_event_participants_event_entered
+    ON event_participants(event_id, entered_at, id);
+CREATE INDEX IF NOT EXISTS idx_event_draw_results_selected_by ON event_draw_results(selected_by);
 CREATE INDEX IF NOT EXISTS idx_oauth_credentials_blaze_user ON oauth_credentials(blaze_user_id);

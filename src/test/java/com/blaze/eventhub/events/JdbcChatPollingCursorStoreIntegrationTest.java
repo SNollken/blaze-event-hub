@@ -29,6 +29,7 @@ class JdbcChatPollingCursorStoreIntegrationTest {
     @BeforeEach
     void cleanUp() {
         jdbc.update("DELETE FROM chat_polling_cursors WHERE member_id = ?", MEMBER_ID);
+        jdbc.update("DELETE FROM events WHERE creator_member_id = ?", MEMBER_ID);
         jdbc.update("DELETE FROM members WHERE id = ?", MEMBER_ID);
         jdbc.update("""
                 INSERT INTO members (
@@ -36,6 +37,18 @@ class JdbcChatPollingCursorStoreIntegrationTest {
                     status, created_at, updated_at)
                 VALUES (?, ?, ?, ?, 'active', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
                 """, MEMBER_ID, "cursor-blaze-user", "cursor-user", "Cursor User");
+        jdbc.update("""
+                INSERT INTO events (
+                    id, creator_member_id, creator_blaze_user_id, creator_channel_id,
+                    title, prize, entry_command, status, created_at, updated_at)
+                VALUES
+                    ('event-1', ?, 'cursor-blaze-user', ?, 'Evento 1', 'Premio', '!entrar',
+                        'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                    ('event-old', ?, 'cursor-blaze-user', ?, 'Evento antigo', 'Premio', '!entrar',
+                        'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP),
+                    ('event-new', ?, 'cursor-blaze-user', ?, 'Evento novo', 'Premio', '!entrar',
+                        'draft', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+                """, MEMBER_ID, CHANNEL_ID, MEMBER_ID, CHANNEL_ID, MEMBER_ID, CHANNEL_ID);
     }
 
     @Test

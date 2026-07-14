@@ -4,6 +4,9 @@ ALTER TABLE chat_polling_cursors ADD COLUMN IF NOT EXISTS event_id VARCHAR(64);
 ALTER TABLE chat_polling_cursors ADD COLUMN IF NOT EXISTS scan_cursor VARCHAR(1024);
 ALTER TABLE chat_polling_cursors ADD COLUMN IF NOT EXISTS scan_anchor_message_id VARCHAR(255);
 
+ALTER TABLE chat_polling_cursors ADD CONSTRAINT fk_chat_polling_cursor_event
+    FOREIGN KEY (event_id) REFERENCES events(id) ON DELETE CASCADE;
+
 ALTER TABLE events DROP CONSTRAINT IF EXISTS chk_events_status;
 ALTER TABLE events ADD CONSTRAINT chk_events_status
     CHECK (status IN ('draft', 'open', 'finalizing', 'closed', 'completed', 'cancelled'));
