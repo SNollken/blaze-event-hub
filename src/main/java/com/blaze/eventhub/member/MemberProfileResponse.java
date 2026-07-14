@@ -8,7 +8,6 @@ public record MemberProfileResponse(
 		String blazeUsername,
 		String displayName,
 		String avatarUrl,
-		String walletAddress,
 		String status,
 		Instant createdAt,
 		Instant updatedAt) {
@@ -20,7 +19,6 @@ public record MemberProfileResponse(
 				member.blazeUsername(),
 				member.displayName(),
 				member.avatarUrl(),
-				member.walletAddress(),
 				member.status(),
 				member.createdAt(),
 				member.updatedAt());

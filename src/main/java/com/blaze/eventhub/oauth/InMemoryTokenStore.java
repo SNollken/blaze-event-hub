@@ -4,8 +4,10 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.web.context.annotation.SessionScope;
 
 @Repository
+@SessionScope
 public class InMemoryTokenStore implements TokenStore {
 
 	private final AtomicReference<TokenSnapshot> current = new AtomicReference<>();

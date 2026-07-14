@@ -2,6 +2,7 @@ package com.blaze.eventhub.member;
 
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Optional;
 
 import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.common.NotFoundException;
@@ -26,7 +27,7 @@ public class MemberService {
 	}
 
 	public Member createOrUpdateFromOAuth(String blazeUserId, String username, String displayName,
-			String avatarUrl, String walletAddress, String accessToken, String refreshToken) {
+			String avatarUrl) {
 		Instant now = Instant.now(clock);
 		var existing = memberStore.findByBlazeUserId(blazeUserId);
 		if (existing.isPresent()) {
@@ -37,9 +38,6 @@ public class MemberService {
 					username != null ? username : current.blazeUsername(),
 					displayName != null ? displayName : current.displayName(),
 					avatarUrl != null ? avatarUrl : current.avatarUrl(),
-					walletAddress != null ? walletAddress : current.walletAddress(),
-					accessToken != null ? accessToken : current.accessTokenEncrypted(),
-					refreshToken != null ? refreshToken : current.refreshTokenEncrypted(),
 					current.status(),
 					current.createdAt(),
 					now);
@@ -51,9 +49,6 @@ public class MemberService {
 				username != null ? username : blazeUserId,
 				displayName != null ? displayName : (username != null ? username : blazeUserId),
 				avatarUrl,
-				walletAddress,
-				accessToken,
-				refreshToken,
 				"active",
 				now,
 				now);
@@ -69,6 +64,12 @@ public class MemberService {
 		}
 		return memberStore.findByBlazeUserId(blazeUserId)
 				.orElseThrow(() -> new NotFoundException("Membro nao encontrado para o usuario Blaze " + blazeUserId));
+	}
+
+	public Optional<Member> findCurrentMember() {
+		return tokenStore.current()
+				.filter(token -> token.userId() != null && !token.userId().isBlank())
+				.flatMap(token -> memberStore.findByBlazeUserId(token.userId()));
 	}
 
 	public Member findById(String id) {

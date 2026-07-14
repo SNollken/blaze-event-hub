@@ -1,6 +1,7 @@
 package com.blaze.eventhub.oauth;
 
 import com.blaze.eventhub.common.OAuthException;
+import com.blaze.eventhub.config.SessionCookiePolicy;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -13,14 +14,18 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 @RestController
 @RequestMapping("/api/blaze/oauth")
 public class BlazeOAuthController {
 
 	private final BlazeOAuthService oAuthService;
+	private final SessionCookiePolicy sessionCookiePolicy;
 
-	public BlazeOAuthController(BlazeOAuthService oAuthService) {
+	public BlazeOAuthController(BlazeOAuthService oAuthService, SessionCookiePolicy sessionCookiePolicy) {
 		this.oAuthService = oAuthService;
+		this.sessionCookiePolicy = sessionCookiePolicy;
 	}
 
 	@GetMapping("/session")
@@ -38,10 +43,12 @@ public class BlazeOAuthController {
 			@RequestParam(value = "state", required = false) String state,
 			@RequestParam(value = "error", required = false) String error,
 			@RequestParam(value = "error_description", required = false) String errorDescription,
-			@RequestHeader(value = HttpHeaders.ACCEPT, required = false) String accept) {
+			@RequestHeader(value = HttpHeaders.ACCEPT, required = false) String accept,
+			HttpServletRequest request) {
 		boolean json = acceptsJson(accept);
 		try {
 			OAuthCallbackResponse response = oAuthService.callback(code, state, error, errorDescription);
+			request.changeSessionId();
 			if (json) {
 				return ResponseEntity.ok(response);
 			}
@@ -68,8 +75,15 @@ public class BlazeOAuthController {
 	}
 
 	@PostMapping("/disconnect")
-	OAuthActionResponse disconnect() {
-		return oAuthService.disconnect();
+	ResponseEntity<OAuthActionResponse> disconnect(HttpServletRequest request) {
+		OAuthActionResponse body = oAuthService.disconnect();
+		var session = request.getSession(false);
+		if (session != null) {
+			session.invalidate();
+		}
+		return ResponseEntity.ok()
+				.header(HttpHeaders.SET_COOKIE, sessionCookiePolicy.expiredCookie().toString())
+				.body(body);
 	}
 
 	private static boolean acceptsJson(String accept) {
@@ -95,6 +109,7 @@ public class BlazeOAuthController {
 
 	private static String page(String title, String message, boolean success) {
 		String tone = success ? "#067647" : "#b42318";
+		String returnUrl = success ? "/login?oauth=success" : "/login?oauth=error";
 		return """
 				<!doctype html>
 				<html lang="pt-BR">
@@ -116,10 +131,10 @@ public class BlazeOAuthController {
 						<p class="status">Blaze Event Hub</p>
 						<h1>%s</h1>
 						<p>%s</p>
-						<a href="/dashboard">Voltar ao dashboard</a>
+						<a href="%s">Voltar ao Blaze Event Hub</a>
 					</main>
 				</body>
 				</html>
-				""".formatted(title, tone, title, message);
+				""".formatted(title, tone, title, message, returnUrl);
 	}
 }

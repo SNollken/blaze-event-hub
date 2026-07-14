@@ -12,6 +12,7 @@ import com.blaze.eventhub.member.MemberService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 import org.springframework.web.client.ResourceAccessException;
 
@@ -26,16 +27,19 @@ public class BlazeOAuthService {
 	private final TokenStore tokenStore;
 	private final OAuthProfileService profileService;
 	private final MemberService memberService;
+	private final OAuthCredentialStore credentialStore;
 	private final Clock clock;
 
 	public BlazeOAuthService(BlazeProperties properties, BlazeOAuthGateway gateway, OAuthStateStore stateStore,
-			TokenStore tokenStore, OAuthProfileService profileService, MemberService memberService, Clock clock) {
+			TokenStore tokenStore, OAuthProfileService profileService, MemberService memberService,
+			OAuthCredentialStore credentialStore, Clock clock) {
 		this.properties = properties;
 		this.gateway = gateway;
 		this.stateStore = stateStore;
 		this.tokenStore = tokenStore;
 		this.profileService = profileService;
 		this.memberService = memberService;
+		this.credentialStore = credentialStore;
 		this.clock = clock;
 	}
 
@@ -54,14 +58,12 @@ public class BlazeOAuthService {
 		return new OAuthStartResponse(generated.authorizationUrl(), properties.getScopes());
 	}
 
+	@Transactional
 	public OAuthCallbackResponse callback(String code, String state, String error, String errorDescription) {
-		// Blaze rejeitou a autorizacao
 		if (error != null && !error.isBlank()) {
-			String desc = errorDescription != null && !errorDescription.isBlank()
-					? errorDescription
-					: "OAuth authorization was denied or failed";
+			log.info("Blaze OAuth authorization was denied or interrupted by the provider");
 			throw new OAuthException(400, "OAUTH_AUTHORIZATION_ERROR",
-					"Blaze OAuth error: " + error + ". " + desc);
+					"A Blaze recusou ou interrompeu a autorizacao. Volte ao login e tente novamente.");
 		}
 		requireOAuthConfiguration();
 		if (!StringUtils.hasText(code)) {
@@ -72,7 +74,7 @@ public class BlazeOAuthService {
 			throw new OAuthException(400, "OAUTH_CALLBACK_INCOMPLETE",
 					"OAuth callback incompleto. Volte ao dashboard e clique em Iniciar OAuth novamente.");
 		}
-		OAuthState stored = stateStore.find(state)
+		OAuthState stored = stateStore.consume(state)
 				.orElseThrow(() -> new OAuthException(400, "OAUTH_CALLBACK_INVALID",
 						"Autorizacao OAuth expirada, ja usada ou perdida pelo reinicio do backend. Volte ao dashboard e clique em Iniciar OAuth novamente."));
 		try {
@@ -83,9 +85,13 @@ public class BlazeOAuthService {
 					stored.codeVerifier(),
 					properties.getRedirectUri(),
 					"authorization_code"));
-			OAuthCallbackResponse callbackResponse = saveCallbackAndSanitize(response);
-			stateStore.consume(state);
-			return callbackResponse;
+			try {
+				return saveCallbackAndSanitize(response);
+			}
+			catch (RuntimeException persistenceFailure) {
+				clearSessionAfterPersistenceFailure();
+				throw persistenceFailure;
+			}
 		} catch (OAuthException e) {
 			// Erros do gateway (4xx/5xx da Blaze) — deixa propagar com codigo especifico
 			throw e;
@@ -93,8 +99,9 @@ public class BlazeOAuthService {
 			throw new OAuthException(503, "BLAZE_TOKEN_EXCHANGE_UNAVAILABLE",
 					"Nao foi possivel conectar a Blaze para trocar o codigo por token. Verifique rede/firewall e tente novamente.");
 		} catch (Exception e) {
+			log.warn("Falha inesperada na troca de codigo OAuth; tipo={}", e.getClass().getSimpleName());
 			throw new OAuthException(502, "BLAZE_TOKEN_EXCHANGE_ERROR",
-					"Erro inesperado ao trocar codigo por token: " + e.getMessage());
+					"Nao foi possivel concluir a autenticacao com a Blaze. Tente novamente.");
 		}
 	}
 
@@ -104,6 +111,7 @@ public class BlazeOAuthService {
 		return sessionResponse(token, profile);
 	}
 
+	@Transactional
 	public OAuthActionResponse refresh() {
 		requireOAuthConfiguration();
 		TokenSnapshot current = tokenStore.current()
@@ -114,11 +122,17 @@ public class BlazeOAuthService {
 					properties.getClientId(),
 					properties.getClientSecret(),
 					current.refreshToken()));
-			TokenSnapshot snapshot = saveToken(response, current.refreshToken());
-			OAuthProfileSyncResult syncResult = profileService.synchronizeCurrentUser();
-			syncMemberFromOAuth(snapshot, syncResult);
-			return actionResponse("refreshed", true, false, snapshot, syncResult,
-					profileMessage(syncResult, "Sessao Blaze atualizada."));
+			try {
+				TokenSnapshot snapshot = saveToken(response, current.refreshToken());
+				OAuthProfileSyncResult syncResult = profileService.synchronizeCurrentUser();
+				syncMemberFromOAuth(snapshot, syncResult);
+				return actionResponse("refreshed", true, false, snapshot, syncResult,
+						profileMessage(syncResult, "Sessao Blaze atualizada."));
+			}
+			catch (RuntimeException persistenceFailure) {
+				clearSessionAfterPersistenceFailure();
+				throw persistenceFailure;
+			}
 		}
 		catch (OAuthException e) {
 			throw e;
@@ -134,6 +148,10 @@ public class BlazeOAuthService {
 	}
 
 	public OAuthActionResponse disconnect() {
+		TokenSnapshot current = tokenStore.current().orElse(null);
+		if (current != null && StringUtils.hasText(current.userId())) {
+			credentialStore.deleteByBlazeUserId(current.userId());
+		}
 		tokenStore.clear();
 		profileService.clear();
 		stateStore.clear();
@@ -155,24 +173,18 @@ public class BlazeOAuthService {
 		if (snapshot == null || snapshot.userId() == null || snapshot.userId().isBlank()) {
 			return;
 		}
-		try {
-			OAuthProfileSummary profile = syncResult.profile();
-			String blazeUserId = snapshot.userId();
-			String username = profile != null ? profile.username() : null;
-			String displayName = profile != null ? profile.displayName() : null;
-			String avatarUrl = profile != null ? profile.avatarUrl() : null;
-			memberService.createOrUpdateFromOAuth(
-					blazeUserId,
-					username,
-					displayName,
-					avatarUrl,
-					null,
-					snapshot.accessToken(),
-					snapshot.refreshToken());
-			log.debug("Member sincronizado via OAuth: blazeUserId={}", blazeUserId);
-		} catch (Exception e) {
-			log.warn("Falha ao sincronizar member via OAuth: {}", e.getMessage());
-		}
+		OAuthProfileSummary profile = syncResult.profile();
+		String blazeUserId = snapshot.userId();
+		String username = profile != null ? profile.username() : null;
+		String displayName = profile != null ? profile.displayName() : null;
+		String avatarUrl = profile != null ? profile.avatarUrl() : null;
+		var member = memberService.createOrUpdateFromOAuth(
+				blazeUserId,
+				username,
+				displayName,
+				avatarUrl);
+		credentialStore.save(member.id(), snapshot);
+		log.debug("Member e credencial persistente sincronizados via OAuth: blazeUserId={}", blazeUserId);
 	}
 
 	private OAuthCallbackResponse saveCallbackAndSanitize(OAuthTokenResponse response) {
@@ -288,5 +300,10 @@ public class BlazeOAuthService {
 		if (!properties.isOAuthConfigured()) {
 			throw new ConfigurationMissingException("Blaze OAuth is not configured");
 		}
+	}
+
+	private void clearSessionAfterPersistenceFailure() {
+		tokenStore.clear();
+		profileService.clear();
 	}
 }

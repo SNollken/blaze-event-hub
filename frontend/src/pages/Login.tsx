@@ -1,23 +1,73 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
-import { useI18n } from '../i18n/I18nContext';
-import { getMe, getOAuthSession, startOAuth } from '../api/client';
-import type { MemberProfile, OAuthSessionResponse } from '../api/client';
+import { Link, Navigate, useLocation } from 'react-router-dom';
+import {
+  getMe,
+  getOAuthSession,
+  startOAuth,
+  type MemberProfile,
+  type OAuthSessionResponse,
+} from '../api/client';
+import { notifyAuthSessionChanged } from '../auth-session';
+import { toSafeOAuthUrl } from '../oauth-navigation';
+
+const RETURN_TO_KEY = 'beh_return_to';
 
 function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error ? error.message : fallback;
+  return error instanceof Error && error.message ? error.message : fallback;
+}
+
+function safeReturnTo(value: unknown): string | null {
+  if (typeof value !== 'string'
+    || !value.startsWith('/')
+    || value.startsWith('//')
+    || value.startsWith('/\\')
+    || /[\u0000-\u001F\u007F]/.test(value)) {
+    return null;
+  }
+
+  try {
+    const parsed = new URL(value, window.location.origin);
+    if (parsed.origin !== window.location.origin || parsed.pathname === '/login') return null;
+    return `${parsed.pathname}${parsed.search}${parsed.hash}`;
+  } catch {
+    return null;
+  }
+}
+
+function readStoredReturnTo() {
+  try {
+    return safeReturnTo(window.sessionStorage.getItem(RETURN_TO_KEY));
+  } catch {
+    return null;
+  }
+}
+
+function storeReturnTo(value: string | null) {
+  try {
+    if (value) window.sessionStorage.setItem(RETURN_TO_KEY, value);
+    else window.sessionStorage.removeItem(RETURN_TO_KEY);
+  } catch {
+    // A navegação OAuth continua funcional mesmo com storage indisponível.
+  }
 }
 
 export default function Login() {
-  const { t } = useI18n();
+  const location = useLocation();
   const [session, setSession] = useState<OAuthSessionResponse | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
   const [error, setError] = useState('');
 
+  const routeReturnTo = safeReturnTo((location.state as { from?: unknown } | null)?.from);
+  const returnTo = routeReturnTo || readStoredReturnTo();
+
   useEffect(() => {
-    let alive = true;
+    if (routeReturnTo) storeReturnTo(routeReturnTo);
+  }, [routeReturnTo]);
+
+  useEffect(() => {
+    let active = true;
 
     async function loadSession() {
       setLoading(true);
@@ -25,39 +75,43 @@ export default function Login() {
 
       try {
         const currentSession = await getOAuthSession();
-        if (!alive) return;
+        if (!active) return;
         setSession(currentSession);
+        if (currentSession.connected) notifyAuthSessionChanged();
 
-        if (currentSession.connected && currentSession.profilePresent) {
+        if (currentSession.connected) {
           try {
-            const profile = await getMe();
-            if (alive) setMember(profile);
+            const currentMember = await getMe();
+            if (active) setMember(currentMember);
           } catch {
-            if (alive) setMember(null);
+            if (active) setMember(null);
           }
         }
-      } catch (err) {
-        if (alive) setError(getErrorMessage(err, t('sessionCheckError')));
+      } catch (sessionError) {
+        if (active) {
+          setError(getErrorMessage(sessionError, 'Não foi possível verificar sua sessão Blaze.'));
+        }
       } finally {
-        if (alive) setLoading(false);
+        if (active) setLoading(false);
       }
     }
 
     void loadSession();
     return () => {
-      alive = false;
+      active = false;
     };
-  }, [t]);
+  }, []);
 
   const handleConnect = async () => {
     setConnecting(true);
     setError('');
+    storeReturnTo(returnTo);
 
     try {
       const { authorizationUrl } = await startOAuth();
-      window.location.href = authorizationUrl;
-    } catch (err) {
-      setError(getErrorMessage(err, t('loginOAuthStartError')));
+      window.location.assign(toSafeOAuthUrl(authorizationUrl));
+    } catch (connectError) {
+      setError(getErrorMessage(connectError, 'Não foi possível iniciar a conexão com a Blaze.'));
       setConnecting(false);
     }
   };
@@ -66,62 +120,63 @@ export default function Login() {
   const displayName = member?.displayName
     || session?.profile?.displayName
     || session?.profile?.username
-    || '';
-  const avatarUrl = member?.avatarUrl
-    || session?.profile?.avatarUrl
-    || null;
+    || 'Criador Blaze';
+  const avatarUrl = member?.avatarUrl || session?.profile?.avatarUrl || null;
+  const oauthSucceeded = new URLSearchParams(location.search).get('oauth') === 'success';
+
+  if (!loading && connected && oauthSucceeded && returnTo) {
+    storeReturnTo(null);
+    return <Navigate to={returnTo} replace />;
+  }
 
   return (
-    <div className="login-center">
-      <div className="login-card">
+    <div className="hub-page login-center">
+      <section className="login-card" aria-labelledby="login-title">
         {connected && avatarUrl ? (
-          <div className="login-logo" style={{ padding: 0, overflow: 'hidden' }}>
-            <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          <div className="login-logo login-logo-avatar">
+            <img className="login-avatar" src={avatarUrl} alt="" />
           </div>
         ) : (
-          <div className="login-logo">BEH</div>
+          <div className="login-logo" aria-hidden="true">BEH</div>
         )}
 
-        <h2>{t('loginTitle')}</h2>
-        <div className="login-headline">{t('loginHeadline')}</div>
+        <span className="page-eyebrow">Blaze Event Hub</span>
+        <h1 id="login-title" className="page-title">Conecte sua conta Blaze</h1>
+        <p className="login-headline">
+          Crie giveaways, capture participantes pelo comando no chat e faça o sorteio somente depois de
+          finalizar o evento.
+        </p>
 
         {loading ? (
-          <div className="empty">{t('checkingSession')}</div>
+          <div className="empty" role="status">Verificando sua sessão…</div>
         ) : connected ? (
-          <>
-            {displayName && (
-              <div style={{ marginBottom: 20, fontSize: 14, fontWeight: 600, color: 'var(--fg2)' }}>
-                {displayName}
-              </div>
-            )}
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'center', flexWrap: 'wrap' }}>
-              <Link to="/" className="btn btn-primary">{t('navDashboard')}</Link>
-              <Link to="/events" className="btn btn-secondary">{t('navAllEvents')}</Link>
-              <Link to="/my-events" className="btn btn-secondary">{t('navMyEvents')}</Link>
+          <div className="login-connected">
+            <p className="login-identity">Conta conectada: <strong>{displayName}</strong></p>
+            <div className="login-actions">
+              <Link className="btn btn-primary" to={returnTo || '/my-events'}>
+                {returnTo ? 'Continuar de onde parei' : 'Abrir meus giveaways'}
+              </Link>
+              <Link className="btn btn-secondary" to="/events">Explorar giveaways</Link>
             </div>
-          </>
+          </div>
         ) : (
-          <>
-            {error && (
-              <div className="toast toast-error" style={{ position: 'static', marginBottom: 16, textAlign: 'left' }}>
-                {error}
-              </div>
-            )}
-
-            <button onClick={handleConnect} className="btn btn-primary" disabled={connecting}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                <path d="M15 3h4a2 2 0 012 2v14a2 2 0 01-2 2h-4" />
-                <polyline points="10 17 15 12 10 7" />
-                <line x1="15" y1="12" x2="3" y2="12" />
-              </svg>
-              {connecting ? t('connecting') : t('loginBtn')}
+          <div className="login-connect">
+            {error && <div className="notice notice-danger" role="alert">{error}</div>}
+            <button
+              type="button"
+              className="btn btn-primary"
+              disabled={connecting}
+              onClick={() => void handleConnect()}
+            >
+              {connecting ? 'Abrindo a Blaze…' : 'Conectar com Blaze'}
             </button>
-          </>
+          </div>
         )}
 
-        <div className="login-footer">{t('loginFooter')}</div>
-      </div>
+        <p className="login-footer">
+          A autenticação acontece na Blaze. Sua senha nunca passa pelo Blaze Event Hub.
+        </p>
+      </section>
     </div>
   );
 }

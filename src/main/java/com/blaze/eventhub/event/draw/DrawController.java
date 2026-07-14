@@ -23,14 +23,15 @@ public class DrawController {
     }
 
     @PostMapping("/draw")
-    EventWinner executeDraw(@PathVariable String eventId) {
+    EventResultResponse executeDraw(@PathVariable String eventId) {
         Member current = memberService.getCurrentMember();
-        return drawService.executeDraw(eventId, current.id());
+        return EventResultResponse.from(drawService.executeDraw(eventId, current.id()));
     }
 
     @GetMapping("/winner")
-    EventWinner getWinner(@PathVariable String eventId) {
+    EventResultResponse getWinner(@PathVariable String eventId) {
         return drawService.getWinner(eventId)
+                .map(EventResultResponse::from)
                 .orElseThrow(() -> new NotFoundException("Nenhum vencedor sorteado ainda para este evento."));
     }
 }

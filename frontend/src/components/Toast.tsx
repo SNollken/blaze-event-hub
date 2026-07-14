@@ -50,12 +50,13 @@ export function ToastContainer() {
   }, []);
 
   return (
-    <div className="toast-container">
+    <div className="toast-container" aria-live="polite" aria-relevant="additions removals">
       {items.map((toast) => (
-        <div key={toast.id} className={`toast toast-${toast.type}`}>
+        <div key={toast.id} className={`toast toast-${toast.type}`} role={toast.type === 'error' ? 'alert' : 'status'}>
           {icons[toast.type]}
           <span style={{ flex: 1 }}>{toast.text}</span>
           <button
+            type="button"
             aria-label={t('closeNotification')}
             onClick={() => removeToast(toast.id)}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
@@ -68,28 +69,57 @@ export function ToastContainer() {
   );
 }
 
-/** Hook for initial loading plus explicit refresh. */
-export function usePolling<T>(fetcher: () => Promise<T>, _intervalMs = 10000) {
+/** Hook for immediate loading, serialized polling, and explicit refresh. */
+export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
   const { t } = useI18n();
   const [data, setData] = useState<T | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const activeRequest = useRef<number | null>(null);
+  const requestSequence = useRef(0);
+  const mounted = useRef(true);
 
   const load = useCallback(async () => {
+    if (activeRequest.current !== null) return;
+    const requestId = ++requestSequence.current;
+    activeRequest.current = requestId;
     try {
       const result = await fetcher();
-      setData(result);
-      setError(null);
+      if (mounted.current && activeRequest.current === requestId) {
+        setData(result);
+        setError(null);
+      }
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : t('unknownError'));
+      if (mounted.current && activeRequest.current === requestId) {
+        setError(e instanceof Error ? e.message : t('unknownError'));
+      }
     } finally {
-      setLoading(false);
+      if (activeRequest.current === requestId) {
+        activeRequest.current = null;
+        if (mounted.current) setLoading(false);
+      }
     }
   }, [fetcher, t]);
 
-	useEffect(() => {
-		load();
-	}, [load]);
+  useEffect(() => {
+    mounted.current = true;
+    void load();
+    const runScheduledLoad = () => {
+      if (document.visibilityState !== 'hidden') void load();
+    };
+    const timerId = window.setInterval(runScheduledLoad, intervalMs);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === 'visible') void load();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    return () => {
+      mounted.current = false;
+      activeRequest.current = null;
+      requestSequence.current += 1;
+      window.clearInterval(timerId);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+    };
+  }, [load, intervalMs]);
 
   return { data, loading, error, reload: load };
 }

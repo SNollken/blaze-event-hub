@@ -91,4 +91,38 @@ class BlazeApiClientTests {
 				.extracting(ex -> ((BlazeApiException) ex).status())
 				.isEqualTo(429);
 	}
+
+	@Test
+	void getsConfiguredNumberOfChatMessagesWithAnExplicitBackgroundToken() {
+		properties.setChatMessageLimit(75);
+		TokenSnapshot backgroundToken = new TokenSnapshot(
+				"user", "creator-1", "Bearer", "background-access-token", "refresh",
+				Instant.now().plusSeconds(3600), List.of("users.read"), Instant.now());
+		server.expect(once(), requestTo(
+				"https://api.blaze.stream/v1/chats/messages?channelId=channel-1&limit=75"))
+				.andExpect(method(HttpMethod.GET))
+				.andExpect(header("Authorization", "Bearer background-access-token"))
+				.andRespond(withSuccess("{\"data\":{\"channelId\":\"channel-1\",\"messages\":[]}}",
+						MediaType.APPLICATION_JSON));
+
+		Map<String, Object> response = client.getChatMessages("channel-1", backgroundToken);
+
+		assertThat(response).containsKey("data");
+		server.verify();
+	}
+
+	@Test
+	void sendsOpaqueCursorWhenReadingTheNextChatPage() {
+		TokenSnapshot backgroundToken = new TokenSnapshot(
+				"user", "creator-1", "Bearer", "background-access-token", "refresh",
+				Instant.now().plusSeconds(3600), List.of("users.read"), Instant.now());
+		server.expect(once(), requestTo(
+				"https://api.blaze.stream/v1/chats/messages?channelId=channel-1&cursor=next%2Fpage%2B1&limit=100"))
+				.andRespond(withSuccess("{\"data\":{\"messages\":[],\"pagination\":{\"cursor\":null}}}",
+						MediaType.APPLICATION_JSON));
+
+		client.getChatMessages("channel-1", "next/page+1", backgroundToken);
+
+		server.verify();
+	}
 }

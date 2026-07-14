@@ -1,53 +1,50 @@
 package com.blaze.eventhub.event;
 
 import java.time.Instant;
-import java.util.List;
 
 public record EventResponse(
         String id,
-        String creatorMemberId,
-        String creatorBlazeUserId,
         String creatorChannelId,
+        String creatorChannelSlug,
+        String creatorChannelDisplayName,
+        String creatorChannelAvatarUrl,
         String title,
         String description,
-        String prizeType,
-        String prizeDescription,
+        String prize,
+        String entryCommand,
         String status,
-        String rulesMode,
-        int maxEntriesPerParticipant,
-        boolean requiresInterestBeforeAction,
+        int finalizedParticipantCount,
+        String finalizedPoolHash,
         Instant startsAt,
         Instant endsAt,
         Instant createdAt,
         Instant updatedAt,
+        Instant openedAt,
+        Instant finalizationCutoffAt,
         Instant closedAt,
-        Instant completedAt,
-        List<EventRuleResponse> rules) {
+        Instant completedAt) {
 
-    public static EventResponse from(Event event, List<EventRule> rules) {
-        List<EventRuleResponse> ruleResponses = rules.stream()
-                .map(EventRuleResponse::from)
-                .toList();
-
+    public static EventResponse from(Event event) {
         return new EventResponse(
                 event.id(),
-                event.creatorMemberId(),
-                event.creatorBlazeUserId(),
                 event.creatorChannelId(),
+                event.creatorChannelSlug(),
+                event.creatorChannelDisplayName(),
+                event.creatorChannelAvatarUrl(),
                 event.title(),
                 event.description(),
-                event.prizeType(),
-                event.prizeDescription(),
+                event.prize(),
+                event.entryCommand(),
                 event.status().name().toLowerCase(),
-                event.rulesMode().name().toLowerCase(),
-                event.maxEntriesPerParticipant(),
-                event.requiresInterestBeforeAction(),
+                event.finalizedParticipantCount(),
+                event.finalizedPoolHash(),
                 event.startsAt(),
                 event.endsAt(),
                 event.createdAt(),
                 event.updatedAt(),
+                event.openedAt(),
+                event.finalizationCutoffAt(),
                 event.closedAt(),
-                event.completedAt(),
-                ruleResponses);
+                event.completedAt());
     }
 }

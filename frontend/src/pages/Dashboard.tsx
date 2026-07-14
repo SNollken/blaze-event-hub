@@ -1,312 +1,214 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useMemo } from 'react';
 import { Link } from 'react-router-dom';
-import { getEventStats, getEvents, getOAuthSession, startOAuth } from '../api/client';
-import type { EventResponse, EventStatsResponse, OAuthSessionResponse } from '../api/client';
+import { ArrowRight, Radio, Trophy, Users } from 'lucide-react';
+import { getEventStats, getEvents, getOAuthSession } from '../api/client';
+import type { EventLifecycleStats, EventResponse, OAuthSessionResponse } from '../api/client';
+import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
-import type { TranslationKey } from '../i18n/translations';
 
-function formatLast24h(
-  last24h: EventStatsResponse['last24h'] | undefined,
-  formatNumber: (value: number | null | undefined) => string,
-  t: (key: TranslationKey, params?: Record<string, string | number>) => string,
-) {
-  if (typeof last24h === 'number') {
-    return t('actionsCount', { count: formatNumber(last24h) });
-  }
+function commandLabel(command: string) {
+  return command.trim() || '!participar';
+}
 
-  const votes = formatNumber(last24h?.votes);
-  const subs = formatNumber(last24h?.subs);
-  const giftedSubs = formatNumber(last24h?.giftedSubs);
+function captureHealthLabel(stats: EventLifecycleStats | null) {
+  if (!stats) return 'Aguardando dados';
+  if (stats.captureHealth === 'HEALTHY') return 'Saudável';
+  if (stats.captureHealth === 'STARTING') return 'Iniciando';
+  if (stats.captureHealth === 'DEGRADED') return 'Com atenção';
+  if (stats.captureHealth === 'FINALIZING') return 'Finalizando';
+  return 'Inativa';
+}
 
-  return t('dashboardLast24hBreakdown', { votes, subs, giftedSubs });
+function EventCard({ event }: { event: EventResponse }) {
+  return (
+    <Link to={`/events/${event.id}`} className="event-card event-card--live">
+      <div className="event-card__topline">
+        <span className="status-pill status-pill--open">Captando agora</span>
+        <span className="event-card__signal" aria-label="Evento aberto para entradas">
+          <span aria-hidden="true" /> aberto
+        </span>
+      </div>
+      <div className="event-card__body">
+        {event.creatorChannelSlug && (
+          <span className="event-card__creator">
+            {event.creatorChannelDisplayName || event.creatorChannelSlug} · @{event.creatorChannelSlug}
+          </span>
+        )}
+        <p className="event-card__prize">{event.prize || 'Prêmio a confirmar'}</p>
+        <h3 className="event-card__title">{event.title}</h3>
+        <p className="event-card__description">
+          {event.description || 'Entre no chat da transmissão e use o comando indicado pelo criador.'}
+        </p>
+      </div>
+      <div className="event-card__command">
+        <span>Comando de entrada</span>
+        <code>{commandLabel(event.entryCommand)}</code>
+      </div>
+      <span className="event-card__link">
+        Ver giveaway <ArrowRight size={16} aria-hidden="true" />
+      </span>
+    </Link>
+  );
 }
 
 export default function Dashboard() {
-  const { lang, t } = useI18n();
-  const [events, setEvents] = useState<EventResponse[]>([]);
-  const [stats, setStats] = useState<EventStatsResponse | null>(null);
-  const [oauth, setOAuth] = useState<OAuthSessionResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<TranslationKey | null>(null);
-  const [statsError, setStatsError] = useState<TranslationKey | null>(null);
-  const [oauthError, setOAuthError] = useState<TranslationKey | null>(null);
-  const [connectError, setConnectError] = useState<TranslationKey | null>(null);
-  const numberFormatter = useMemo(() => new Intl.NumberFormat(lang), [lang]);
-  const formatNumber = (value: number | null | undefined) => numberFormatter.format(value ?? 0);
-
-  useEffect(() => {
-    let alive = true;
-
-    async function loadDashboard() {
-      setLoading(true);
-      setError(null);
-      setStatsError(null);
-      setOAuthError(null);
-      setStats(null);
-
-      try {
-        const [eventsResult, oauthResult] = await Promise.allSettled([
-          getEvents('OPEN'),
-          getOAuthSession(),
-        ]);
-
-        if (!alive) return;
-
-        if (oauthResult.status === 'fulfilled') {
-          setOAuth(oauthResult.value);
-        } else {
-          setOAuth(null);
-          setOAuthError('oauthStatusError');
-        }
-
-        if (eventsResult.status === 'rejected') {
-          setEvents([]);
-          setError('openEventsLoadError');
-          return;
-        }
-
-        const openEvents = eventsResult.value;
-        setEvents(openEvents);
-
-        const featuredEvent = openEvents[0];
-        if (!featuredEvent) return;
-
-        try {
-          const eventStats = await getEventStats(featuredEvent.id);
-          if (alive) setStats(eventStats);
-        } catch {
-          if (alive) {
-            setStatsError('featuredStatsLoadError');
-          }
-        }
-      } finally {
-        if (alive) setLoading(false);
-      }
-    }
-
-    loadDashboard();
-
-    return () => {
-      alive = false;
-    };
-  }, []);
-
-  const handleConnect = async () => {
-    setConnectError(null);
-    try {
-      const { authorizationUrl } = await startOAuth();
-      window.location.href = authorizationUrl;
-    } catch {
-      setConnectError('oauthStartError');
-    }
-  };
-
-  const connected = oauth?.connected === true;
+  const { t } = useI18n();
+  const fetchEvents = useCallback(() => getEvents('OPEN'), []);
+  const fetchOAuth = useCallback(() => getOAuthSession(), []);
+  const eventsState = usePolling(fetchEvents, 10_000);
+  const oauthState = usePolling(fetchOAuth, 60_000);
+  const events = eventsState.data || [];
   const featuredEvent = events[0] ?? null;
-  const statCards = stats
-    ? [
-        { value: formatNumber(stats.totalVotes), label: t('totalVotes') },
-        { value: formatNumber(stats.totalSubs), label: t('totalSubs') },
-        { value: formatNumber(stats.totalGiftedSubs), label: t('totalGiftedSubs') },
-        { value: formatNumber(stats.participants), label: t('participants') },
-        { value: formatNumber(stats.totalEntries), label: t('totalEntries') },
-        { value: formatLast24h(stats.last24h, formatNumber, t), label: t('last24h'), isLast24h: true },
-      ]
-    : [];
+  const featuredEventId = featuredEvent?.id || null;
+  const fetchFeaturedStats = useCallback(
+    () => featuredEventId ? getEventStats(featuredEventId) : Promise.resolve<EventLifecycleStats | null>(null),
+    [featuredEventId],
+  );
+  const featuredStatsState = usePolling(fetchFeaturedStats, 10_000);
+  const featuredStats = featuredStatsState.data?.eventId === featuredEventId
+    ? featuredStatsState.data
+    : null;
+  const moreEvents = useMemo(() => events.slice(1, 7), [events]);
+  const oauth: OAuthSessionResponse | null = oauthState.data;
+  const connected = oauth?.connected === true;
+  const loading = eventsState.loading && !eventsState.data;
+  const eventsError = Boolean(eventsState.error && !eventsState.data);
+  const statsError = Boolean(featuredStatsState.error);
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 960 }}>
-      <h1 className="page-title">{t('dashTitle')}</h1>
-      <p className="page-subtitle">{t('dashSub')}</p>
+    <div className="page hub-page hub-page--dashboard">
+      <header className="page-hero page-hero--split">
+        <div className="page-hero__copy">
+          <p className="page-eyebrow">Giveaways da Blaze.stream, em um só lugar</p>
+          <h1 className="page-title">{t('dashTitle')}</h1>
+          <p className="page-subtitle">
+            Descubra eventos ao vivo, entre pelo comando no chat e acompanhe resultados registrados pelo Hub.
+          </p>
+          <div className="page-hero__actions">
+            <Link to="/events" className="btn btn-primary">
+              Explorar giveaways <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+            <Link to={connected ? '/events/create' : '/login'} className="btn btn-secondary">
+              {connected ? 'Criar giveaway' : 'Conectar como criador'}
+            </Link>
+          </div>
+        </div>
 
-      {!connected && (
-        <div className="cta-banner">
+        <div className="signal-panel" aria-label="Como funciona">
+          <span className="signal-panel__label"><Radio size={16} aria-hidden="true" /> Fluxo do evento</span>
+          <ol className="lifecycle-mini">
+            <li className="is-current"><span>01</span> Criador abre</li>
+            <li><span>02</span> Chat entra</li>
+            <li><span>03</span> Lista congela</li>
+            <li><span>04</span> Sorteio acontece</li>
+          </ol>
+        </div>
+      </header>
+
+      {eventsState.error && eventsState.data && (
+        <div className="notice notice--warning" role="status">
+          A atualização automática falhou. Os últimos eventos recebidos continuam visíveis.
+        </div>
+      )}
+
+      <section className="hub-section" aria-labelledby="open-events-heading">
+        <div className="section-heading">
           <div>
-            <h3>{t('connectTitle')}</h3>
-            <p>{oauthError ? t(oauthError) : t('connectDesc')}</p>
+            <p className="section-heading__eyebrow">Sinal aberto</p>
+            <h2 id="open-events-heading">{t('sectionOpen')}</h2>
           </div>
-          <button onClick={handleConnect} className="btn btn-primary" style={{ flexShrink: 0 }}>
-            {t('connectBtn')}
-          </button>
-        </div>
-      )}
-
-      {connectError && (
-        <div className="empty" style={{ color: 'var(--danger)', padding: '0 0 24px' }}>
-          {t(connectError)}
-        </div>
-      )}
-
-      {loading && <div className="empty">{t('dashboardLoading')}</div>}
-
-      {!loading && error && (
-        <div className="empty" style={{ color: 'var(--danger)' }}>
-          {t(error)}
-        </div>
-      )}
-
-      {!loading && !error && !featuredEvent && (
-        <>
-          <div className="section-label">
-            {t('sectionOpen')} <span className="count">0</span>
-          </div>
-          <div className="empty">{t('noOpenEvents')}</div>
-        </>
-      )}
-
-      {!loading && !error && featuredEvent && (
-        <>
-          <div className="section-label">
-            {t('featuredEvent')} <span className="count">{t('statusOpen')}</span>
-          </div>
-
-          <Link
-            to={`/events/${featuredEvent.id}`}
-            className="card"
-            style={{
-              display: 'flex',
-              flexDirection: 'column',
-              gap: 8,
-              padding: '20px 22px',
-              marginBottom: 14,
-            }}
-          >
-            <span className="pill pill--open">{t('statusOpen')}</span>
-            <div className="card-title" style={{ fontSize: 16 }}>
-              {featuredEvent.title}
-            </div>
-            <div
-              className="card-desc"
-              style={{
-                whiteSpace: 'normal',
-                maxWidth: 'none',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-              }}
-            >
-              {featuredEvent.description || t('noDescription')}
-            </div>
-            <div
-              style={{
-                marginTop: 8,
-                paddingTop: 10,
-                borderTop: '1px solid var(--border-card)',
-                color: 'var(--accent-light)',
-                fontSize: 12,
-                fontWeight: 510,
-              }}
-            >
-              {t('viewEvent')}
-            </div>
-          </Link>
-
-          {statsError ? (
-            <div className="empty" style={{ color: 'var(--danger)', padding: '18px 0 32px' }}>
-              {t(statsError)}
-            </div>
-          ) : (
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: 'repeat(auto-fit, minmax(136px, 1fr))',
-              gap: 12,
-              marginBottom: 32,
-            }}>
-              {statCards.map((item) => (
-                <div key={item.label} className="card" style={{ padding: '16px 18px' }}>
-                  <div style={{
-                    fontSize: item.isLast24h ? 14 : 24,
-                    fontWeight: 600,
-                    color: 'var(--fg)',
-                    fontFamily: 'var(--font-mono)',
-                    lineHeight: 1.25,
-                    overflowWrap: 'anywhere',
-                  }}>
-                    {item.value}
-                  </div>
-                  <div style={{
-                    fontSize: 11,
-                    color: 'var(--muted)',
-                    marginTop: 4,
-                    textTransform: 'uppercase',
-                    letterSpacing: '0.04em',
-                  }}>
-                    {item.label}
-                  </div>
-                </div>
-              ))}
-            </div>
+          {!loading && !eventsError && (
+            <span className="section-heading__count">{events.length} {events.length === 1 ? 'evento' : 'eventos'}</span>
           )}
-
-          <div className="section-label">
-            {t('sectionOpen')} <span className="count">{events.length}</span>
-          </div>
-
-          <div style={{
-            display: 'grid',
-            gridTemplateColumns: 'repeat(auto-fill, minmax(260px, 1fr))',
-            gap: 12,
-            marginBottom: 32,
-          }}>
-            {events.map((ev) => (
-              <Link
-                key={ev.id}
-                to={`/events/${ev.id}`}
-                className="card"
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: 6,
-                  padding: '18px 20px',
-                  minHeight: 140,
-                }}
-              >
-                <span className="pill pill--open">{t('statusOpen')}</span>
-                <div className="card-title" style={{
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                  overflow: 'hidden',
-                }}>
-                  {ev.title}
-                </div>
-                <div className="card-desc" style={{
-                  lineHeight: 1.45,
-                  whiteSpace: 'normal',
-                  maxWidth: 'none',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical',
-                }}>
-                  {ev.description?.slice(0, 80) || t('noDescription')}
-                </div>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  marginTop: 'auto',
-                  paddingTop: 10,
-                  borderTop: '1px solid var(--border-card)',
-                  fontSize: 11,
-                  color: 'var(--muted)',
-                  fontFamily: 'var(--font-mono)',
-                  letterSpacing: '0.02em',
-                }}>
-                  <span>{t('rulesParticipantsMeta', { rules: ev.rules?.length || 0, participants: ev.participantCount || 0 })}</span>
-                  <span style={{ color: 'var(--accent-light)' }}>{t('view')}</span>
-                </div>
-              </Link>
-            ))}
-          </div>
-        </>
-      )}
-
-      {connected && (
-        <div style={{ marginTop: 32, display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-          <Link to="/events/create" className="btn btn-secondary">{t('quickCreate')}</Link>
-          <Link to="/events" className="btn btn-secondary">{t('viewAllEvents')}</Link>
         </div>
-      )}
+
+        {loading && (
+          <div className="empty-state" role="status" aria-live="polite">
+            <span className="empty-state__signal" aria-hidden="true" />
+            <h3>Buscando giveaways ao vivo</h3>
+            <p>Aguarde enquanto sincronizamos os eventos abertos.</p>
+          </div>
+        )}
+
+        {!loading && eventsError && (
+          <div className="empty-state empty-state--error" role="alert">
+            <h3>Não foi possível carregar os eventos</h3>
+            <p>Confira sua conexão e tente novamente.</p>
+            <button type="button" className="btn btn-secondary" onClick={() => void eventsState.reload()}>
+              Tentar novamente
+            </button>
+          </div>
+        )}
+
+        {!loading && !eventsError && !featuredEvent && (
+          <div className="empty-state">
+            <Trophy size={30} aria-hidden="true" />
+            <h3>Nenhum giveaway captando agora</h3>
+            <p>Os próximos eventos abertos aparecerão aqui automaticamente.</p>
+            <Link to="/events" className="btn btn-secondary">Ver eventos encerrados</Link>
+          </div>
+        )}
+
+        {!loading && !eventsError && featuredEvent && (
+          <>
+            <article className="featured-event">
+              <div className="featured-event__content">
+                <div className="featured-event__topline">
+                  <span className="status-pill status-pill--open">Captando agora</span>
+                  <span className="featured-event__live"><span aria-hidden="true" /> evento aberto</span>
+                </div>
+                <p className="featured-event__prize">{featuredEvent.prize || 'Prêmio a confirmar'}</p>
+                <h3>{featuredEvent.title}</h3>
+                <p>{featuredEvent.description || 'Use o comando no chat para entrar neste giveaway.'}</p>
+                <div className="featured-event__command">
+                  <span>Digite no chat</span>
+                  <code>{commandLabel(featuredEvent.entryCommand)}</code>
+                </div>
+                <Link to={`/events/${featuredEvent.id}`} className="btn btn-primary">
+                  Abrir evento <ArrowRight size={17} aria-hidden="true" />
+                </Link>
+              </div>
+
+              <div className="featured-event__telemetry" aria-label="Estado do giveaway em destaque">
+                <div className="telemetry-item">
+                  <Users size={18} aria-hidden="true" />
+                  <strong>{featuredStats?.participantCount ?? '—'}</strong>
+                  <span>participantes captados</span>
+                </div>
+                <div className="telemetry-item">
+                  <Radio size={18} aria-hidden="true" />
+                  <strong>{captureHealthLabel(featuredStats)}</strong>
+                  <span>saúde da captura</span>
+                </div>
+                {statsError && <p className="telemetry-note" role="status">Métricas temporariamente indisponíveis.</p>}
+                <ol className="lifecycle-mini lifecycle-mini--vertical">
+                  <li className="is-complete"><span>01</span> Configurado</li>
+                  <li className="is-current"><span>02</span> Captando</li>
+                  <li><span>03</span> Finalizar</li>
+                  <li><span>04</span> Sortear</li>
+                </ol>
+              </div>
+            </article>
+
+            {moreEvents.length > 0 && (
+              <div className="event-grid event-grid--compact">
+                {moreEvents.map((event) => <EventCard key={event.id} event={event} />)}
+              </div>
+            )}
+          </>
+        )}
+      </section>
+
+      <section className="creator-cta" aria-labelledby="creator-cta-heading">
+        <div>
+          <p className="page-eyebrow">Para criadores</p>
+          <h2 id="creator-cta-heading">Você encerra a entrada. O Hub congela a lista.</h2>
+          <p>O sorteio só é liberado depois da finalização, com o pool de participantes registrado.</p>
+        </div>
+        <Link to={connected ? '/events/create' : '/login'} className="btn btn-secondary">
+          {connected ? 'Configurar novo evento' : 'Conectar conta Blaze'}
+        </Link>
+      </section>
     </div>
   );
 }

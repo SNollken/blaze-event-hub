@@ -1,4 +1,4 @@
-import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react';
 import { translations, type Lang, type TranslationKey } from './translations';
 
 interface I18nValue {
@@ -14,16 +14,15 @@ const I18nContext = createContext<I18nValue>({
 });
 
 export function I18nProvider({ children }: { children: ReactNode }) {
-  const [lang, setLangState] = useState<Lang>(() => {
-    const saved = localStorage.getItem('beh_lang');
-    if (saved === 'en' || saved === 'pt-BR') return saved;
-    return 'pt-BR';
-  });
+  const [lang, setLangState] = useState<Lang>('pt-BR');
 
   const setLang = useCallback((l: Lang) => {
     setLangState(l);
-    localStorage.setItem('beh_lang', l);
   }, []);
+
+  useEffect(() => {
+    document.documentElement.lang = lang;
+  }, [lang]);
 
   const t = useCallback(
     (key: TranslationKey, params: Record<string, string | number> = {}): string => {

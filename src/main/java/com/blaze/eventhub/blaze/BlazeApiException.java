@@ -26,7 +26,7 @@ public class BlazeApiException extends RuntimeException {
 	}
 
 	public static BlazeApiException from(RestClientResponseException ex) {
-		return new BlazeApiException(ex.getRawStatusCode(), ex.getStatusText(), ex.getResponseBodyAsString());
+		return new BlazeApiException(ex.getStatusCode().value(), ex.getStatusText(), ex.getResponseBodyAsString());
 	}
 
 	private static String sanitize(String body) {

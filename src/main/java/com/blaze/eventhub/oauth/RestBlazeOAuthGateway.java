@@ -28,14 +28,12 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 				.body(request)
 				.retrieve()
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-					String body = new String(res.getBody().readAllBytes());
 					throw new OAuthException(res.getStatusCode().value(), "BLAZE_AUTH_URL_REJECTED",
-							"Blaze rejeitou a geracao da URL de autorizacao: " + truncate(body, 200));
+							"A Blaze recusou a geracao da URL de autorizacao.");
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					String body = new String(res.getBody().readAllBytes());
 					throw new OAuthException(res.getStatusCode().value(), "BLAZE_AUTH_URL_ERROR",
-							"Blaze retornou erro interno ao gerar URL: " + truncate(body, 200));
+							"A Blaze ficou indisponivel ao gerar a URL de autorizacao.");
 				})
 				.body(GenerateAuthUrlResponse.class);
 		if (response == null) {
@@ -62,19 +60,17 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 				.body(body)
 				.retrieve()
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-					String responseBody = new String(res.getBody().readAllBytes());
 					int status = res.getStatusCode().value();
 					if (status == 401) {
 						throw new OAuthException(401, "BLAZE_TOKEN_EXCHANGE_REJECTED",
 								"Blaze rejeitou as credenciais. Verifique Client Secret e Redirect URI.");
 					}
 					throw new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
-							"Blaze rejeitou a troca do codigo por token: " + truncate(responseBody, 200));
+							"A Blaze recusou a troca do codigo por token.");
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					String responseBody = new String(res.getBody().readAllBytes());
 					throw new OAuthException(502, "BLAZE_TOKEN_SERVER_ERROR",
-							"Blaze retornou erro interno durante troca de token: " + truncate(responseBody, 200));
+							"A Blaze ficou indisponivel durante a troca de token.");
 				})
 				.body(OAuthTokenResponse.class);
 	}
@@ -85,30 +81,43 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 		RefreshRequestBody body = new RefreshRequestBody(
 				request.clientId(),
 				request.clientSecret(),
-				request.refreshToken());
+				request.refreshToken(),
+				"refresh_token");
+		try {
+			return executeRefresh("/bapi/oauth2/token", body);
+		}
+		catch (OAuthException primaryFailure) {
+			if (!supportsLegacyRefreshFallback(primaryFailure.getHttpStatus())) {
+				throw primaryFailure;
+			}
+			LegacyRefreshRequestBody legacyBody = new LegacyRefreshRequestBody(
+					request.clientId(),
+					request.clientSecret(),
+					request.refreshToken());
+			return executeRefresh("/bapi/oauth2/refresh", legacyBody);
+		}
+	}
 
+	private OAuthTokenResponse executeRefresh(String path, Object body) {
 		return restClient.post()
-				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/refresh")
+				.uri(properties.getAuthBaseUrl() + path)
 				.contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
 				.body(body)
 				.retrieve()
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
-					String responseBody = new String(res.getBody().readAllBytes());
-					throw new OAuthException(400, "BLAZE_TOKEN_REFRESH_REJECTED",
-							"Blaze rejeitou a renovacao do token: " + truncate(responseBody, 200));
+					throw new OAuthException(res.getStatusCode().value(), "BLAZE_TOKEN_REFRESH_REJECTED",
+							"A Blaze recusou a renovacao da sessao.");
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
-					String responseBody = new String(res.getBody().readAllBytes());
-					throw new OAuthException(502, "BLAZE_TOKEN_SERVER_ERROR",
-							"Blaze retornou erro interno durante renovacao de token: " + truncate(responseBody, 200));
+					throw new OAuthException(res.getStatusCode().value(), "BLAZE_TOKEN_SERVER_ERROR",
+							"A Blaze ficou indisponivel durante a renovacao da sessao.");
 				})
 				.body(OAuthTokenResponse.class);
 	}
 
-	private static String truncate(String value, int max) {
-		if (value == null || value.length() <= max) return value == null ? "" : value;
-		return value.substring(0, max) + "...";
+	private static boolean supportsLegacyRefreshFallback(int status) {
+		return status == 400 || status == 404 || status == 405;
 	}
 
 	private record GenerateAuthUrlResponse(String url, String state, String codeVerifier) {
@@ -125,6 +134,13 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 	}
 
 	private record RefreshRequestBody(
+			String clientId,
+			String clientSecret,
+			String refreshToken,
+			String grantType) {
+	}
+
+	private record LegacyRefreshRequestBody(
 			String clientId,
 			String clientSecret,
 			String refreshToken) {

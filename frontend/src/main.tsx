@@ -5,6 +5,7 @@ import { I18nProvider } from './i18n/I18nContext';
 import App from './App';
 import './styles/globals.css';
 import './styles/blaze-frontend.css';
+import './styles/hub.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

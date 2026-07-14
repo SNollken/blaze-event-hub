@@ -7,8 +7,10 @@ import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.web.context.annotation.SessionScope;
 
 @Repository
+@SessionScope
 public class InMemoryOAuthStateStore implements OAuthStateStore {
 
 	private static final Duration STATE_TTL = Duration.ofMinutes(10);

@@ -36,9 +36,21 @@ public class GlobalExceptionHandler {
 		return error(HttpStatus.CONFLICT, "CONFLICT", ex.getMessage(), request);
 	}
 
+	@ExceptionHandler(ForbiddenException.class)
+	ResponseEntity<ApiErrorResponse> handleForbidden(ForbiddenException ex, HttpServletRequest request) {
+		return error(HttpStatus.FORBIDDEN, "FORBIDDEN", ex.getMessage(), request);
+	}
+
 	@ExceptionHandler(ConfigurationMissingException.class)
 	ResponseEntity<ApiErrorResponse> handleConfiguration(ConfigurationMissingException ex, HttpServletRequest request) {
 		return error(HttpStatus.SERVICE_UNAVAILABLE, "CONFIG_MISSING", ex.getMessage(), request);
+	}
+
+	@ExceptionHandler(UpstreamUnavailableException.class)
+	ResponseEntity<ApiErrorResponse> handleUpstreamUnavailable(
+			UpstreamUnavailableException ex,
+			HttpServletRequest request) {
+		return error(HttpStatus.BAD_GATEWAY, "UPSTREAM_UNAVAILABLE", ex.getMessage(), request);
 	}
 
 	@ExceptionHandler(IllegalArgumentException.class)

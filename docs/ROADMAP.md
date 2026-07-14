@@ -1,71 +1,61 @@
-# Roadmap
+# Roadmap do Blaze Event Hub
 
-## Fase 1: backend base
+## MVP implementado
 
-- Spring Boot limpo.
-- Health/status.
-- Blaze OAuth server-side.
-- Blaze REST client.
-- Events abstraido.
-- Overlays com public manifest.
-- Testes automatizados.
+- [x] OAuth Blaze server-side com PKCE, state por sessão, refresh e logout.
+- [x] Perfil do criador e credenciais OAuth cifradas em repouso.
+- [x] Criação e edição de giveaway em rascunho.
+- [x] Validação do canal da conta Blaze conectada.
+- [x] Abertura da captura por comando exato no chat.
+- [x] Participante único por usuário Blaze e mensagem.
+- [x] Estado `finalizing`, cutoff persistido e rejeição de mensagens posteriores ao clique.
+- [x] Sincronização final e snapshot com quantidade/hash do pool.
+- [x] Sorteio uniforme, persistido, idempotente e com registro técnico.
+- [x] SPA React responsiva para descoberta e gestão do ciclo completo.
+- [x] Flyway para H2 local e PostgreSQL/Supabase em produção.
+- [x] Sessão segura, proteção CSRF, CSP e headers defensivos.
+- [x] Docker multi-stage com runtime sem privilégios.
 
-## Fase 2: frontend/dashboard
+## Antes de publicar
 
-- Dashboard Shell MVP provisorio integrado: `/` e `/dashboard` servem HTML/CSS/JS simples com sidebar para Visao geral, Conta Blaze, Canal monitorado, Events, Live Events, Alertas, Sorteios, Overlays, Configuracoes e Diagnostico.
-- O shell consome endpoints existentes e trata ausencias/erros como estados amigaveis, sem JSON bruto e sem expor tokens ou segredos.
-- Frontend React unificado concluido: dashboard, live events, Blaze Channel, Alerts, Giveaways e Overlays em Vite.
-- Rotas `/`, `/dashboard` e rotas legadas servem o shell provisorio atual enquanto o design final fica pendente para OpenDesign.
-- MVP 2 concluido: configuracao assistida da Blaze no dashboard e `GET /api/blaze/setup` com checklist, Redirect URI, scopes minimos, exemplo `.env`, links oficiais, proximos passos e contrato sem segredos/tokens.
-- Overlay Runtime OBS MVP integrado: `GET /overlay/{publicToken}` consome manifest publico e renderiza camadas simples em 16:9 transparente para OBS.
+- [ ] Rotacionar todo client secret que já apareceu em commit, print, chat ou log.
+- [ ] Confirmar que `.env` e o valor antigo não existem em nenhum ref do Git remoto.
+- [ ] Criar o PostgreSQL/Supabase vazio e deixar o Flyway aplicar as migrations.
+- [ ] Configurar Render com OAuth, chave de criptografia e conexão PostgreSQL via TLS.
+- [ ] Fazer smoke E2E: login, criar, abrir, capturar usuário real, finalizar e sortear.
+- [ ] Validar em produção cookies, callback HTTPS, RLS e ausência de segredos nas respostas.
+- [ ] Confirmar operação com uma única réplica enquanto o polling usar locks locais.
+- [ ] Manter apenas `main` e `dev` como branches permanentes e promover `dev -> main` após a validação.
 
-## Fase 3: OAuth real e perfil
+## Confiabilidade da captura
 
-- OAuth real bruto validado com `users.read,offline.access`.
-- OAuth produto concluido no backend/dashboard provisorio: sessao segura, callback amigavel, refresh manual, disconnect local e resumo seguro de perfil.
-- `GET /api/blaze/oauth/session` reflete conta conectada, perfil, datas e proxima acao recomendada sem retornar tokens ou segredos.
-- `GET /v1/users/profile` e a chamada REST usada para sincronizar resumo seguro do usuario conectado.
-- Manter scopes de chat/moderacao/bot fora ate existir feature correspondente.
-- Limite atual: token e perfil seguem em storage in-memory ate a fase de persistencia segura.
+- [x] Confirmar no portal oficial cursor, limite de 100 mensagens e janela da sessão ao vivo ou de cerca de 8 horas offline em `GET /v1/chats/messages`.
+- [x] Percorrer páginas por cursor até o último cursor persistido ou o início do evento, com checkpoint retomável e prova de cobertura antes da finalização.
+- [x] Diferenciar chat vazio válido de resposta Blaze nula ou incompatível.
+- [x] Persistir um cutoff no clique de finalizar e aceitar somente mensagens até esse instante.
+- [ ] Adicionar métricas para atraso do polling, mensagens vistas, entradas aceitas e falhas.
+- [x] Recusar finalização sem participantes e reabrir a captura com mensagem acionável.
 
-## Fase 4: Events real e canais
+## Escala e operação
 
-- Configurar canal monitorado real.
-- Usar a conta conectada e `READY_FOR_EVENTS` como pre-condicao operacional.
-- Validar biblioteca Socket.IO Java e reconexao.
-- Capturar `session_welcome`, obter `sessionId` e sincronizar subscriptions reais.
-- Auditar erros 401/403 sem expor tokens.
-- Alert Engine ja recebe envelopes aceitos pelo runner via `BlazeEventsPipeline`.
+- [ ] Substituir locks locais por coordenação PostgreSQL/distribuída antes de usar múltiplas réplicas.
+- [ ] Proteger refresh concorrente entre instâncias.
+- [ ] Adicionar rate limiting para OAuth e mutações sensíveis.
+- [ ] Testar migrations e concorrência em PostgreSQL real via Testcontainers.
+- [ ] Criar alertas de readiness para credencial expirada, polling parado e schema incompatível.
+- [ ] Definir backup, retenção e restauração do banco.
 
-## Fase 4.5: persistencia e admin MVP
+## Evolução de produto
 
-- H2 dev/test integrado para alerts, events log, canal Blaze, live events, giveaways e overlays.
-- API key basica integrada para endpoints administrativos.
-- Persistencia OAuth segura segue pendente para uma fase dedicada, sem alterar o fluxo OAuth atual.
+- [ ] Permitir canais moderados quando a Blaze oferecer uma forma confiável de comprovar permissão.
+- [ ] Melhorar histórico e transparência pública do resultado sem expor dados desnecessários.
+- [ ] Ampliar testes E2E, acessibilidade e estados de erro da interface.
+- [ ] Documentar política de privacidade e retenção dos participantes.
 
-## Fase 5: overlay studio visual
+## Fora de escopo
 
-- Runtime publico OBS ja existe como MVP; esta fase deve focar editor/preview visual, nao no HTML publico basico.
-- Editor visual de layers.
-- Preview por overlay.
-- Controles de texto, imagem, shape e ordenacao.
-
-## Fase 6: upload assets avancado
-
-- Storage persistente.
-- Validacao de dimensoes.
-- Antivirus/scan opcional.
-- CDN ou serving seguro.
-
-## Fase 7: smoke E2E real com Blaze
-
-- Credenciais reais fora do repo.
-- OAuth completo.
-- Primeira chamada REST.
-- Primeiro session welcome e subscription real.
-
-## Fase 8: persistencia real de tokens
-
-- DB cifrado ou secret storage.
-- Rotacao de refresh token.
-- Auditoria de 401/403.
+- Bot de respostas no chat.
+- Votos, subs, follows ou pesos por ação.
+- Entrada manual de participantes.
+- Overlays e editor para OBS.
+- Reroll do mesmo evento.

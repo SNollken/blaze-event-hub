@@ -3,6 +3,9 @@ package com.blaze.eventhub.config;
 import java.util.ArrayList;
 import java.util.List;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
+
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.validation.annotation.Validated;
 
@@ -12,13 +15,18 @@ public class BlazeProperties {
 
 	private String clientId = "";
 	private String clientSecret = "";
-	private String redirectUri = "http://localhost:8080/api/blaze/oauth/callback";
+	private String redirectUri = "http://localhost:9090/api/blaze/oauth/callback";
 	private String authBaseUrl = "https://blaze.stream";
 	private String apiBaseUrl = "https://api.blaze.stream";
-	private String socketUrl = "https://blaze.stream";
-	private String socketPath = "/ws";
 	private List<String> scopes = new ArrayList<>(List.of("users.read", "offline.access"));
-	private String monitoredChannelId = "";
+	@Min(10)
+	@Max(100)
+	private int chatMessageLimit = 100;
+	@Min(1)
+	@Max(100)
+	private int chatMaxPagesPerPoll = 20;
+	@Min(60_000)
+	private long chatHistoryCoverageMaxAgeMs = 25_200_000;
 
 	public String getClientId() {
 		return clientId;
@@ -60,22 +68,6 @@ public class BlazeProperties {
 		this.apiBaseUrl = trimTrailingSlash(clean(apiBaseUrl));
 	}
 
-	public String getSocketUrl() {
-		return socketUrl;
-	}
-
-	public void setSocketUrl(String socketUrl) {
-		this.socketUrl = trimTrailingSlash(clean(socketUrl));
-	}
-
-	public String getSocketPath() {
-		return socketPath;
-	}
-
-	public void setSocketPath(String socketPath) {
-		this.socketPath = clean(socketPath);
-	}
-
 	public List<String> getScopes() {
 		return List.copyOf(scopes);
 	}
@@ -84,12 +76,28 @@ public class BlazeProperties {
 		this.scopes = scopes == null ? new ArrayList<>() : new ArrayList<>(scopes);
 	}
 
-	public String getMonitoredChannelId() {
-		return monitoredChannelId;
+	public int getChatMessageLimit() {
+		return chatMessageLimit;
 	}
 
-	public void setMonitoredChannelId(String monitoredChannelId) {
-		this.monitoredChannelId = clean(monitoredChannelId);
+	public void setChatMessageLimit(int chatMessageLimit) {
+		this.chatMessageLimit = chatMessageLimit;
+	}
+
+	public int getChatMaxPagesPerPoll() {
+		return chatMaxPagesPerPoll;
+	}
+
+	public void setChatMaxPagesPerPoll(int chatMaxPagesPerPoll) {
+		this.chatMaxPagesPerPoll = chatMaxPagesPerPoll;
+	}
+
+	public long getChatHistoryCoverageMaxAgeMs() {
+		return chatHistoryCoverageMaxAgeMs;
+	}
+
+	public void setChatHistoryCoverageMaxAgeMs(long chatHistoryCoverageMaxAgeMs) {
+		this.chatHistoryCoverageMaxAgeMs = chatHistoryCoverageMaxAgeMs;
 	}
 
 	public boolean isOAuthConfigured() {
@@ -100,14 +108,6 @@ public class BlazeProperties {
 		return hasText(clientId) && hasText(apiBaseUrl);
 	}
 
-	public boolean isSocketConfigured() {
-		return hasText(socketUrl) && hasText(socketPath);
-	}
-
-	public boolean isMonitoredChannelConfigured() {
-		return hasText(monitoredChannelId);
-	}
-
 	@Override
 	public String toString() {
 		return "BlazeProperties{" +
@@ -116,10 +116,10 @@ public class BlazeProperties {
 				", redirectUri='" + redirectUri + '\'' +
 				", authBaseUrl='" + authBaseUrl + '\'' +
 				", apiBaseUrl='" + apiBaseUrl + '\'' +
-				", socketUrl='" + socketUrl + '\'' +
-				", socketPath='" + socketPath + '\'' +
 				", scopes=" + scopes +
-				", monitoredChannelId='" + mask(monitoredChannelId) + '\'' +
+				", chatMessageLimit=" + chatMessageLimit +
+				", chatMaxPagesPerPoll=" + chatMaxPagesPerPoll +
+				", chatHistoryCoverageMaxAgeMs=" + chatHistoryCoverageMaxAgeMs +
 				'}';
 	}
 

@@ -5,9 +5,7 @@ import java.util.Map;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -17,6 +15,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.blaze.eventhub.member.MemberService;
+import com.blaze.eventhub.blaze.BlazeChannelService;
 
 import jakarta.validation.Valid;
 
@@ -25,11 +24,19 @@ import jakarta.validation.Valid;
 public class EventController {
 
     private final EventService eventService;
+    private final EventFinalizationService finalizationService;
     private final MemberService memberService;
+    private final BlazeChannelService channelService;
 
-    public EventController(EventService eventService, MemberService memberService) {
+    public EventController(
+            EventService eventService,
+            EventFinalizationService finalizationService,
+            MemberService memberService,
+            BlazeChannelService channelService) {
         this.eventService = eventService;
+        this.finalizationService = finalizationService;
         this.memberService = memberService;
+        this.channelService = channelService;
     }
 
     @GetMapping
@@ -40,8 +47,9 @@ public class EventController {
     @PostMapping
     ResponseEntity<EventResponse> createEvent(@Valid @RequestBody CreateEventRequest request) {
         var member = memberService.getCurrentMember();
+        var channel = channelService.resolveOwned(request.creatorChannelSlug(), member);
         EventResponse response = eventService.createEvent(request, member.id(), member.blazeUserId(),
-                request.creatorChannelId());
+                channel);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
     }
 
@@ -53,12 +61,18 @@ public class EventController {
 
     @GetMapping("/{id}")
     EventResponse getEvent(@PathVariable String id) {
-        return eventService.getEvent(id);
+        return eventService.getVisibleEvent(id, currentMemberIdOrNull());
     }
 
     @GetMapping("/{id}/stats")
-    Map<String, Object> getStats(@PathVariable String id) {
-        return eventService.getEventStats(id);
+    EventLifecycleStats getStats(@PathVariable String id) {
+        return eventService.getVisibleEventStats(id, currentMemberIdOrNull());
+    }
+
+    @GetMapping("/{id}/participants")
+    List<EventParticipantResponse> getParticipants(@PathVariable String id) {
+        var member = memberService.getCurrentMember();
+        return eventService.getParticipants(id, member.id());
     }
 
     @PutMapping("/{id}")
@@ -74,10 +88,10 @@ public class EventController {
         return eventService.openEvent(id, member.id());
     }
 
-    @PostMapping("/{id}/close")
-    EventResponse closeEvent(@PathVariable String id) {
+    @PostMapping("/{id}/finalize")
+    EventResponse finalizeEvent(@PathVariable String id) {
         var member = memberService.getCurrentMember();
-        return eventService.closeEvent(id, member.id());
+        return finalizationService.finalizeEvent(id, member.id());
     }
 
     @PostMapping("/{id}/cancel")
@@ -86,27 +100,10 @@ public class EventController {
         return eventService.cancelEvent(id, member.id());
     }
 
-    @PostMapping("/{id}/rules")
-    ResponseEntity<EventRuleResponse> addRule(@PathVariable String id,
-            @Valid @RequestBody CreateEventRuleRequest request) {
-        var member = memberService.getCurrentMember();
-        EventRuleResponse response = eventService.addRule(id, request, member.id());
-        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    private String currentMemberIdOrNull() {
+        return memberService.findCurrentMember()
+                .map(member -> member.id())
+                .orElse(null);
     }
 
-    @PatchMapping("/{id}/rules/{ruleId}")
-    EventRuleResponse updateRule(@PathVariable String id,
-            @PathVariable String ruleId,
-            @Valid @RequestBody UpdateEventRuleRequest request) {
-        var member = memberService.getCurrentMember();
-        return eventService.updateRule(id, ruleId, request, member.id());
-    }
-
-    @DeleteMapping("/{id}/rules/{ruleId}")
-    ResponseEntity<Void> removeRule(@PathVariable String id,
-            @PathVariable String ruleId) {
-        var member = memberService.getCurrentMember();
-        eventService.removeRule(id, ruleId, member.id());
-        return ResponseEntity.noContent().build();
-    }
 }

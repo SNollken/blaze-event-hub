@@ -1,51 +1,29 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
-import type { FormEvent } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { useI18n } from '../i18n/I18nContext';
+import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ArrowRight, Ban, CircleStop, Radio, Save, ShieldCheck, Trophy } from 'lucide-react';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
-  addEventRule,
+  cancelEvent,
+  finalizeEvent,
   getEvent,
-  getMe,
-  removeEventRule,
+  getEventParticipants,
+  getEventStats,
+  openEvent,
   updateEvent,
-  updateEventRule,
 } from '../api/client';
-import type { CreateRuleRequest, EventResponse, MemberProfile, RuleResponse, UpdateRuleRequest } from '../api/types';
-import type { TranslationKey } from '../i18n/translations';
+import type { EventParticipantResponse, EventResponse, EventStatus } from '../api/types';
+import { Modal } from '../components/Modal';
+import { addToast, usePolling } from '../components/Toast';
 
-type ActionType = 'vote' | 'sub' | 'gifted_sub';
+type PendingAction = 'save' | 'open' | 'finalize' | 'cancel' | null;
 
-type RuleDraft = {
-  clientKey: string;
-  id?: string;
-  actionType: ActionType;
-  thresholdAmount: number;
-  entries: number;
-  isActive?: boolean;
-};
-
-type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
-
-const ACTION_OPTIONS: Array<{ value: ActionType; labelKey: TranslationKey; unitKey: TranslationKey }> = [
-  { value: 'vote', labelKey: 'actionVote', unitKey: 'actionVote' },
-  { value: 'sub', labelKey: 'actionSub', unitKey: 'actionSub' },
-  { value: 'gifted_sub', labelKey: 'actionGiftedSub', unitKey: 'actionGiftedSub' },
+const LIFECYCLE: Array<{ status: EventStatus; label: string }> = [
+  { status: 'DRAFT', label: 'Rascunho' },
+  { status: 'OPEN', label: 'Captura ao vivo' },
+  { status: 'CLOSED', label: 'Pool fechado' },
+  { status: 'COMPLETED', label: 'Sorteado' },
 ];
 
-function newRuleKey() {
-  return `new-${Date.now()}-${Math.random().toString(36).slice(2)}`;
-}
-
-function normalizeActionType(value: string | undefined): ActionType {
-  if (value === 'sub' || value === 'gifted_sub') return value;
-  return 'vote';
-}
-
-function positiveInteger(value: number) {
-  return Number.isFinite(value) && Number.isInteger(value) && value > 0;
-}
-
-function toDateTimeInput(value: string | null | undefined) {
+function toDateTimeInput(value: string | null): string {
   if (!value) return '';
   const date = new Date(value);
   if (Number.isNaN(date.getTime())) return '';
@@ -53,543 +31,540 @@ function toDateTimeInput(value: string | null | undefined) {
   return local.toISOString().slice(0, 16);
 }
 
-function toIsoDate(value: string) {
-  if (!value) return '';
+function toIsoDate(value: string): string | undefined {
+  if (!value) return undefined;
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? '' : date.toISOString();
+  return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-function fromRuleResponse(rule: RuleResponse): RuleDraft {
-  return {
-    clientKey: rule.id,
-    id: rule.id,
-    actionType: normalizeActionType(rule.actionType),
-    thresholdAmount: rule.thresholdAmount,
-    entries: rule.entries,
-    isActive: rule.isActive,
+function toUpdateDate(value: string): string {
+  return toIsoDate(value) || '';
+}
+
+function formatDate(value: string | null): string {
+  if (!value) return 'Não informado';
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return 'Não informado';
+  return new Intl.DateTimeFormat('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+  }).format(date);
+}
+
+function statusLabel(status: EventStatus): string {
+  if (status === 'FINALIZING') return 'Fechando entradas';
+  return LIFECYCLE.find((item) => item.status === status)?.label || 'Cancelado';
+}
+
+function Lifecycle({ status }: { status: EventStatus }) {
+  const lifecycleStatus = status === 'FINALIZING' ? 'OPEN' : status;
+  const activeIndex = LIFECYCLE.findIndex((item) => item.status === lifecycleStatus);
+  return (
+    <ol className="lifecycle" aria-label="Ciclo de vida do giveaway">
+      {LIFECYCLE.map((item, index) => {
+        const stateClass = status === 'CANCELLED'
+          ? 'is-muted'
+          : index < activeIndex ? 'is-complete' : index === activeIndex ? 'is-current' : '';
+        return (
+          <li key={item.status} className={stateClass} aria-current={index === activeIndex ? 'step' : undefined}>
+            <span>{index + 1}</span>
+            <strong>{item.label}</strong>
+          </li>
+        );
+      })}
+    </ol>
+  );
+}
+
+interface OpenEventPanelProps {
+  event: EventResponse;
+  finalizing: boolean;
+  onFinalize: () => Promise<boolean>;
+  onCancel: () => void;
+  onEventUpdate: (event: EventResponse) => void;
+}
+
+const CAPTURE_HEALTH_COPY = {
+  INACTIVE: { label: 'Inativa', description: 'A captura não está ativa para este evento.' },
+  STARTING: { label: 'Iniciando', description: 'Aguardando a primeira sincronização confirmada com o chat.' },
+  HEALTHY: { label: 'Saudável', description: 'A última sincronização com o chat foi concluída sem erro.' },
+  DEGRADED: { label: 'Atenção', description: 'A captura encontrou uma falha e tentará sincronizar novamente.' },
+  FINALIZING: { label: 'Finalizando', description: 'O limite de entrada foi fixado e a última sincronização está em andamento.' },
+} as const;
+
+function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate }: OpenEventPanelProps) {
+  const [confirmFinalize, setConfirmFinalize] = useState(false);
+  const fetchEvent = useCallback(() => getEvent(event.id), [event.id]);
+  const fetchStats = useCallback(() => getEventStats(event.id), [event.id]);
+  const fetchParticipants = useCallback(() => getEventParticipants(event.id), [event.id]);
+  const eventState = usePolling(fetchEvent, 3_000);
+  const stats = usePolling(fetchStats, 5_000);
+  const participants = usePolling(fetchParticipants, 5_000);
+  const participantCount = stats.data?.participantCount ?? participants.data?.length ?? 0;
+  const finalizationInProgress = finalizing || event.status === 'FINALIZING';
+  const canFinalize = event.status === 'OPEN' && stats.data?.canFinalize === true && participantCount > 0;
+  const captureHealth = stats.data?.captureHealth
+    || (event.status === 'FINALIZING' ? 'FINALIZING' : 'STARTING');
+  const healthCopy = CAPTURE_HEALTH_COPY[captureHealth];
+
+  useEffect(() => {
+    if (eventState.data && eventState.data.status !== event.status) onEventUpdate(eventState.data);
+  }, [event.status, eventState.data, onEventUpdate]);
+
+  const confirm = async () => {
+    const completed = await onFinalize();
+    if (completed) setConfirmFinalize(false);
   };
-}
 
-function toCreateRule(rule: RuleDraft): CreateRuleRequest {
-  return {
-    actionType: rule.actionType,
-    thresholdAmount: Math.trunc(rule.thresholdAmount),
-    entries: Math.trunc(rule.entries),
-  };
-}
+  return (
+    <div className="control-grid">
+      <section className="control-card">
+        <div className="section-label">Estado da captura</div>
+        <div className="signal-command" role="status" aria-live="polite">
+          <Radio aria-hidden="true" />
+          <code>{event.entryCommand}</code>
+        </div>
+        <p><strong>{healthCopy.label}.</strong> {healthCopy.description} Cada conta Blaze entra uma única vez.</p>
+        <dl className="event-stats">
+          <div><dt>Participantes únicos</dt><dd>{participantCount}</dd></div>
+          <div><dt>Aberto em</dt><dd>{formatDate(event.openedAt)}</dd></div>
+          <div><dt>Última sincronização válida</dt><dd>{formatDate(stats.data?.lastSuccessfulPollAt || null)}</dd></div>
+          {event.finalizationCutoffAt && <div><dt>Entradas aceitas até</dt><dd>{formatDate(event.finalizationCutoffAt)}</dd></div>}
+        </dl>
+        {stats.data?.lastErrorCode && (
+          <div className="notice notice-danger" role="status">
+            A sincronização precisa de atenção. Código: <code>{stats.data.lastErrorCode}</code>
+          </div>
+        )}
+        {(stats.error || participants.error) && (
+          <div className="notice notice-danger" role="alert">
+            {stats.error || participants.error}
+          </div>
+        )}
+        <div className="form-actions">
+          <button
+            type="button"
+            className="btn btn-primary btn-lg"
+            onClick={() => setConfirmFinalize(true)}
+            disabled={!canFinalize || finalizationInProgress}
+          >
+            <CircleStop size={17} aria-hidden="true" />
+            {finalizationInProgress ? 'Finalizando...' : 'Finalizar evento'}
+          </button>
+          <button
+            type="button"
+            className="btn btn-secondary"
+            onClick={() => void Promise.all([stats.reload(), participants.reload()])}
+            disabled={stats.loading || participants.loading}
+          >
+            Atualizar agora
+          </button>
+          {event.status === 'OPEN' && (
+            <button type="button" className="btn btn-danger" onClick={onCancel} disabled={finalizationInProgress}>
+              <Ban size={16} aria-hidden="true" /> Cancelar evento
+            </button>
+          )}
+        </div>
+        {!stats.loading && participantCount === 0 && (
+          <p className="form-helper">Aguarde ao menos uma entrada válida antes de finalizar.</p>
+        )}
+      </section>
 
-function toUpdateRule(rule: RuleDraft): UpdateRuleRequest {
-  return {
-    ...toCreateRule(rule),
-    isActive: rule.isActive ?? true,
-  };
-}
+      <section className="control-card">
+        <div className="section-label">Entradas confirmadas</div>
+        {participants.loading && !participants.data ? (
+          <div className="empty" role="status">Sincronizando participantes...</div>
+        ) : participants.data?.length ? (
+          <ul className="participant-list" aria-live="polite">
+            {participants.data.map((participant: EventParticipantResponse) => (
+              <li key={participant.blazeUserId} className="participant-item">
+                <span aria-hidden="true">{(participant.displayName || participant.blazeUsername || '?')[0].toUpperCase()}</span>
+                <div>
+                  <strong>{participant.displayName || participant.blazeUsername}</strong>
+                  {participant.blazeUsername && <small>@{participant.blazeUsername}</small>}
+                </div>
+                <time dateTime={participant.enteredAt}>{formatDate(participant.enteredAt)}</time>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <div className="empty">Nenhuma entrada válida até agora.</div>
+        )}
+      </section>
 
-function hasRuleChanged(original: RuleDraft, current: RuleDraft) {
-  return original.actionType !== current.actionType
-    || original.thresholdAmount !== current.thresholdAmount
-    || original.entries !== current.entries
-    || (original.isActive ?? true) !== (current.isActive ?? true);
-}
-
-function actionUnit(t: Translate, actionType: ActionType) {
-  const option = ACTION_OPTIONS.find((candidate) => candidate.value === actionType);
-  return option ? t(option.unitKey) : actionType;
-}
-
-function validateRules(rules: RuleDraft[], t: Translate) {
-  if (rules.length === 0) return t('ruleRequired');
-  if (rules.some((rule) => !rule.actionType)) return t('ruleActionRequired');
-  if (rules.some((rule) => !positiveInteger(rule.thresholdAmount))) {
-    return t('ruleThresholdInvalid');
-  }
-  if (rules.some((rule) => !positiveInteger(rule.entries))) {
-    return t('ruleEntriesInvalid');
-  }
-  return '';
+      <Modal
+        open={confirmFinalize}
+        onClose={() => setConfirmFinalize(false)}
+        title="Congelar o pool de participantes?"
+        footer={(
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmFinalize(false)} disabled={finalizationInProgress}>
+              Continuar capturando
+            </button>
+            <button type="button" className="btn btn-danger" onClick={() => void confirm()} disabled={finalizationInProgress}>
+              {finalizationInProgress ? 'Congelando...' : `Finalizar com ${participantCount} participantes`}
+            </button>
+          </>
+        )}
+      >
+        <p><strong>Esta ação é irreversível.</strong> O hub fixará o limite de entrada, fará uma última sincronização e registrará o pool final.</p>
+        <p>Depois disso, você poderá revisar o total e seguir para o sorteio.</p>
+      </Modal>
+    </div>
+  );
 }
 
 export default function EditEvent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const { t } = useI18n();
-  const originalRulesRef = useRef<RuleDraft[]>([]);
-
   const [event, setEvent] = useState<EventResponse | null>(null);
-  const [channelName, setChannelName] = useState<string | null>(null);
   const [title, setTitle] = useState('');
+  const [prize, setPrize] = useState('');
   const [description, setDescription] = useState('');
-  const [prizeTypeSelect, setPrizeTypeSelect] = useState('');
-  const [prizeTypeOther, setPrizeTypeOther] = useState('');
-  const [prizeDescription, setPrizeDescription] = useState('');
-  const [rulesMode, setRulesMode] = useState('tier');
-  const [maxEntriesPerParticipant, setMaxEntriesPerParticipant] = useState(0);
-  const [requiresInterestBeforeAction, setRequiresInterestBeforeAction] = useState(false);
+  const [entryCommand, setEntryCommand] = useState('!participar');
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
-  const [rules, setRules] = useState<RuleDraft[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isSaving, setIsSaving] = useState(false);
+  const [pendingAction, setPendingAction] = useState<PendingAction>(null);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [confirmCancel, setConfirmCancel] = useState(false);
   const [error, setError] = useState('');
 
+  const applyEvent = useCallback((loaded: EventResponse) => {
+    setEvent(loaded);
+    setTitle(loaded.title);
+    setPrize(loaded.prize);
+    setDescription(loaded.description || '');
+    setEntryCommand(loaded.entryCommand || '!participar');
+    setStartsAt(toDateTimeInput(loaded.startsAt));
+    setEndsAt(toDateTimeInput(loaded.endsAt));
+  }, []);
+
   useEffect(() => {
-    let isActive = true;
-
-    async function loadEvent() {
-      if (!id) {
-        setError(t('eventInvalid'));
-        setIsLoading(false);
-        return;
-      }
-
-      setIsLoading(true);
-      setError('');
-
-      try {
-        const loaded = await getEvent(id);
-        if (!isActive) return;
-
-        const loadedRules = (loaded.rules || []).map(fromRuleResponse);
-        originalRulesRef.current = loadedRules;
-        setEvent(loaded);
-        setTitle(loaded.title || '');
-        setDescription(loaded.description || '');
-        setPrizeDescription(loaded.prizeDescription || '');
-        const KNOWN_PRIZE_TYPES = ['bits', 'pix', 'steam', 'giftcard', 'physical'];
-        if (loaded.prizeType && !KNOWN_PRIZE_TYPES.includes(loaded.prizeType)) {
-          setPrizeTypeSelect('outro');
-          setPrizeTypeOther(loaded.prizeType);
-        } else {
-          setPrizeTypeSelect(loaded.prizeType || '');
-        }
-        setRulesMode(loaded.rulesMode || loaded.mode || 'tier');
-        setMaxEntriesPerParticipant(loaded.maxEntriesPerParticipant ?? loaded.maxEntries ?? 0);
-        setRequiresInterestBeforeAction(Boolean(loaded.requiresInterestBeforeAction));
-        setStartsAt(toDateTimeInput(loaded.startsAt));
-        setEndsAt(toDateTimeInput(loaded.endsAt));
-        setRules(loadedRules.length > 0 ? loadedRules : [{
-          clientKey: newRuleKey(),
-          actionType: 'vote',
-          thresholdAmount: 50,
-          entries: 1,
-          isActive: true,
-        }]);
-
-        try {
-          const me: MemberProfile = await getMe();
-          if (!isActive) return;
-          setChannelName(me.blazeUsername || me.displayName || null);
-        } catch {
-          if (!isActive) return;
-          setChannelName(null);
-        }
-      } catch (err) {
-        if (!isActive) return;
-        setError(err instanceof Error ? err.message : t('eventLoadError'));
-      } finally {
-        if (isActive) setIsLoading(false);
-      }
+    let active = true;
+    if (!id) {
+      setError('Identificador de evento inválido.');
+      setIsLoading(false);
+      return () => {
+        active = false;
+      };
     }
 
-    loadEvent();
+    getEvent(id)
+      .then((loaded) => {
+        if (active) applyEvent(loaded);
+      })
+      .catch((loadError) => {
+        if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o giveaway.');
+      })
+      .finally(() => {
+        if (active) setIsLoading(false);
+      });
 
     return () => {
-      isActive = false;
+      active = false;
     };
-  }, [id, t]);
+  }, [applyEvent, id]);
 
-  const isDraft = event?.status === 'DRAFT';
-  const disabled = isSaving || !isDraft;
-  const channelLabel = channelName || event?.channelSlug || event?.creatorChannelId || t('channelUnavailable');
-  const rulesError = useMemo(() => validateRules(rules, t), [rules, t]);
   const dateError = useMemo(() => {
     if (!startsAt || !endsAt) return '';
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime()
-      ? t('dateOrderError')
+      ? 'O encerramento precisa acontecer depois do início.'
       : '';
-  }, [startsAt, endsAt, t]);
+  }, [endsAt, startsAt]);
 
-  const canSave = Boolean(id)
-    && Boolean(title.trim())
-    && isDraft
-    && !rulesError
-    && !dateError
-    && !isSaving;
-
-  const updateRule = <K extends keyof Omit<RuleDraft, 'clientKey' | 'id'>>(
-    index: number,
-    field: K,
-    value: RuleDraft[K],
-  ) => {
-    setRules((current) => current.map((rule, ruleIndex) => (
-      ruleIndex === index ? { ...rule, [field]: value } : rule
-    )));
+  const formError = () => {
+    if (!title.trim()) return 'O título é obrigatório.';
+    if (!prize.trim()) return 'O prêmio é obrigatório.';
+    if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
+      return 'Use ! seguido de letras, números, _ ou -.';
+    }
+    return dateError;
   };
 
-  const addRule = () => {
-    setRules((current) => [...current, {
-      clientKey: newRuleKey(),
-      actionType: 'vote',
-      thresholdAmount: 100,
-      entries: 3,
-      isActive: true,
-    }]);
-  };
-
-  const removeRule = (index: number) => {
-    setRules((current) => (current.length === 1 ? current : current.filter((_, ruleIndex) => ruleIndex !== index)));
-  };
-
-  const validateForm = () => {
-    if (!isDraft) return t('draftOnly');
-    if (!title.trim()) return t('titleRequired');
-    if (rulesError) return rulesError;
-    if (dateError) return dateError;
-    return '';
-  };
-
-  const syncRules = async (eventId: string) => {
-    const originalById = new Map(
-      originalRulesRef.current
-        .filter((rule): rule is RuleDraft & { id: string } => Boolean(rule.id))
-        .map((rule) => [rule.id, rule]),
-    );
-    const currentIds = new Set(rules.map((rule) => rule.id).filter(Boolean));
-
-    for (const rule of rules) {
-      if (!rule.id) continue;
-      const original = originalById.get(rule.id);
-      if (original && hasRuleChanged(original, rule)) {
-        await updateEventRule(eventId, rule.id, toUpdateRule(rule));
-      }
+  const saveDraft = async (): Promise<EventResponse | null> => {
+    if (!id || event?.status !== 'DRAFT') return null;
+    const invalid = formError();
+    if (invalid) {
+      setError(invalid);
+      return null;
     }
 
-    for (const rule of rules) {
-      if (!rule.id) {
-        await addEventRule(eventId, toCreateRule(rule));
-      }
-    }
-
-    for (const original of originalRulesRef.current) {
-      if (original.id && !currentIds.has(original.id)) {
-        await removeEventRule(eventId, original.id);
-      }
-    }
+    const updated = await updateEvent(id, {
+      title: title.trim(),
+      prize: prize.trim(),
+      description: description.trim(),
+      entryCommand: entryCommand.trim(),
+      startsAt: toUpdateDate(startsAt),
+      endsAt: toUpdateDate(endsAt),
+    });
+    applyEvent(updated);
+    return updated;
   };
 
-  const handleSubmit = async (submitEvent: FormEvent<HTMLFormElement>) => {
+  const handleSave = async (submitEvent: FormEvent<HTMLFormElement>) => {
     submitEvent.preventDefault();
-    if (!id) return;
-
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
-      return;
-    }
-
-    setIsSaving(true);
+    setPendingAction('save');
     setError('');
-
     try {
-      await updateEvent(id, {
-        title: title.trim(),
-        description,
-        rulesMode,
-        maxEntriesPerParticipant: Math.max(0, Math.trunc(maxEntriesPerParticipant || 0)),
-        requiresInterestBeforeAction,
-        startsAt: toIsoDate(startsAt),
-        endsAt: toIsoDate(endsAt),
-        prizeType: prizeTypeSelect === 'outro' ? (prizeTypeOther.trim() || undefined) : (prizeTypeSelect || undefined),
-        prizeDescription: prizeDescription.trim() || undefined,
-      });
-
-      await syncRules(id);
-      navigate(`/events/${id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('editSaveError'));
+      const saved = await saveDraft();
+      if (saved) addToast('success', 'Rascunho salvo.');
+    } catch (saveError) {
+      setError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar o rascunho.');
     } finally {
-      setIsSaving(false);
+      setPendingAction(null);
     }
   };
 
-  if (isLoading) {
-    return <div className="empty">{t('eventLoading')}</div>;
-  }
+  const handleOpen = async () => {
+    if (!id) return;
+    setPendingAction('open');
+    setError('');
+    try {
+      const saved = await saveDraft();
+      if (!saved) return;
+      const opened = await openEvent(id);
+      applyEvent(opened);
+      setConfirmOpen(false);
+      addToast('success', 'Captura aberta. O hub já está acompanhando o comando no chat.');
+    } catch (openError) {
+      setError(openError instanceof Error ? openError.message : 'Não foi possível abrir a captura.');
+    } finally {
+      setPendingAction(null);
+    }
+  };
 
-  if (!event && error) {
+  const handleFinalize = async (): Promise<boolean> => {
+    if (!id) return false;
+    setPendingAction('finalize');
+    setError('');
+    try {
+      const finalized = await finalizeEvent(id);
+      applyEvent(finalized);
+      if (finalized.status === 'FINALIZING') {
+        addToast('warning', 'Finalização iniciada. A última sincronização está em andamento.');
+      } else {
+        addToast('success', 'Pool registrado. O evento está pronto para o sorteio.');
+      }
+      return true;
+    } catch (finalizeError) {
+      setError(finalizeError instanceof Error ? finalizeError.message : 'Não foi possível finalizar o evento.');
+      return false;
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  const handleCancel = async () => {
+    if (!id) return;
+    setPendingAction('cancel');
+    setError('');
+    try {
+      const cancelled = await cancelEvent(id);
+      applyEvent(cancelled);
+      setConfirmCancel(false);
+      addToast('success', event?.status === 'OPEN' ? 'Evento aberto cancelado.' : 'Rascunho cancelado.');
+    } catch (cancelError) {
+      setError(cancelError instanceof Error ? cancelError.message : 'Não foi possível cancelar o evento.');
+    } finally {
+      setPendingAction(null);
+    }
+  };
+
+  if (isLoading) return <div className="empty" role="status">Carregando central do giveaway...</div>;
+
+  if (!event) {
     return (
-      <div style={{ maxWidth: 760 }}>
-        <h1 className="page-title">{t('editTitle')}</h1>
-        <div className="toast toast-error" style={{ position: 'static', marginBottom: 24 }}>{error}</div>
-        <button type="button" className="btn btn-secondary" onClick={() => navigate(-1)}>{t('back')}</button>
+      <div className="hub-page">
+        <div className="notice notice-danger" role="alert">{error || 'Giveaway não encontrado.'}</div>
+        <button type="button" className="btn btn-secondary" onClick={() => navigate('/my-events')}>Voltar aos meus giveaways</button>
       </div>
     );
   }
 
-  return (
-    <div style={{ maxWidth: 760 }}>
-      <h1 className="page-title">{t('editTitle')}</h1>
-      <p className="page-subtitle">{t('editSubtitle')}</p>
+  const busy = pendingAction !== null;
 
-      {!isDraft && (
-        <div className="toast toast-warning" style={{ position: 'static', marginBottom: 24 }}>
-          {t('statusDraftOnly', { status: event?.status || '' })}
+  return (
+    <div className="hub-page">
+      <header className="page-hero">
+        <div>
+          <span className={`pill pill--${event.status.toLowerCase()}`}>{statusLabel(event.status)}</span>
+          <h1 className="page-title">{event.title}</h1>
+          <p>Central de controle do giveaway</p>
+        </div>
+        <Link className="btn btn-secondary" to={`/events/${event.id}`}>Ver página pública</Link>
+      </header>
+
+      <Lifecycle status={event.status} />
+      {error && <div className="notice notice-danger" role="alert">{error}</div>}
+
+      {event.status === 'DRAFT' && (
+        <form className="control-grid" onSubmit={handleSave} noValidate>
+          <section className="control-card">
+            <div className="section-label">Rascunho</div>
+            <div className="form-group">
+              <label htmlFor="manage-title">Título</label>
+              <input id="manage-title" value={title} onChange={(change) => setTitle(change.target.value)} maxLength={140} disabled={busy} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="manage-prize">Prêmio</label>
+              <input id="manage-prize" value={prize} onChange={(change) => setPrize(change.target.value)} maxLength={180} disabled={busy} />
+            </div>
+            <div className="form-group">
+              <label htmlFor="manage-description">Descrição</label>
+              <textarea id="manage-description" value={description} onChange={(change) => setDescription(change.target.value)} maxLength={2_000} disabled={busy} />
+            </div>
+          </section>
+
+          <section className="control-card">
+            <div className="section-label">Captura</div>
+            <div className="form-group">
+              <label htmlFor="manage-command">Comando exato do chat</label>
+              <input
+                id="manage-command"
+                className="signal-command"
+                value={entryCommand}
+                onChange={(change) => setEntryCommand(change.target.value)}
+                maxLength={80}
+                autoComplete="off"
+                spellCheck={false}
+                disabled={busy}
+              />
+            </div>
+            <div className="form-group">
+              <label htmlFor="manage-channel">Canal vinculado</label>
+              <input
+                id="manage-channel"
+                value={event.creatorChannelSlug ? `@${event.creatorChannelSlug}` : event.creatorChannelId}
+                readOnly
+                disabled
+              />
+              <span className="form-helper">O ID é o canal real resolvido pela Blaze e não pode ser trocado depois da criação.</span>
+            </div>
+          </section>
+
+          <section className="control-card">
+            <div className="section-label">Agenda opcional</div>
+            <div className="form-row">
+              <div className="form-group">
+                <label htmlFor="manage-starts-at">Início previsto</label>
+                <input id="manage-starts-at" type="datetime-local" value={startsAt} onChange={(change) => setStartsAt(change.target.value)} disabled={busy} />
+              </div>
+              <div className="form-group">
+                <label htmlFor="manage-ends-at">Encerramento previsto</label>
+                <input id="manage-ends-at" type="datetime-local" value={endsAt} onChange={(change) => setEndsAt(change.target.value)} disabled={busy} />
+              </div>
+            </div>
+            {dateError && <span className="form-helper form-helper--err" role="alert">{dateError}</span>}
+          </section>
+
+          <section className="control-card">
+            <div className="section-label">Próximo passo</div>
+            <p>Ao abrir, o título, o prêmio, o canal e o comando ficam travados para manter a captura consistente.</p>
+            <div className="form-actions">
+              <button type="submit" className="btn btn-secondary" disabled={busy}>
+                <Save size={16} aria-hidden="true" />
+                {pendingAction === 'save' ? 'Salvando...' : 'Salvar rascunho'}
+              </button>
+              <button type="button" className="btn btn-primary" onClick={() => setConfirmOpen(true)} disabled={busy || Boolean(formError())}>
+                <Radio size={16} aria-hidden="true" /> Abrir captura
+              </button>
+              <button type="button" className="btn btn-danger" onClick={() => setConfirmCancel(true)} disabled={busy}>
+                <Ban size={16} aria-hidden="true" /> Cancelar evento
+              </button>
+            </div>
+          </section>
+        </form>
+      )}
+
+      {(event.status === 'OPEN' || event.status === 'FINALIZING') && (
+        <OpenEventPanel
+          event={event}
+          finalizing={pendingAction === 'finalize'}
+          onFinalize={handleFinalize}
+          onCancel={() => setConfirmCancel(true)}
+          onEventUpdate={applyEvent}
+        />
+      )}
+
+      {event.status === 'CLOSED' && (
+        <div className="control-grid">
+          <section className="control-card">
+            <ShieldCheck size={28} aria-hidden="true" />
+            <div className="section-label">Pool final registrado</div>
+            <h2>{event.finalizedParticipantCount} participantes</h2>
+            <p>Novas mensagens já não alteram o pool. O hash abaixo é o identificador técnico registrado para este conjunto.</p>
+            <code className="signal-command">{event.finalizedPoolHash || 'Hash indisponível'}</code>
+          </section>
+          <section className="control-card">
+            <div className="section-label">Pronto para sortear</div>
+            <p>O sorteio será executado uma única vez e o resultado persistido ficará público.</p>
+            <Link className="btn btn-primary btn-lg" to={`/events/${event.id}/draw`}>
+              Ir para o sorteio <ArrowRight size={17} aria-hidden="true" />
+            </Link>
+          </section>
         </div>
       )}
 
-      {error && <div className="toast toast-error" style={{ position: 'static', marginBottom: 24 }}>{error}</div>}
+      {event.status === 'COMPLETED' && (
+        <section className="control-card">
+          <Trophy size={32} aria-hidden="true" />
+          <div className="section-label">Sorteio concluído</div>
+          <h2>O resultado já está publicado</h2>
+          <p>Consulte o vencedor e os dados técnicos registrados pelo sorteio.</p>
+          <Link className="btn btn-primary" to={`/events/${event.id}/result`}>
+            Ver resultado <ArrowRight size={17} aria-hidden="true" />
+          </Link>
+        </section>
+      )}
 
-      <form onSubmit={handleSubmit} autoComplete="off">
-        <div className="form-section">
-          <label className="form-label" htmlFor="event-title">{t('title')}</label>
-          <div className="form-field">
-            <input
-              id="event-title"
-              value={title}
-              onChange={(changeEvent) => setTitle(changeEvent.target.value)}
-              placeholder={t('titlePh')}
-              disabled={disabled}
-              required
-            />
-          </div>
-        </div>
+      {event.status === 'CANCELLED' && (
+        <section className="control-card">
+          <Ban size={28} aria-hidden="true" />
+          <div className="section-label">Evento cancelado</div>
+          <h2>Este evento foi encerrado</h2>
+          <p>Ele permanece disponível somente para consulta e não pode ser reaberto.</p>
+          <Link className="btn btn-secondary" to="/my-events">Voltar aos meus giveaways</Link>
+        </section>
+      )}
 
-        <div className="form-section">
-          <label className="form-label" htmlFor="event-description">{t('description')}</label>
-          <div className="form-field">
-            <textarea
-              id="event-description"
-              value={description}
-              onChange={(changeEvent) => setDescription(changeEvent.target.value)}
-              placeholder={t('descPh')}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-
-        <div className="form-section">
-          <div className="section-label">{t('prizeSection')}</div>
-          <label className="form-label" htmlFor="event-prize-type">{t('prizeType')}</label>
-          <div className="form-field">
-            <select
-              id="event-prize-type"
-              value={prizeTypeSelect}
-              onChange={(changeEvent) => setPrizeTypeSelect(changeEvent.target.value)}
-              disabled={disabled}
-            >
-              <option value="">{t('prizeType')}</option>
-              <option value="bits">{t('prizeOptBits')}</option>
-              <option value="pix">{t('prizeOptPix')}</option>
-              <option value="steam">{t('prizeOptSteam')}</option>
-              <option value="giftcard">{t('prizeOptGiftcard')}</option>
-              <option value="physical">{t('prizeOptPhysical')}</option>
-              <option value="outro">{t('prizeTypeOther')}</option>
-            </select>
-          </div>
-          {prizeTypeSelect === 'outro' && (
-            <div className="form-field" style={{ marginTop: 12 }}>
-              <input
-                id="event-prize-type-other"
-                value={prizeTypeOther}
-                onChange={(changeEvent) => setPrizeTypeOther(changeEvent.target.value)}
-                placeholder={t('prizeTypeOtherPh')}
-                disabled={disabled}
-                maxLength={80}
-              />
-            </div>
-          )}
-          <div className="form-field" style={{ marginTop: 12 }}>
-            <textarea
-              id="event-prize-description"
-              value={prizeDescription}
-              onChange={(changeEvent) => setPrizeDescription(changeEvent.target.value)}
-              placeholder={t('prizeDescPh')}
-              disabled={disabled}
-            />
-          </div>
-        </div>
-
-        <div className="form-section">
-          <label className="form-label" htmlFor="event-channel">{t('channelBlaze')}</label>
-          <div className="form-field form-field--ok">
-            <input id="event-channel" value={channelLabel} readOnly disabled />
-          </div>
-          <div className="channel-preview">
-            <div
-              aria-hidden="true"
-              style={{
-                width: 40,
-                height: 40,
-                borderRadius: '50%',
-                background: 'var(--accent-bg)',
-                color: 'var(--accent-light)',
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'center',
-                fontWeight: 600,
-                flexShrink: 0,
-              }}
-            >
-              {channelLabel[0]?.toUpperCase() || '?'}
-            </div>
-            <div>
-              <div className="ch-name">{channelLabel}</div>
-              <div className="ch-meta">
-                {t('readonly')}
-                <span style={{ opacity: 0.35 }}>.</span>
-                <span className="ch-id">{event?.creatorChannelId}</span>
-              </div>
-            </div>
-          </div>
-          <div className="form-helper">{t('channelReadonly')}</div>
-        </div>
-
-        <div className="form-section">
-          <div className="form-row">
-            <div>
-              <label className="form-label" htmlFor="event-rules-mode">{t('rulesMode')}</label>
-              <div className="form-field">
-                <select
-                  id="event-rules-mode"
-                  value={rulesMode}
-                  onChange={(changeEvent) => setRulesMode(changeEvent.target.value)}
-                  disabled={disabled}
-                >
-                  <option value="tier">{t('modeTier')}</option>
-                  <option value="cumulative">{t('modeCumulative')}</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="form-label" htmlFor="event-max-entries">{t('maxEntries')}</label>
-              <div className="form-field">
-                <input
-                  id="event-max-entries"
-                  type="number"
-                  min={0}
-                  value={maxEntriesPerParticipant || ''}
-                  onChange={(changeEvent) => setMaxEntriesPerParticipant(Number(changeEvent.target.value) || 0)}
-                  placeholder={t('maxEntriesPh')}
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-          </div>
-        </div>
-
-        <div className="form-section">
-          <div className="form-row">
-            <div>
-              <label className="form-label" htmlFor="event-starts-at">{t('startAt')}</label>
-              <div className="form-field">
-                <input
-                  id="event-starts-at"
-                  type="datetime-local"
-                  value={startsAt}
-                  onChange={(changeEvent) => setStartsAt(changeEvent.target.value)}
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="form-label" htmlFor="event-ends-at">{t('endAt')}</label>
-              <div className="form-field">
-                <input
-                  id="event-ends-at"
-                  type="datetime-local"
-                  value={endsAt}
-                  onChange={(changeEvent) => setEndsAt(changeEvent.target.value)}
-                  disabled={disabled}
-                />
-              </div>
-            </div>
-          </div>
-          {dateError && <div className="form-helper form-helper--err">{dateError}</div>}
-        </div>
-
-        <div className="form-section">
-          <label className="flex items-center gap-sm" style={{ color: 'var(--fg2)' }}>
-            <input
-              type="checkbox"
-              checked={requiresInterestBeforeAction}
-              onChange={(changeEvent) => setRequiresInterestBeforeAction(changeEvent.target.checked)}
-              disabled={disabled}
-            />
-            {t('requiresInterest')}
-          </label>
-        </div>
-
-        <div className="form-section">
-          <div className="section-header" style={{ marginBottom: 12 }}>
-            <label className="form-label" style={{ margin: 0 }}>{t('rulesOfEntries')}</label>
-            <button type="button" className="btn-add-rule" onClick={addRule} disabled={disabled}>
-              {t('addRule')}
+      <Modal
+        open={confirmOpen}
+        onClose={() => setConfirmOpen(false)}
+        title="Abrir a captura agora?"
+        footer={(
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmOpen(false)} disabled={busy}>Ainda não</button>
+            <button type="button" className="btn btn-primary" onClick={() => void handleOpen()} disabled={busy}>
+              <Radio size={16} aria-hidden="true" /> {pendingAction === 'open' ? 'Abrindo...' : 'Abrir captura'}
             </button>
-          </div>
+          </>
+        )}
+      >
+        <p>O hub começará a aceitar <strong>{entryCommand}</strong> no canal vinculado. Os dados do evento ficarão travados durante a captura.</p>
+      </Modal>
 
-          <div className="flex flex-col gap-sm">
-            {rules.map((rule, index) => (
-              <div className="rule-card" key={rule.clientKey}>
-                <span className="r-sep">{t('each')}</span>
-                <input
-                  className="r-input"
-                  type="number"
-                  min={1}
-                  value={rule.thresholdAmount || ''}
-                  onChange={(changeEvent) => updateRule(index, 'thresholdAmount', Number(changeEvent.target.value) || 0)}
-                  disabled={disabled}
-                />
-                <select
-                  className="r-input"
-                  style={{ width: 132 }}
-                  value={rule.actionType}
-                  onChange={(changeEvent) => updateRule(index, 'actionType', changeEvent.target.value as ActionType)}
-                  disabled={disabled}
-                >
-                  {ACTION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
-                  ))}
-                </select>
-                <span className="r-sep">{t('equals')}</span>
-                <input
-                  className="r-input"
-                  type="number"
-                  min={1}
-                  value={rule.entries || ''}
-                  onChange={(changeEvent) => updateRule(index, 'entries', Number(changeEvent.target.value) || 0)}
-                  disabled={disabled}
-                />
-                <span className="r-sep">
-                  {t('ruleEntriesPerAction', {
-                    entries: rule.entries,
-                    entryLabel: t('entriesUnit'),
-                    action: actionUnit(t, rule.actionType),
-                  })}
-                </span>
-                <button
-                  type="button"
-                  className="r-close"
-                  onClick={() => removeRule(index)}
-                  disabled={disabled || rules.length === 1}
-                  aria-label={t('removeRule')}
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
-          {rulesError && <div className="form-helper form-helper--err">{rulesError}</div>}
-        </div>
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-lg" disabled={!canSave}>
-            {isSaving ? t('saving') : t('saveChanges')}
-          </button>
-          <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(`/events/${id}`)} disabled={isSaving}>
-            {t('cancel')}
-          </button>
-        </div>
-      </form>
+      <Modal
+        open={confirmCancel}
+        onClose={() => setConfirmCancel(false)}
+        title={event.status === 'OPEN' ? 'Cancelar este evento aberto?' : 'Cancelar este rascunho?'}
+        footer={(
+          <>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmCancel(false)} disabled={busy}>
+              {event.status === 'OPEN' ? 'Manter captura' : 'Manter rascunho'}
+            </button>
+            <button type="button" className="btn btn-danger" onClick={() => void handleCancel()} disabled={busy}>
+              <Ban size={16} aria-hidden="true" /> {pendingAction === 'cancel' ? 'Cancelando...' : 'Cancelar evento'}
+            </button>
+          </>
+        )}
+      >
+        <p>
+          {event.status === 'OPEN'
+            ? 'A captura será interrompida e as entradas deste evento não seguirão para sorteio. Esta ação não pode ser desfeita.'
+            : 'O evento ficará somente para leitura e não poderá ser aberto depois.'}
+        </p>
+      </Modal>
     </div>
   );
 }

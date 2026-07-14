@@ -1,0 +1,28 @@
+spring:
+  config:
+    activate:
+      on-profile: prod
+  datasource:
+    url: ${EVENTHUB_DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${EVENTHUB_DB_USER}
+    password: ${EVENTHUB_DB_PASSWORD}
+    hikari:
+      maximum-pool-size: ${EVENTHUB_DB_POOL_SIZE:5}
+      minimum-idle: ${EVENTHUB_DB_MIN_IDLE:1}
+      connection-timeout: 10000
+      validation-timeout: 5000
+      initialization-fail-timeout: 1
+  flyway:
+    locations: classpath:db/migration/common,classpath:db/migration/postgresql
+    connect-retries: 3
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: ${EVENTHUB_SESSION_COOKIE_SECURE:true}
+
+eventhub:
+  blaze:
+    redirect-uri: ${BLAZE_REDIRECT_URI}

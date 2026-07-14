@@ -2,100 +2,136 @@ import '@testing-library/jest-dom/vitest';
 import { cleanup } from '@testing-library/react';
 import { afterEach, beforeEach, vi } from 'vitest';
 
-const json = (value: unknown) =>
-  Promise.resolve(new Response(JSON.stringify(value), {
-    status: 200,
+const now = '2026-07-14T12:00:00Z';
+
+function response(value: unknown, status = 200) {
+  return Promise.resolve(new Response(JSON.stringify(value), {
+    status,
     headers: { 'Content-Type': 'application/json' },
   }));
+}
 
-const now = '2026-06-29T12:00:00Z';
+const member = {
+  id: 'member-1',
+  blazeUserId: 'blaze-creator-1',
+  blazeUsername: 'sofia',
+  displayName: 'Sofia',
+  avatarUrl: null,
+  status: 'active',
+};
 
-const responses: Record<string, unknown> = {
-  '/api/status': {
-    appName: 'Blaze Event Hub',
-    version: '0.1.0',
-    javaVersion: '21',
-    blazeOAuthConfigured: true,
-    eventsRunning: false,
-    sessionIdPresent: false,
-    oauthConnected: true,
-    profilePresent: true,
-    connectedAccountDisplayName: 'Sofia',
-    uptimeSeconds: 120,
-    nextRecommendedAction: null,
-  },
-  '/api/blaze/oauth/session': {
-    connected: true,
-    tokenPresent: true,
-    profilePresent: true,
-    scopes: ['users.read'],
-    nextRecommendedAction: null,
-  },
-  '/api/blaze/oauth/start': {
-    authorizationUrl: 'https://example.com/auth',
-  },
-  '/api/members/me': {
-    id: 'user-1',
-    blazeUserId: 'blaze-1',
-    blazeUsername: 'sofia',
-    displayName: 'Sofia',
-    avatarUrl: null,
-    status: 'ACTIVE',
-  },
-  '/api/events': [],
-  '/api/events/my/history': {
-    drafts: [],
-    upcoming: [],
-    past: [],
-  },
-  '/api/events/event-1': {
-    id: 'event-1',
-    creatorMemberId: 'user-1',
-    creatorChannelId: 'blaze-1',
-    title: 'Sorteio de teste',
-    description: 'Evento usado pelo smoke test.',
-    status: 'CLOSED',
-    rulesMode: 'tier',
-    maxEntriesPerParticipant: 0,
-    requiresInterestBeforeAction: false,
-    startsAt: null,
-    endsAt: null,
-    rules: [],
-  },
-  '/api/events/event-1/stats': {
-    totalVotes: 10,
-    totalSubs: 1,
-    totalGiftedSubs: 0,
-    participants: 1,
-    totalEntries: 10,
-    last24h: {
-      votes: 10,
-      subs: 1,
-      giftedSubs: 0,
-    },
-  },
-  '/api/events/event-1/interest/participants': [
-    {
-      memberId: 'user-1',
-      blazeUsername: 'sofia',
-      displayName: 'Sofia',
-      status: 'ACTIVE',
-      lastCalculatedEntries: 10,
-    },
-  ],
+const event = {
+  id: 'event-1',
+  creatorChannelId: 'channel-1',
+  creatorChannelSlug: 'sofia',
+  creatorChannelDisplayName: 'Sofia',
+  creatorChannelAvatarUrl: null,
+  title: 'Giveaway de teste',
+  description: 'Evento usado pelos testes do fluxo principal.',
+  prize: 'Gift card de R$ 100',
+  entryCommand: '!participar',
+  status: 'closed',
+  finalizedParticipantCount: 1,
+  finalizedPoolHash: 'a'.repeat(64),
+  startsAt: null,
+  endsAt: null,
+  createdAt: now,
+  updatedAt: now,
+  openedAt: now,
+  finalizationCutoffAt: now,
+  closedAt: now,
+  completedAt: null,
+};
+
+const stats = {
+  eventId: 'event-1',
+  status: 'closed',
+  participantCount: 1,
+  finalizedParticipantCount: 1,
+  captureActive: false,
+  captureHealth: 'INACTIVE',
+  lastPolledAt: now,
+  lastSuccessfulPollAt: now,
+  lastErrorCode: null,
+  canFinalize: false,
+  canDraw: true,
+  openedAt: now,
+  closedAt: now,
+  completedAt: null,
+};
+
+const participant = {
+  blazeUserId: 'viewer-1',
+  blazeUsername: 'viewer',
+  displayName: 'Viewer One',
+  enteredAt: now,
+};
+
+const drawResult = {
+  eventId: 'event-1',
+  winnerUsername: participant.blazeUsername,
+  winnerDisplayName: participant.displayName,
+  drawSeed: '123456',
+  drawMethod: 'uniform_blaze_participants_v1',
+  poolHash: event.finalizedPoolHash,
+  participantCount: 1,
+  selectedAt: now,
 };
 
 beforeEach(() => {
   localStorage.clear();
-  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-    const url = typeof input === 'string' ? input : input.toString();
-    const path = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0];
-    return json(responses[path] ?? {});
+  vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL, options?: RequestInit) => {
+    const raw = typeof input === 'string' ? input : input.toString();
+    const url = new URL(raw, 'http://localhost');
+    const path = url.pathname;
+
+    if (path === '/api/blaze/oauth/session') {
+      return response({
+        connected: true,
+        tokenPresent: true,
+        profilePresent: true,
+        profile: {
+          id: member.blazeUserId,
+          username: member.blazeUsername,
+          displayName: member.displayName,
+          avatarUrl: null,
+        },
+        scopes: ['users.read', 'offline.access'],
+        nextRecommendedAction: null,
+      });
+    }
+    if (path === '/api/blaze/oauth/start') return response({ authorizationUrl: 'https://example.com/oauth' });
+    if (path === '/api/blaze/oauth/disconnect') return response({ disconnected: true, message: 'Conta desconectada.' });
+    if (path === '/api/members/me') return response(member);
+    if (path === '/api/blaze/channels/resolve') {
+      return response({ id: 'channel-1', slug: url.searchParams.get('slug') || 'sofia', displayName: 'Canal da Sofia', avatarUrl: null });
+    }
+    if (path === '/api/events') return response([]);
+    if (path === '/api/events/my/history') return response({ drafts: [], active: [], past: [] });
+    if (path === '/api/events/event-1') return response(event);
+    if (path === '/api/events/event-1/stats') return response(stats);
+    if (path === '/api/events/event-1/participants') return response([participant]);
+    if (path === '/api/events/event-1/draw' && options?.method === 'POST') return response(drawResult);
+    if (path === '/api/events/event-1/winner') return response({ code: 'NOT_FOUND', message: 'Resultado ainda não existe.' }, 404);
+    return response({});
   }));
+
+  Object.defineProperty(window, 'matchMedia', {
+    configurable: true,
+    value: vi.fn().mockImplementation((query: string) => ({
+      matches: false,
+      media: query,
+      onchange: null,
+      addEventListener: vi.fn(),
+      removeEventListener: vi.fn(),
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      dispatchEvent: vi.fn(),
+    })),
+  });
+
   Object.assign(navigator, {
-    clipboard: {
-      writeText: vi.fn(),
-    },
+    clipboard: { writeText: vi.fn() },
   });
 });
 

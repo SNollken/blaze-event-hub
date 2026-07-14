@@ -1,5 +1,5 @@
 import { useEffect, useState, type ReactNode } from 'react';
-import { Navigate } from 'react-router-dom';
+import { Navigate, useLocation } from 'react-router-dom';
 import { getOAuthSession } from '../api/client';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -12,6 +12,7 @@ type AuthStatus = 'loading' | 'ok' | 'denied';
  */
 export default function RequireAuth({ children }: { children: ReactNode }) {
   const { t } = useI18n();
+  const location = useLocation();
   const [status, setStatus] = useState<AuthStatus>('loading');
 
   useEffect(() => {
@@ -33,7 +34,13 @@ export default function RequireAuth({ children }: { children: ReactNode }) {
   }
 
   if (status === 'denied') {
-    return <Navigate to="/login" replace />;
+    return (
+      <Navigate
+        to="/login"
+        replace
+        state={{ from: `${location.pathname}${location.search}${location.hash}` }}
+      />
+    );
   }
 
   return <>{children}</>;

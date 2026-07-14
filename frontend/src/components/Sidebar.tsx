@@ -1,163 +1,187 @@
-import { NavLink } from 'react-router-dom';
-import { useState, useEffect, useRef } from 'react';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { NavLink, useNavigate } from 'react-router-dom';
+import { disconnectOAuth, getMe, getOAuthSession } from '../api/client';
+import type { MemberProfile, OAuthSessionResponse } from '../api/client';
+import { AUTH_SESSION_CHANGED_EVENT, notifyAuthSessionChanged } from '../auth-session';
 import { useI18n } from '../i18n/I18nContext';
-import { getOAuthSession, getMe } from '../api/client';
-import type { OAuthSessionResponse, MemberProfile } from '../api/client';
 
 const navItems = [
-  { to: '/', labelKey: 'navDashboard' as const, icon: 'dashboard' },
+  { to: '/', labelKey: 'navDashboard' as const, icon: 'explore' },
   { to: '/events/create', labelKey: 'navCreate' as const, icon: 'plus' },
-  { to: '/events', labelKey: 'navAllEvents' as const, icon: 'calendar' },
-  { to: '/my-events', labelKey: 'navMyEvents' as const, icon: 'users' },
+  { to: '/my-events', labelKey: 'navMyEvents' as const, icon: 'events' },
+  { to: '/settings/blaze', labelKey: 'navStudioChannel' as const, icon: 'link' },
 ];
 
 const icons: Record<string, JSX.Element> = {
-  dashboard: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/>
-      <rect x="3" y="14" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/>
-    </svg>
-  ),
-  plus: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <circle cx="12" cy="12" r="9"/><path d="M12 8v8M8 12h8"/>
-    </svg>
-  ),
-  calendar: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <rect x="3" y="4" width="18" height="18" rx="2"/><path d="M3 10h18M8 2v4M16 2v4"/>
-    </svg>
-  ),
-  users: (
-    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-      <path d="M16 21v-2a4 4 0 00-4-4H6a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/>
-      <path d="M22 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/>
-    </svg>
-  ),
+  explore: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="m15.5 8.5-2.2 4.8-4.8 2.2 2.2-4.8 4.8-2.2Z" /></svg>,
+  plus: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M12 8v8M8 12h8" /></svg>,
+  events: <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 3v4M16 3v4M5 9h14" /></svg>,
+  link: <svg viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9M7.5 16.5l-1 1a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0M16.5 7.5l1-1a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0" /></svg>,
 };
 
 interface SidebarProps {
   open: boolean;
+  mobile?: boolean;
   onClose: () => void;
 }
 
-export function Sidebar({ open, onClose }: SidebarProps) {
+export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
   const { t } = useI18n();
+  const navigate = useNavigate();
   const [oauth, setOAuth] = useState<OAuthSessionResponse | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [menuOpen, setMenuOpen] = useState(false);
+  const [logoutError, setLogoutError] = useState('');
+  const sidebarRef = useRef<HTMLElement>(null);
   const menuRef = useRef<HTMLDivElement>(null);
+  const profileButtonRef = useRef<HTMLButtonElement>(null);
+
+  useLayoutEffect(() => {
+    const sidebar = sidebarRef.current;
+    if (!sidebar) return;
+    if (mobile && !open) sidebar.setAttribute('inert', '');
+    else sidebar.removeAttribute('inert');
+  }, [mobile, open]);
 
   useEffect(() => {
-    let alive = true;
-    getOAuthSession()
-      .then(async (s) => {
-        if (!alive) return;
-        setOAuth(s);
-        if (s.connected && s.profilePresent) {
-          try {
-            const m = await getMe();
-            if (alive) setMember(m);
-          } catch { /* ignore */ }
+    if (mobile && !open) setMenuOpen(false);
+  }, [mobile, open]);
+
+  useEffect(() => {
+    let active = true;
+    const loadAccount = () => getOAuthSession()
+      .then(async (session) => {
+        if (!active) return;
+        setOAuth(session);
+        if (!session.connected) {
+          setMember(null);
+          return;
+        }
+        try {
+          const profile = await getMe();
+          if (active) setMember(profile);
+        } catch {
+          // O resumo OAuth ainda permite renderizar a conta conectada.
         }
       })
-      .catch(() => {});
-    return () => { alive = false; };
+      .catch(() => undefined);
+    const handleSessionChanged = () => void loadAccount();
+
+    void loadAccount();
+    window.addEventListener(AUTH_SESSION_CHANGED_EVENT, handleSessionChanged);
+    return () => {
+      active = false;
+      window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, handleSessionChanged);
+    };
   }, []);
 
-  // Close dropdown on outside click
   useEffect(() => {
     if (!menuOpen) return;
-    function handleClick(e: MouseEvent) {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    }
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
+    const handlePointer = (event: MouseEvent) => {
+      if (!menuRef.current?.contains(event.target as Node)) setMenuOpen(false);
+    };
+    const handleKey = (event: KeyboardEvent) => {
+      if (event.key !== 'Escape') return;
+      event.preventDefault();
+      setMenuOpen(false);
+      window.requestAnimationFrame(() => profileButtonRef.current?.focus());
+    };
+    document.addEventListener('mousedown', handlePointer);
+    window.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('mousedown', handlePointer);
+      window.removeEventListener('keydown', handleKey);
+    };
   }, [menuOpen]);
 
   const connected = oauth?.connected === true;
-  const name = member?.displayName || oauth?.profile?.displayName || oauth?.profile?.username || '';
+  const name = member?.displayName
+    || oauth?.profile?.displayName
+    || oauth?.profile?.username
+    || 'Criador Blaze';
   const avatarUrl = member?.avatarUrl || oauth?.profile?.avatarUrl || null;
 
-  const handleLogout = async (e: React.MouseEvent) => {
-    e.stopPropagation();
+  const handleLogout = async () => {
     setMenuOpen(false);
+    setLogoutError('');
     try {
-      await fetch('/api/blaze/oauth/logout', { method: 'POST' });
-    } catch { /* ignore */ }
-    window.location.href = '/login';
-  };
-
-  const handleNavClick = () => {
-    onClose();
+      await disconnectOAuth();
+      setOAuth(null);
+      setMember(null);
+      notifyAuthSessionChanged();
+      navigate('/login', { replace: true });
+    } catch {
+      setLogoutError(t('logoutError'));
+    }
   };
 
   return (
-    <aside id="sidebar" className={open ? 'open' : undefined}>
-      {/* Brand */}
+    <aside
+      ref={sidebarRef}
+      id="sidebar"
+      className={open ? 'open' : undefined}
+      aria-label="Navegação principal"
+      aria-hidden={mobile && !open ? true : undefined}
+    >
       <div className="sb-brand">
-        <NavLink to="/" className="sb-logo" onClick={handleNavClick}>
-          <span className="logo-icon">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-              <rect x="3" y="4" width="18" height="18" rx="2"/>
-              <path d="M3 10h18M8 2v4M16 2v4"/>
-              <circle cx="12" cy="16" r="2" fill="currentColor" stroke="none"/>
-            </svg>
+        <NavLink to="/" className="sb-logo" onClick={onClose}>
+          <span className="logo-icon" aria-hidden="true">
+            <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 3v4M16 3v4M5 9h14" /><circle cx="12" cy="14" r="2" /></svg>
           </span>
-          {t('dashTitle')}
+          <span>Blaze Event Hub</span>
         </NavLink>
-        <div className="sb-sub">{t('brandSub')}</div>
+        <p className="sb-sub">Giveaways do chat, do início ao resultado.</p>
+        <button type="button" className="sidebar-close" onClick={onClose} aria-label="Fechar navegação">Fechar</button>
       </div>
 
-      {/* Navigation */}
-      <nav className="sb-nav">
+      <nav className="sb-nav" aria-label="Seções do produto">
+        <span className="sb-nav-label">Central de giveaways</span>
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
-            onClick={handleNavClick}
+            onClick={onClose}
             className={({ isActive }) => isActive ? 'active' : ''}
           >
-            <span style={{ opacity: 0.5, display: 'flex' }}>{icons[item.icon]}</span>
+            <span className="sb-nav-icon" aria-hidden="true">{icons[item.icon]}</span>
             {t(item.labelKey)}
           </NavLink>
         ))}
       </nav>
 
-      {/* Footer */}
       <div className="sb-footer">
-        {connected && name ? (
-          <div ref={menuRef} style={{ position: 'relative', width: '100%' }}>
-            <button className="sb-profile" onClick={() => setMenuOpen(!menuOpen)}>
-              <div className="sb-pfp">
-                {avatarUrl ? (
-                  <img src={avatarUrl} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
-                ) : (
-                  name[0]?.toUpperCase()
-                )}
-              </div>
-              <div className="sb-profile-info">
+        {connected ? (
+          <div ref={menuRef} className="sb-account">
+            <button
+              ref={profileButtonRef}
+              type="button"
+              className="sb-profile"
+              onClick={() => setMenuOpen((current) => !current)}
+              aria-haspopup="menu"
+              aria-expanded={menuOpen}
+              aria-controls="sidebar-profile-menu"
+            >
+              <span className="sb-pfp">
+                {avatarUrl ? <img src={avatarUrl} alt="" /> : name[0]?.toUpperCase()}
+              </span>
+              <span className="sb-profile-info">
                 <span className="sb-username">{name}</span>
-                <span className="sb-status">{t('sbConnected')}</span>
-              </div>
+                <span className="sb-status">Blaze conectada</span>
+              </span>
             </button>
-
-            <div className={`sb-profile-menu${menuOpen ? ' show' : ''}`}>
-              <button onClick={handleLogout}>
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
-                  <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/>
-                  <polyline points="16 17 21 12 16 7"/>
-                  <line x1="21" y1="12" x2="9" y2="12"/>
-                </svg>
-                {t('sbLogout')}
-              </button>
+            <div
+              id="sidebar-profile-menu"
+              className={`sb-profile-menu${menuOpen ? ' show' : ''}`}
+              role="menu"
+              hidden={!menuOpen}
+            >
+              <button type="button" role="menuitem" onClick={() => void handleLogout()}>{t('sbLogout')}</button>
             </div>
+            {logoutError && <p className="sb-error" role="alert">{logoutError}</p>}
           </div>
         ) : (
-          <span className="sb-version">v1.0</span>
+          <NavLink className="sb-connect" to="/login" onClick={onClose}>Conectar Blaze</NavLink>
         )}
       </div>
     </aside>

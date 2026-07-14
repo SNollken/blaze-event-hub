@@ -3,8 +3,8 @@ package com.blaze.eventhub.event;
 public enum EventStatus {
     DRAFT,
     OPEN,
+    FINALIZING,
     CLOSED,
-    DRAWING,
     COMPLETED,
     CANCELLED;
 

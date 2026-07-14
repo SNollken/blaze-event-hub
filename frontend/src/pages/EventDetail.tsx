@@ -1,422 +1,344 @@
-import { useCallback, useEffect, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useCallback, useEffect, useMemo, useState } from 'react';
+import { Link, useParams } from 'react-router-dom';
 import {
-  cancelEvent,
-  closeEvent,
-  executeDraw,
-  expressInterest,
-  getEntries,
   getEvent,
+  getEventResult,
   getEventStats,
-  getParticipants,
-  getWinner,
-  openEvent,
-  recalculate,
-  withdrawInterest,
+  type EventLifecycleStats,
+  type EventResponse,
+  type EventResultResponse,
 } from '../api/client';
-import { useI18n } from '../i18n/I18nContext';
-import type { TranslationKey } from '../i18n/translations';
-import type {
-  EntryResponse,
-  EventResponse,
-  EventStatsResponse,
-  ParticipantResponse,
-  WinnerResponse,
-} from '../api/client';
+import { usePolling } from '../components/Toast';
 
-type ActionName =
-  | 'open'
-  | 'close'
-  | 'cancel'
-  | 'interest'
-  | 'withdraw'
-  | 'recalculate'
-  | 'draw';
-
-type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
+const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
 
 const numberFormatter = new Intl.NumberFormat('pt-BR');
 
-function formatNumber(value: number | null | undefined) {
-  return numberFormatter.format(value ?? 0);
+const STATUS_LABELS: Record<EventResponse['status'], string> = {
+  DRAFT: 'Rascunho',
+  OPEN: 'Capturando entradas',
+  FINALIZING: 'Finalizando entradas',
+  CLOSED: 'Entradas finalizadas',
+  COMPLETED: 'Sorteio concluído',
+  CANCELLED: 'Cancelado',
+};
+
+const STATUS_CLASSES: Record<EventResponse['status'], string> = {
+  DRAFT: 'pill--draft',
+  OPEN: 'pill--open',
+  FINALIZING: 'pill--finalizing',
+  CLOSED: 'pill--closed',
+  COMPLETED: 'pill--completed',
+  CANCELLED: 'pill--cancelled',
+};
+
+type LifecycleKey = 'created' | 'opened' | 'closed' | 'completed';
+
+interface LifecycleStep {
+  key: LifecycleKey;
+  title: string;
+  description: string;
+  timestamp: string | null;
 }
 
-function formatLast24h(last24h: EventStatsResponse['last24h'], t: Translate) {
-  if (typeof last24h === 'number') {
-    return formatNumber(last24h);
-  }
-
-  return t('dashboardLast24hBreakdown', {
-    votes: formatNumber(last24h?.votes),
-    subs: formatNumber(last24h?.subs),
-    giftedSubs: formatNumber(last24h?.giftedSubs),
-  });
+function formatDate(value: string | null | undefined) {
+  if (!value) return 'Ainda não ocorreu';
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? 'Data indisponível' : dateFormatter.format(date);
 }
 
-function getErrorMessage(error: unknown, t: Translate) {
-  return error instanceof Error ? error.message : t('unexpectedError');
+function getErrorMessage(error: unknown, fallback: string) {
+  return error instanceof Error && error.message ? error.message : fallback;
 }
 
-function isNotFoundError(error: unknown) {
-  return error instanceof Error && error.message.startsWith('API 404:');
-}
+function lifecycleState(event: EventResponse, step: LifecycleKey) {
+  if (event.status === 'CANCELLED') return step === 'created' ? 'is-complete' : 'is-cancelled';
 
-function actionLabel(activeAction: ActionName | null, action: ActionName, label: TranslationKey, t: Translate) {
-  return activeAction === action ? t('processing') : t(label);
-}
-
-function statusLabel(status: string, t: Translate) {
-  const keyByStatus: Record<string, TranslationKey> = {
-    OPEN: 'statusOpen',
-    CLOSED: 'statusClosed',
-    COMPLETED: 'statusCompleted',
-    DRAWING: 'statusDrawing',
-    DRAFT: 'statusDraft',
-    CANCELLED: 'statusCancelled',
+  const order: LifecycleKey[] = ['created', 'opened', 'closed', 'completed'];
+  const currentByStatus: Record<Exclude<EventResponse['status'], 'CANCELLED'>, LifecycleKey> = {
+    DRAFT: 'created',
+    OPEN: 'opened',
+    FINALIZING: 'opened',
+    CLOSED: 'closed',
+    COMPLETED: 'completed',
   };
-  return t(keyByStatus[status] || 'statusDraft');
-}
-
-function actionTypeLabel(actionType: string, t: Translate) {
-  if (actionType === 'vote') return t('actionVote');
-  if (actionType === 'gifted_sub') return t('actionGiftedSub');
-  return t('actionSub');
+  const current = currentByStatus[event.status];
+  const stepIndex = order.indexOf(step);
+  const currentIndex = order.indexOf(current);
+  if (stepIndex < currentIndex) return 'is-complete';
+  if (stepIndex === currentIndex) return 'is-current';
+  return 'is-pending';
 }
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const { t } = useI18n();
-  const [event, setEvent] = useState<EventResponse | null>(null);
-  const [stats, setStats] = useState<EventStatsResponse | null>(null);
-  const [participants, setParticipants] = useState<ParticipantResponse[]>([]);
-  const [entries, setEntries] = useState<EntryResponse[]>([]);
-  const [winner, setWinner] = useState<WinnerResponse | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [err, setErr] = useState('');
-  const [actionLoading, setActionLoading] = useState<ActionName | null>(null);
+  const [result, setResult] = useState<EventResultResponse | null>(null);
+  const [resultNotice, setResultNotice] = useState('');
 
-  const load = useCallback(async (showLoading = false) => {
-    if (!id) {
-      setEvent(null);
-      setStats(null);
-      setParticipants([]);
-      setEntries([]);
-      setWinner(null);
-      setErr(t('eventIdMissing'));
-      setLoading(false);
-      return;
-    }
-
-    if (showLoading) setLoading(true);
-    setErr('');
-
+  const fetchDetail = useCallback(async () => {
+    if (!id) throw new Error('O identificador do giveaway não foi informado.');
+    const loadedEvent = await getEvent(id);
     try {
-      const [ev, currentStats, currentParticipants, currentEntries] = await Promise.all([
-        getEvent(id),
-        getEventStats(id),
-        getParticipants(id),
-        getEntries(id),
-      ]);
-
-      setEvent(ev);
-      setStats(currentStats);
-      setParticipants(currentParticipants);
-      setEntries(currentEntries);
-
-      try {
-        setWinner(await getWinner(id));
-      } catch (error) {
-        setWinner(null);
-        if (!isNotFoundError(error)) {
-          setErr(t('winnerLoadError', { error: getErrorMessage(error, t) }));
-        }
-      }
-    } catch (error) {
-      setErr(getErrorMessage(error, t));
-    } finally {
-      setLoading(false);
+      return { event: loadedEvent, stats: await getEventStats(id), statsError: '' };
+    } catch {
+      return { event: loadedEvent, stats: null, statsError: 'Contagem indisponível' };
     }
-  }, [id, t]);
+  }, [id]);
+  const detail = usePolling(fetchDetail, 10_000);
+  const currentDetail = detail.data?.event.id === id ? detail.data : null;
+  const event = currentDetail?.event || null;
+  const stats: EventLifecycleStats | null = currentDetail?.stats || null;
+  const statsError = currentDetail?.statsError || '';
+  const loading = !currentDetail && !detail.error;
+  const error = detail.error || '';
 
   useEffect(() => {
-    void load(true);
-  }, [load]);
-
-  const runAction = async <T,>(
-    action: ActionName,
-    request: () => Promise<T>,
-    afterRefresh?: (result: T) => void,
-  ) => {
-    setActionLoading(action);
-    setErr('');
-
-    try {
-      const result = await request();
-      await load();
-      afterRefresh?.(result);
-    } catch (error) {
-      setErr(getErrorMessage(error, t));
-    } finally {
-      setActionLoading(null);
+    let active = true;
+    setResultNotice('');
+    if (!id || event?.status !== 'COMPLETED') {
+      setResult(null);
+      return () => { active = false; };
     }
-  };
 
-  if (loading && !event) return <div className="empty">{t('eventLoading')}</div>;
-  if (err && !event) return <div style={{ padding: 40, color: 'var(--danger)' }}>{err}</div>;
-  if (!event) return <div className="empty">{t('eventNotFound')}</div>;
+    getEventResult(id)
+      .then((loadedResult) => {
+        if (active) setResult(loadedResult);
+      })
+      .catch((resultError) => {
+        if (!active) return;
+        setResult(null);
+        setResultNotice(getErrorMessage(
+          resultError,
+          'O sorteio foi concluído, mas a publicação do resultado ainda não está disponível.',
+        ));
+      });
 
-  const statusMap: Record<string, string> = {
-    OPEN: 'pill--open',
-    CLOSED: 'pill--closed',
-    COMPLETED: 'pill--completed',
-    DRAWING: 'pill--closed',
-    DRAFT: 'pill--draft',
-    CANCELLED: 'pill--cancelled',
-  };
-  const statusClass = statusMap[event.status] || statusMap.DRAFT;
+    return () => {
+      active = false;
+    };
+  }, [event?.status, id]);
 
-  const activeRules = event.rules?.filter((rule) => rule.isActive) ?? [];
-  const mode = event.mode ?? event.rulesMode ?? 'tier';
-  const modeLabel = mode === 'tier' ? t('modeTier') : mode === 'cumulative' ? t('modeCumulative') : mode;
-  const maxEntries = event.maxEntries ?? event.maxEntriesPerParticipant;
-  const maxLabel = maxEntries && maxEntries > 0
-    ? `${formatNumber(maxEntries)}${t('perPerson')}`
-    : t('unlimited');
-  const isActionBusy = actionLoading !== null;
-  const canOpen = event.status === 'DRAFT';
-  const canClose = event.status === 'OPEN';
-  const canCancel = event.status === 'OPEN' || event.status === 'DRAFT';
-  const canRecalculate = event.status === 'CLOSED';
-  const canDraw = event.status === 'CLOSED' && !winner;
-  const statItems = stats ? [
-    { label: t('totalVotes'), value: formatNumber(stats.totalVotes) },
-    { label: t('totalSubs'), value: formatNumber(stats.totalSubs) },
-    { label: t('totalGiftedSubs'), value: formatNumber(stats.totalGiftedSubs) },
-    { label: t('participants'), value: formatNumber(stats.participants) },
-    { label: t('totalEntries'), value: formatNumber(stats.totalEntries) },
-    { label: t('last24h'), value: formatLast24h(stats.last24h, t), compact: true },
-  ] : [];
+  useEffect(() => {
+    if (!event) return;
+    document.title = `${event.title} | Blaze Event Hub`;
+    document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute(
+      'content',
+      `${event.title}: acompanhe o comando, o estado e o resultado deste giveaway.`,
+    );
+  }, [event]);
+
+  const lifecycle = useMemo<LifecycleStep[]>(() => event ? [
+    {
+      key: 'created',
+      title: 'Evento registrado',
+      description: 'O criador preparou o giveaway e definiu o prêmio.',
+      timestamp: event.createdAt,
+    },
+    {
+      key: 'opened',
+      title: 'Captura iniciada',
+      description: `Mensagens com ${event.entryCommand} passaram a valer como entrada.`,
+      timestamp: event.openedAt,
+    },
+    {
+      key: 'closed',
+      title: 'Entradas finalizadas',
+      description: 'O pool foi congelado e novas mensagens não alteram o sorteio.',
+      timestamp: event.closedAt,
+    },
+    {
+      key: 'completed',
+      title: 'Vencedor sorteado',
+      description: 'O servidor persistiu um único resultado para este evento.',
+      timestamp: event.completedAt,
+    },
+  ] : [], [event]);
+
+  if (loading) {
+    return <div className="hub-page"><div className="empty" role="status">Carregando giveaway…</div></div>;
+  }
+
+  if (!event) {
+    return (
+      <div className="hub-page">
+        <div className="empty-state" role="alert">
+          <h1 className="empty-state-title">Giveaway indisponível</h1>
+          <p className="empty-state-desc">{error || 'Este giveaway não foi encontrado.'}</p>
+          <div className="page-actions">
+            <button type="button" className="btn btn-secondary" onClick={() => void detail.reload()}>Tentar novamente</button>
+            <Link className="btn btn-ghost" to="/events">Ver giveaways</Link>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  const participantCount = stats
+    ? (event.status === 'DRAFT' || event.status === 'OPEN' || event.status === 'FINALIZING'
+      ? stats.participantCount
+      : stats.finalizedParticipantCount)
+    : event.status === 'CLOSED' || event.status === 'COMPLETED'
+      ? event.finalizedParticipantCount
+      : null;
 
   return (
-    <div style={{ padding: '32px 40px', maxWidth: 920 }}>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: 16, marginBottom: 24 }}>
-        <div>
+    <div className="hub-page event-detail-page">
+      <header className="page-hero">
+        <div className="page-hero-copy">
+          <span className="page-eyebrow">Giveaway na Blaze.stream</span>
           <h1 className="page-title">{event.title}</h1>
-          {event.description && (
-            <p className="page-subtitle" style={{ marginBottom: 0 }}>
-              {event.description}
+          {event.description && <p className="page-subtitle">{event.description}</p>}
+        </div>
+        <div className="page-actions">
+          {event.creatorChannelSlug && (
+            <a
+              className="btn btn-primary"
+              href={`https://blaze.stream/${encodeURIComponent(event.creatorChannelSlug)}`}
+              target="_blank"
+              rel="noreferrer"
+            >
+              Abrir transmissão <span aria-hidden="true">↗</span>
+            </a>
+          )}
+          <span className={`pill ${STATUS_CLASSES[event.status]}`}>{STATUS_LABELS[event.status]}</span>
+        </div>
+      </header>
+
+      {error && (
+        <div className="notice notice--warning" role="status">
+          Não foi possível atualizar esta página agora. Os últimos dados recebidos continuam visíveis.
+        </div>
+      )}
+
+      {event.status === 'CANCELLED' && (
+        <div className="notice notice-danger" role="status">
+          Este giveaway foi cancelado. Nenhuma entrada será sorteada.
+        </div>
+      )}
+
+      {event.status === 'FINALIZING' && (
+        <div className="notice notice--warning" role="status">
+          O limite de entrada já foi fixado. O Hub está concluindo a última sincronização antes de registrar o pool final.
+        </div>
+      )}
+
+      {statsError && (
+        <div className="notice notice-danger" role="status">
+          <strong>{statsError}</strong>. Não foi possível atualizar as métricas deste giveaway agora.
+        </div>
+      )}
+
+      <div className="event-detail-grid">
+        <section className="control-card prize-card" aria-labelledby="prize-title">
+          <span className="section-label">Prêmio</span>
+          <h2 id="prize-title">{event.prize}</h2>
+          {event.creatorChannelSlug && (
+            <p className="channel-identity">
+              Por <strong>{event.creatorChannelDisplayName || event.creatorChannelSlug}</strong>
+              {' '}@{event.creatorChannelSlug}
             </p>
           )}
-          <div style={{ fontSize: 12, color: 'var(--muted)', marginTop: 8, fontFamily: 'var(--font-mono)' }}>
-            {t('eventConfigSummary', {
-              mode: modeLabel,
-              max: maxLabel,
-              rules: t('activeRules', { count: activeRules.length }),
-            })}
-          </div>
-        </div>
-        <span className={`pill ${statusClass}`}>{statusLabel(event.status, t)}</span>
+          <p>O criador é responsável pela entrega e pelas condições divulgadas durante a transmissão.</p>
+        </section>
+
+        <section className="control-card command-card" aria-labelledby="command-title">
+          <span className="section-label">Como entrar</span>
+          <h2 id="command-title">Envie este comando no chat</h2>
+          <code className={`signal-command${event.status === 'OPEN' ? ' is-live' : ''}`}>
+            {event.entryCommand}
+          </code>
+          <p>
+            {event.status === 'OPEN'
+              ? stats?.captureHealth === 'HEALTHY'
+                ? 'A captura está sincronizada. Cada usuário Blaze entra uma única vez.'
+                : stats?.captureHealth === 'DEGRADED'
+                  ? 'O evento continua aberto, mas a sincronização está com atenção no momento.'
+                  : 'O evento está aberto e aguarda a próxima sincronização confirmada.'
+              : event.status === 'FINALIZING'
+                ? 'O limite de entrada foi fixado e a última sincronização está em andamento.'
+              : event.status === 'DRAFT'
+                ? 'A captura começará quando o criador abrir o evento.'
+                : 'A captura terminou e o pool de participantes está congelado.'}
+          </p>
+        </section>
       </div>
 
-      {err && (
-        <div style={{
-          marginBottom: 16,
-          padding: '8px 12px',
-          borderRadius: 'var(--r)',
-          background: 'var(--danger-bg)',
-          color: 'var(--danger)',
-          fontSize: 13,
-        }}>
-          {err}
+      <section className="metrics-row" aria-label="Resumo do giveaway">
+        <div className="metric">
+          <strong className="metric-val">
+            {participantCount === null
+              ? 'Indisponível'
+              : `${numberFormatter.format(participantCount)} ${participantCount === 1 ? 'participante' : 'participantes'}`}
+          </strong>
+          <span className="metric-lbl">no pool atual</span>
         </div>
-      )}
-
-      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 32 }}>
-        <button className="btn btn-secondary" disabled={isActionBusy} onClick={() => navigate(`/events/${event.id}/edit`)}>
-          {t('editBtn')}
-        </button>
-        {event.status === 'OPEN' && (
-          <>
-            <button
-              className="btn btn-primary"
-              disabled={isActionBusy}
-              onClick={() => void runAction('interest', () => expressInterest(event.id))}
-            >
-              {actionLabel(actionLoading, 'interest', 'participate', t)}
-            </button>
-            <button
-              className="btn btn-secondary"
-              disabled={isActionBusy}
-              onClick={() => void runAction('withdraw', () => withdrawInterest(event.id))}
-            >
-              {actionLabel(actionLoading, 'withdraw', 'withdraw', t)}
-            </button>
-          </>
-        )}
-        <button
-          className="btn btn-success"
-          disabled={isActionBusy || !canOpen}
-          onClick={() => void runAction('open', () => openEvent(event.id))}
-        >
-          {actionLabel(actionLoading, 'open', 'open', t)}
-        </button>
-        <button
-          className="btn btn-warning"
-          disabled={isActionBusy || !canClose}
-          onClick={() => void runAction('close', () => closeEvent(event.id))}
-        >
-          {actionLabel(actionLoading, 'close', 'closeEvent', t)}
-        </button>
-        <button
-          className="btn btn-danger"
-          disabled={isActionBusy || !canCancel}
-          onClick={() => void runAction('cancel', () => cancelEvent(event.id))}
-        >
-          {actionLabel(actionLoading, 'cancel', 'cancel', t)}
-        </button>
-        <button
-          className="btn btn-secondary"
-          disabled={isActionBusy || !canRecalculate}
-          onClick={() => void runAction('recalculate', () => recalculate(event.id))}
-        >
-          {actionLabel(actionLoading, 'recalculate', 'recalculate', t)}
-        </button>
-        <button
-          className="btn btn-primary"
-          disabled={isActionBusy || !canDraw}
-          onClick={() => void runAction('draw', () => executeDraw(event.id), setWinner)}
-        >
-          {actionLabel(actionLoading, 'draw', 'draw', t)}
-        </button>
-      </div>
-
-      <section style={{ marginBottom: 32 }}>
-        <div className="section-label">{t('metrics')}</div>
-        {stats ? (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))', gap: 8 }}>
-            {statItems.map((item) => (
-              <div key={item.label} className="card" style={{ minHeight: 72 }}>
-                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                  {item.label}
-                </div>
-                <div style={{ fontSize: item.compact ? 13 : 20, fontWeight: 600, color: 'var(--fg)', lineHeight: 1.35 }}>
-                  {item.value}
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty">{t('statsUnavailable')}</div>
-        )}
+        <div className="metric">
+          <strong className="metric-val">1</strong>
+          <span className="metric-lbl">chance por usuário</span>
+        </div>
+        <div className="metric">
+          <strong className="metric-val">
+            {event.status === 'OPEN' ? 'Aberto' : event.status === 'FINALIZING' ? 'Fechando' : 'Travado'}
+          </strong>
+          <span className="metric-lbl">estado do pool</span>
+        </div>
       </section>
 
-      {activeRules.length > 0 && (
-        <section style={{ marginBottom: 32 }}>
-          <div className="section-label">{t('rulesLabel')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {activeRules.map((rule) => (
-              <div key={rule.id} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--fg2)' }}>
-                  {formatNumber(rule.thresholdAmount)} {actionTypeLabel(rule.actionType, t)}
-                </span>
-                <span style={{ color: 'var(--fg)', fontWeight: 510 }}>
-                  {formatNumber(rule.entries)} {rule.entries === 1 ? t('entrySingular') : t('entriesUnit')}
-                </span>
-              </div>
-            ))}
+      <section className="control-card lifecycle-card" aria-labelledby="lifecycle-title">
+        <div className="section-heading">
+          <div>
+            <span className="section-label">Linha do tempo</span>
+            <h2 id="lifecycle-title">Ciclo do giveaway</h2>
           </div>
+        </div>
+        <ol className="lifecycle">
+          {lifecycle.map((step) => (
+            <li key={step.key} className={`lifecycle-step ${lifecycleState(event, step.key)}`}>
+              <span className="lifecycle-marker" aria-hidden="true" />
+              <div className="lifecycle-copy">
+                <strong>{step.title}</strong>
+                <p>{step.description}</p>
+                <time dateTime={step.timestamp || undefined}>{formatDate(step.timestamp)}</time>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      <section className="control-card event-times" aria-labelledby="times-title">
+        <span className="section-label">Horários</span>
+        <h2 id="times-title">Referências do evento</h2>
+        <dl className="proof-grid">
+          <div><dt>Início programado</dt><dd>{formatDate(event.startsAt)}</dd></div>
+          <div><dt>Encerramento programado</dt><dd>{formatDate(event.endsAt)}</dd></div>
+          <div><dt>Captura iniciada</dt><dd>{formatDate(event.openedAt)}</dd></div>
+          <div><dt>Limite de entrada</dt><dd>{formatDate(event.finalizationCutoffAt)}</dd></div>
+          <div><dt>Pool finalizado</dt><dd>{formatDate(event.closedAt)}</dd></div>
+        </dl>
+      </section>
+
+      {resultNotice && <div className="notice notice-danger" role="status">{resultNotice}</div>}
+
+      {result && (
+        <section className="winner-card" aria-labelledby="winner-title">
+          <span className="section-label">Resultado oficial</span>
+          <div className="winner-avatar" aria-hidden="true">
+            {(result.winnerDisplayName || result.winnerUsername || '?').slice(0, 1).toUpperCase()}
+          </div>
+          <h2 id="winner-title" className="winner-name">
+            {result.winnerDisplayName || result.winnerUsername}
+          </h2>
+          <p className="winner-meta">
+            {result.winnerUsername ? `@${result.winnerUsername} · ` : ''}sorteado em {formatDate(result.selectedAt)}
+          </p>
+          <Link className="btn btn-secondary" to={`/events/${event.id}/result`}>
+            Ver registro do sorteio
+          </Link>
         </section>
       )}
-
-      {(event.prizeType || event.prizeDescription) && (
-        <section style={{ marginBottom: 32 }}>
-          <div className="section-label">{t('prizeSection')}</div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-            {event.prizeType && (
-              <div className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <span style={{ color: 'var(--muted)', fontSize: 11, textTransform: 'uppercase', letterSpacing: '0.08em' }}>
-                  {t('prizeType')}
-                </span>
-                <span style={{ color: 'var(--fg)', fontWeight: 510 }}>{event.prizeType}</span>
-              </div>
-            )}
-            {event.prizeDescription && (
-              <div className="card">
-                <div style={{ fontSize: 11, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.08em', marginBottom: 8 }}>
-                  {t('prizeDescription')}
-                </div>
-                <div style={{ fontSize: 13, color: 'var(--fg)', lineHeight: 1.45, whiteSpace: 'pre-wrap' }}>
-                  {event.prizeDescription}
-                </div>
-              </div>
-            )}
-          </div>
-        </section>
-      )}
-
-      {winner && (
-        <div className="winner-box">
-          <div className="section-label">{t('drawWinner')}</div>
-          <div className="winner-name">{winner.memberId}</div>
-          <div className="winner-meta">
-            {t('winnerMetadata', {
-              entries: formatNumber(winner.entriesAtDrawTime),
-              method: winner.drawMethod,
-              seed: winner.drawSeed,
-            })}
-          </div>
-        </div>
-      )}
-
-      <section style={{ marginBottom: 32 }}>
-        <div className="section-label">
-          {t('participantsLabel')} <span className="count">({participants.length})</span>
-        </div>
-        {participants.length === 0 ? (
-          <div className="empty">{t('noInterest')}</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {participants.map((participant) => (
-              <div key={participant.memberId} className="card" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16 }}>
-                <span style={{ fontSize: 13, color: 'var(--fg)' }}>
-                  {participant.displayName || participant.blazeUsername || participant.memberId}
-                </span>
-                <span style={{ fontSize: 12, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                  {formatNumber(participant.lastCalculatedEntries)} {t('entriesUnit')}
-                </span>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
-
-      <section>
-        <div className="section-label">
-          {t('entriesUnit')} <span className="count">({entries.length})</span>
-        </div>
-        {entries.length === 0 ? (
-          <div className="empty">{t('noEntries')}</div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 1 }}>
-            {entries.map((entry) => (
-              <div key={entry.id} className="card">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 16, marginBottom: 2 }}>
-                  <span style={{ fontSize: 13, fontWeight: 510, color: 'var(--fg)' }}>
-                    {formatNumber(entry.amount)} {entry.actionType}
-                  </span>
-                  <span style={{ fontSize: 12, fontWeight: 510, color: 'var(--accent-light)' }}>
-                    {formatNumber(entry.entriesGranted)} {t('entriesUnit')}
-                  </span>
-                </div>
-                <div style={{ fontSize: 11, color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
-                  {entry.calculationReason}
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
-      </section>
     </div>
   );
 }

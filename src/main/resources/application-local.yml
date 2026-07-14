@@ -1,0 +1,15 @@
+spring:
+  config:
+    activate:
+      on-profile: local
+  datasource:
+    url: ${EVENTHUB_DB_URL:jdbc:h2:file:./data/eventhub-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
+    driver-class-name: org.h2.Driver
+    username: ${EVENTHUB_DB_USER:sa}
+    password: ${EVENTHUB_DB_PASSWORD:}
+
+server:
+  servlet:
+    session:
+      cookie:
+        secure: ${EVENTHUB_SESSION_COOKIE_SECURE:false}

@@ -1,10 +1,12 @@
 package com.blaze.eventhub.event;
 
-import static org.junit.jupiter.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertThrows;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
-import java.time.Clock;
 import java.time.Instant;
-import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -14,12 +16,22 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.ActiveProfiles;
 
-import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.common.NotFoundException;
+import com.blaze.eventhub.common.ForbiddenException;
+import com.blaze.eventhub.common.ConflictException;
+import com.blaze.eventhub.blaze.BlazeChannelResponse;
+import com.blaze.eventhub.event.participant.ChatEntryCandidate;
+import com.blaze.eventhub.event.participant.CaptureStatus;
+import com.blaze.eventhub.event.participant.EventParticipantCaptureService;
 
 @SpringBootTest
 @ActiveProfiles("test")
 class EventServiceIntegrationTest {
+
+    private static final String MEMBER_ID = "member-001";
+    private static final String BLAZE_USER_ID = "blaze-user-001";
+    private static final String CHANNEL_ID = "channel-001";
+    private static final String CHANNEL_SLUG = "creator";
 
     @Autowired
     private JdbcTemplate jdbc;
@@ -27,242 +39,329 @@ class EventServiceIntegrationTest {
     @Autowired
     private EventService eventService;
 
-    private final IdGenerator idGenerator = new IdGenerator();
+    @Autowired
+    private EventParticipantCaptureService captureService;
 
-    private static final String MEMBER_ID = "member-001";
-    private static final String BLAZE_USER_ID = "blaze-user-001";
-    private static final String CHANNEL_ID = "channel-001";
+    @Autowired
+    private EventStore eventStore;
 
     @BeforeEach
     void cleanUp() {
-        jdbc.update("DELETE FROM event_rules");
+        jdbc.update("DELETE FROM event_draw_results");
+        jdbc.update("DELETE FROM event_participants");
         jdbc.update("DELETE FROM events");
+        jdbc.update("DELETE FROM chat_polling_cursors");
         jdbc.update("DELETE FROM members");
-        // Ensure foreign key referential integrity
-        jdbc.update("INSERT INTO members (id, blaze_user_id, blaze_username, display_name, status, created_at, updated_at) VALUES (?, ?, ?, ?, 'active', NOW(), NOW())",
-                MEMBER_ID, BLAZE_USER_ID, "testuser", "Test User");
+        jdbc.update("""
+                INSERT INTO members (id, blaze_user_id, blaze_username, display_name, status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, 'active', NOW(), NOW())
+                """, MEMBER_ID, BLAZE_USER_ID, "creator", "Creator");
     }
 
     @Test
-    void createEvent_withValidRequest_createsSuccessfully() {
-        CreateEventRequest request = buildCreateRequest("Test Event", List.of(
-                buildRule("vote", 1, 10)));
-
-        EventResponse response = eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID);
+    void createsChatGiveawayWithACommandAndUniformEntryContract() {
+        EventResponse response = eventService.createEvent(
+                request("Giveaway de aniversario", "  !Participar  "),
+                MEMBER_ID,
+                BLAZE_USER_ID,
+                channel());
 
         assertNotNull(response.id());
-        assertEquals("Test Event", response.title());
+        assertEquals("Giveaway de aniversario", response.title());
+        assertEquals("Gift card de R$ 100", response.prize());
+        assertEquals("!participar", response.entryCommand());
         assertEquals("draft", response.status());
-        assertEquals("tier", response.rulesMode());
-        assertEquals(MEMBER_ID, response.creatorMemberId());
-        assertEquals(1, response.rules().size());
-        assertEquals("vote", response.rules().get(0).actionType());
+        assertEquals(CHANNEL_ID, response.creatorChannelId());
+        assertEquals("Gift card de R$ 100", jdbc.queryForObject(
+                "SELECT prize FROM events WHERE id = ?", String.class, response.id()));
     }
 
     @Test
-    void createEvent_withoutTitle_throws() {
-        CreateEventRequest request = buildCreateRequest("", List.of(buildRule("vote", 1, 5)));
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID));
+    void requiresTitleAndEntryCommand() {
+        assertThrows(IllegalArgumentException.class, () -> eventService.createEvent(
+                request("", "!participar"), MEMBER_ID, BLAZE_USER_ID, channel()));
+        assertThrows(IllegalArgumentException.class, () -> eventService.createEvent(
+                request("Giveaway", "   "), MEMBER_ID, BLAZE_USER_ID, channel()));
+        assertThrows(IllegalArgumentException.class, () -> eventService.createEvent(
+                request("Giveaway", "participar"), MEMBER_ID, BLAZE_USER_ID, channel()));
+        assertThrows(IllegalArgumentException.class, () -> eventService.createEvent(
+                request("Giveaway", "!"), MEMBER_ID, BLAZE_USER_ID, channel()));
     }
 
     @Test
-    void createEvent_withoutRules_throws() {
-        CreateEventRequest request = buildCreateRequest("No Rules", List.of());
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID));
+    void updatesDraftCommandAndNormalizesIt() {
+        EventResponse created = createDefaultEvent("Comando editavel");
+
+        EventResponse updated = eventService.updateEvent(
+                created.id(),
+                new UpdateEventRequest(null, null, null, "  !EUQUERO  ", null, null),
+                MEMBER_ID);
+
+        assertEquals("!euquero", updated.entryCommand());
     }
 
     @Test
-    void createEvent_withInvalidThreshold_throws() {
-        CreateEventRequest request = buildCreateRequest("Bad Rule", List.of(
-                new CreateEventRuleRequest("vote", 0, 10)));
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID));
+    void refusesBlankPrizeWhenEditingDraft() {
+        EventResponse created = createDefaultEvent("Premio obrigatorio");
+
+        assertThrows(IllegalArgumentException.class, () -> eventService.updateEvent(
+                created.id(),
+                new UpdateEventRequest(null, null, "   ", null, null, null),
+                MEMBER_ID));
     }
 
     @Test
-    void createEvent_withInvalidEntries_throws() {
-        CreateEventRequest request = buildCreateRequest("Bad Entries", List.of(
-                new CreateEventRuleRequest("vote", 1, 0)));
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID));
-    }
-
-    @Test
-    void getEvent_existingEvent_returnsEvent() {
-        CreateEventRequest request = buildCreateRequest("Find Me", List.of(buildRule("sub", 3, 50)));
-        EventResponse created = eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID);
-
-        EventResponse found = eventService.getEvent(created.id());
-
-        assertEquals(created.id(), found.id());
-        assertEquals("Find Me", found.title());
-        assertEquals(1, found.rules().size());
-    }
-
-    @Test
-    void getEvent_nonExistingEvent_throwsNotFound() {
-        assertThrows(NotFoundException.class, () -> eventService.getEvent("non-existing-id"));
-    }
-
-    @Test
-    void openEvent_fromDraft_succeeds() {
-        EventResponse created = createDefaultEvent("Open Me");
-
-        EventResponse opened = eventService.openEvent(created.id(), MEMBER_ID);
-
-        assertEquals("open", opened.status());
-    }
-
-    @Test
-    void openEvent_notCreator_throws() {
-        EventResponse created = createDefaultEvent("Not Yours");
-
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.openEvent(created.id(), "other-member"));
-    }
-
-    @Test
-    void openEvent_notDraft_throws() {
-        EventResponse created = createDefaultEvent("Open Me First");
+    void refusesEditingAfterCaptureStarts() {
+        EventResponse created = createDefaultEvent("Ao vivo");
         eventService.openEvent(created.id(), MEMBER_ID);
 
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.openEvent(created.id(), MEMBER_ID));
+        assertThrows(IllegalArgumentException.class, () -> eventService.updateEvent(
+                created.id(),
+                new UpdateEventRequest("Outro titulo", null, null, null, null, null),
+                MEMBER_ID));
     }
 
     @Test
-    void closeEvent_fromOpen_succeeds() {
-        EventResponse created = createDefaultEvent("Close Me");
-        eventService.openEvent(created.id(), MEMBER_ID);
-
-        EventResponse closed = eventService.closeEvent(created.id(), MEMBER_ID);
-
-        assertEquals("closed", closed.status());
+    void getEventRejectsUnknownId() {
+        assertThrows(NotFoundException.class, () -> eventService.getEvent("unknown"));
     }
 
     @Test
-    void closeEvent_notOpen_throws() {
-        EventResponse created = createDefaultEvent("Still Draft");
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.closeEvent(created.id(), MEMBER_ID));
-    }
+    void keepsDraftsPrivateUntilTheCreatorOpensThem() {
+        EventResponse draft = createDefaultEvent("Rascunho privado");
 
-    @Test
-    void cancelEvent_fromDraft_succeeds() {
-        EventResponse created = createDefaultEvent("Cancel Me");
-
-        EventResponse cancelled = eventService.cancelEvent(created.id(), MEMBER_ID);
-
-        assertEquals("cancelled", cancelled.status());
-    }
-
-    @Test
-    void cancelEvent_alreadyCompleted_throws() {
-        EventResponse created = createDefaultEvent("Done Deal");
-        jdbc.update("UPDATE events SET status = 'completed' WHERE id = ?", created.id());
-
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.cancelEvent(created.id(), MEMBER_ID));
-    }
-
-    @Test
-    void addRule_toDraftEvent_succeeds() {
-        EventResponse created = createDefaultEvent("Add Rule");
-        CreateEventRuleRequest ruleReq = new CreateEventRuleRequest("gifted_sub", 5, 25);
-
-        EventRuleResponse rule = eventService.addRule(created.id(), ruleReq, MEMBER_ID);
-
-        assertNotNull(rule.id());
-        assertEquals("gifted_sub", rule.actionType());
-        assertEquals(5, rule.thresholdAmount());
-        assertEquals(25, rule.entries());
-        assertTrue(rule.isActive());
-    }
-
-    @Test
-    void addRule_toOpenedEvent_throws() {
-        CreateEventRequest request = new CreateEventRequest("No More Rules", "Description", "cash", "Cash prize",
-                "tier", 0, true, Instant.now().plus(java.time.Duration.ofHours(12)).toString(), null,
-                CHANNEL_ID, List.of(buildRule("vote", 1, 10)));
-        EventResponse created = eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID);
-        eventService.openEvent(created.id(), MEMBER_ID);
-
-        assertThrows(IllegalArgumentException.class,
-                () -> eventService.addRule(created.id(), buildRule("donation", 10, 5), MEMBER_ID));
-    }
-
-    @Test
-    void updateRule_onDraftEvent_succeeds() {
-        EventResponse created = createDefaultEvent("Update Rule");
-        EventRuleResponse rule = eventService.addRule(created.id(), buildRule("vote", 1, 5), MEMBER_ID);
-
-        UpdateEventRuleRequest updateReq = new UpdateEventRuleRequest("donation", 3, 15, false);
-        EventRuleResponse updated = eventService.updateRule(created.id(), rule.id(), updateReq, MEMBER_ID);
-
-        assertEquals("donation", updated.actionType());
-        assertEquals(3, updated.thresholdAmount());
-        assertEquals(15, updated.entries());
-        assertFalse(updated.isActive());
-    }
-
-    @Test
-    void removeRule_fromDraftEvent_succeeds() {
-        EventResponse created = createDefaultEvent("Remove Rule");
-        EventRuleResponse rule = eventService.addRule(created.id(), buildRule("manual", 1, 1), MEMBER_ID);
-
-        assertDoesNotThrow(() -> eventService.removeRule(created.id(), rule.id(), MEMBER_ID));
-    }
-
-    @Test
-    void removeRule_nonExistingRule_throwsNotFound() {
-        EventResponse created = createDefaultEvent("No Such Rule");
+        assertTrue(eventService.listEvents(null).isEmpty());
+        assertTrue(eventService.listEvents("draft").isEmpty());
         assertThrows(NotFoundException.class,
-                () -> eventService.removeRule(created.id(), "fake-rule-id", MEMBER_ID));
+                () -> eventService.getVisibleEvent(draft.id(), null));
+        assertThrows(NotFoundException.class,
+                () -> eventService.getVisibleEventStats(draft.id(), "other-member"));
+        assertEquals(draft.id(), eventService.getVisibleEvent(draft.id(), MEMBER_ID).id());
+
+        eventService.openEvent(draft.id(), MEMBER_ID);
+
+        assertEquals(draft.id(), eventService.getVisibleEvent(draft.id(), null).id());
+        assertEquals(1, eventService.listEvents(null).size());
     }
 
     @Test
-    void listEvents_withStatusFilter_returnsFiltered() {
-        createDefaultEvent("Draft 1");
-        EventResponse opened = createDefaultEvent("Open 1");
-        eventService.openEvent(opened.id(), MEMBER_ID);
+    void keepsCancelledDraftPrivateButPreservesPublishedCancellationPage() {
+        EventResponse privateDraft = createDefaultEvent("Cancelado antes de publicar");
+        eventService.cancelEvent(privateDraft.id(), MEMBER_ID);
 
-        List<EventResponse> draftEvents = eventService.listEvents("draft");
-        List<EventResponse> openEvents = eventService.listEvents("open");
+        assertThrows(NotFoundException.class,
+                () -> eventService.getVisibleEvent(privateDraft.id(), null));
 
-        assertEquals(1, draftEvents.size());
-        assertEquals(1, openEvents.size());
+        EventResponse published = createDefaultEvent("Cancelado ao vivo");
+        eventService.openEvent(published.id(), MEMBER_ID);
+        eventService.cancelEvent(published.id(), MEMBER_ID);
+
+        assertEquals(published.id(), eventService.getVisibleEvent(published.id(), null).id());
+        assertEquals(1, eventService.listEvents("cancelled").size());
+        assertEquals(published.id(), eventService.listEvents("cancelled").getFirst().id());
     }
 
     @Test
-    void updateEvent_onDraftEvent_succeeds() {
-        EventResponse created = createDefaultEvent("Original Title");
+    void onlyOneOpenEventCanCaptureSameCommandInSameChannel() {
+        EventResponse first = createDefaultEvent("Primeiro");
+        EventResponse second = createDefaultEvent("Segundo");
+        eventService.openEvent(first.id(), MEMBER_ID);
 
-        UpdateEventRequest updateReq = new UpdateEventRequest("New Title", "New desc", "vip", "VIP Prize",
-                "cumulative", 5, false, null, null);
-        EventResponse updated = eventService.updateEvent(created.id(), updateReq, MEMBER_ID);
+        IllegalArgumentException error = assertThrows(
+                IllegalArgumentException.class,
+                () -> eventService.openEvent(second.id(), MEMBER_ID));
 
-        assertEquals("New Title", updated.title());
-        assertEquals("New desc", updated.description());
-        assertEquals("cumulative", updated.rulesMode());
-        assertEquals(5, updated.maxEntriesPerParticipant());
-        assertFalse(updated.requiresInterestBeforeAction());
+        assertEquals("Ja existe um giveaway em captura neste canal.", error.getMessage());
+        assertEquals("draft", eventService.getEvent(second.id()).status());
     }
 
-    // --- Helpers ---
+    @Test
+    void onlyOneGiveawayCanCapturePerChannelEvenWithDifferentCommands() {
+        EventResponse first = createDefaultEvent("Primeiro");
+        EventResponse second = eventService.createEvent(
+                request("Segundo", "!euquero"), MEMBER_ID, BLAZE_USER_ID, channel());
+        eventService.openEvent(first.id(), MEMBER_ID);
+
+        assertThrows(IllegalArgumentException.class,
+                () -> eventService.openEvent(second.id(), MEMBER_ID));
+        assertEquals("draft", eventService.getEvent(second.id()).status());
+    }
+
+    @Test
+    void lifecycleStatsFollowCaptureFinalizeAndDrawReadiness() {
+        EventResponse event = createDefaultEvent("Ciclo completo");
+        EventLifecycleStats draft = eventService.getEventStats(event.id());
+
+        assertFalse(draft.captureActive());
+        assertFalse(draft.canFinalize());
+        assertFalse(draft.canDraw());
+        assertEquals(0, draft.participantCount());
+
+        EventResponse opened = eventService.openEvent(event.id(), MEMBER_ID);
+        var capture = captureService.capture(new ChatEntryCandidate(
+                CHANNEL_ID,
+                "message-001",
+                "!participar",
+                "viewer-001",
+                "viewer",
+                "Viewer",
+                opened.openedAt().plusMillis(1)));
+
+        EventLifecycleStats open = eventService.getEventStats(event.id());
+        assertEquals(CaptureStatus.ACCEPTED, capture.status());
+        assertTrue(open.captureActive());
+        assertTrue(open.canFinalize());
+        assertFalse(open.canDraw());
+        assertEquals(1, open.participantCount());
+        assertEquals("STARTING", open.captureHealth());
+
+        jdbc.update("""
+                INSERT INTO chat_polling_cursors (
+                    member_id, channel_id, event_id, last_message_id, last_polled_at,
+                    last_success_at, last_error_code)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)
+                """, MEMBER_ID, CHANNEL_ID, event.id(), "message-001");
+        EventLifecycleStats healthy = eventService.getEventStats(event.id());
+        assertEquals("HEALTHY", healthy.captureHealth());
+        assertNotNull(healthy.lastSuccessfulPollAt());
+
+        jdbc.update("""
+                UPDATE chat_polling_cursors SET last_error_code = 'BLAZE_HTTP_503'
+                WHERE member_id = ? AND channel_id = ?
+                """, MEMBER_ID, CHANNEL_ID);
+        assertEquals("DEGRADED", eventService.getEventStats(event.id()).captureHealth());
+
+        finishFinalization(event.id());
+        EventLifecycleStats closed = eventService.getEventStats(event.id());
+        assertFalse(closed.captureActive());
+        assertFalse(closed.canFinalize());
+        assertTrue(closed.canDraw());
+        assertEquals(1, closed.finalizedParticipantCount());
+        assertEquals("INACTIVE", closed.captureHealth());
+    }
+
+    @Test
+    void newEventStartsWithoutReusingThePreviousEventsCaptureHealth() {
+        EventResponse previous = createDefaultEvent("Evento anterior");
+        eventService.openEvent(previous.id(), MEMBER_ID);
+        jdbc.update("""
+                INSERT INTO chat_polling_cursors (
+                    member_id, channel_id, event_id, last_message_id, last_polled_at,
+                    last_success_at, last_error_code)
+                VALUES (?, ?, ?, ?, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP, NULL)
+                """, MEMBER_ID, CHANNEL_ID, previous.id(), "old-message");
+        eventService.cancelEvent(previous.id(), MEMBER_ID);
+
+        EventResponse current = createDefaultEvent("Evento atual");
+        eventService.openEvent(current.id(), MEMBER_ID);
+
+        EventLifecycleStats stats = eventService.getEventStats(current.id());
+        assertEquals("STARTING", stats.captureHealth());
+        assertEquals(null, stats.lastSuccessfulPollAt());
+    }
+
+    @Test
+    void creatorCanListCapturedBlazeParticipants() {
+        EventResponse event = createDefaultEvent("Lista privada");
+        EventResponse opened = eventService.openEvent(event.id(), MEMBER_ID);
+        var capture = captureService.capture(new ChatEntryCandidate(
+                CHANNEL_ID,
+                "message-001",
+                "!participar",
+                "viewer-001",
+                "viewer",
+                "Viewer One",
+                opened.openedAt().plusMillis(1)));
+
+        List<EventParticipantResponse> participants = eventService.getParticipants(event.id(), MEMBER_ID);
+
+        assertEquals(CaptureStatus.ACCEPTED, capture.status());
+        assertEquals(1, participants.size());
+        assertEquals("viewer-001", participants.get(0).blazeUserId());
+        assertEquals("Viewer One", participants.get(0).displayName());
+        assertThrows(ForbiddenException.class,
+                () -> eventService.getParticipants(event.id(), "other-member"));
+    }
+
+    @Test
+    void finalizationIsIdempotentAndFreezesPoolMetadata() {
+        EventResponse event = createDefaultEvent("Finalizar");
+        EventResponse opened = eventService.openEvent(event.id(), MEMBER_ID);
+        captureService.capture(new ChatEntryCandidate(
+                CHANNEL_ID,
+                "message-finalize-001",
+                "!participar",
+                "viewer-finalize-001",
+                "viewer",
+                "Viewer",
+                opened.openedAt().plusMillis(1)));
+
+        FinalizationStart start = eventService.beginFinalization(event.id(), MEMBER_ID);
+        assertEquals("finalizing", start.event().status());
+        assertNotNull(start.event().finalizationCutoffAt());
+        EventResponse first = eventService.completeFinalization(event.id(), MEMBER_ID, start.attemptId());
+        FinalizationStart repeatedStart = eventService.beginFinalization(event.id(), MEMBER_ID);
+        EventResponse repeated = repeatedStart.event();
+
+        assertEquals("closed", first.status());
+        assertTrue(repeatedStart.alreadyFinalized());
+        assertEquals(1, first.finalizedParticipantCount());
+        assertEquals(64, first.finalizedPoolHash().length());
+        assertEquals(first.closedAt(), repeated.closedAt());
+        assertEquals(first.finalizedPoolHash(), repeated.finalizedPoolHash());
+    }
+
+    @Test
+    void staleFinalizationAttemptCannotCompleteOrAbortANewerAttempt() {
+        EventResponse event = createDefaultEvent("Finalizacao cercada");
+        EventResponse opened = eventService.openEvent(event.id(), MEMBER_ID);
+        captureService.capture(new ChatEntryCandidate(
+                CHANNEL_ID,
+                "message-fence-001",
+                "!participar",
+                "viewer-fence-001",
+                "viewer-fence",
+                "Viewer Fence",
+                opened.openedAt().plusMillis(1)));
+
+        FinalizationStart staleAttempt = eventService.beginFinalization(event.id(), MEMBER_ID);
+        assertEquals(1, eventStore.recoverStaleFinalizations(
+                Instant.now().plusSeconds(1),
+                Instant.now()));
+        FinalizationStart currentAttempt = eventService.beginFinalization(event.id(), MEMBER_ID);
+
+        assertThrows(ConflictException.class, () -> eventService.completeFinalization(
+                event.id(), MEMBER_ID, staleAttempt.attemptId()));
+        eventService.abortFinalization(event.id(), MEMBER_ID, staleAttempt.attemptId());
+        assertEquals("finalizing", eventService.getEvent(event.id()).status());
+
+        EventResponse finalized = eventService.completeFinalization(
+                event.id(), MEMBER_ID, currentAttempt.attemptId());
+        assertEquals("closed", finalized.status());
+        assertEquals(1, finalized.finalizedParticipantCount());
+    }
 
     private EventResponse createDefaultEvent(String title) {
-        CreateEventRequest request = buildCreateRequest(title, List.of(buildRule("vote", 1, 10)));
-        return eventService.createEvent(request, MEMBER_ID, BLAZE_USER_ID, CHANNEL_ID);
+        return eventService.createEvent(request(title, "!participar"), MEMBER_ID, BLAZE_USER_ID, channel());
     }
 
-    private static CreateEventRequest buildCreateRequest(String title, List<CreateEventRuleRequest> rules) {
-        return new CreateEventRequest(title, "Description", "cash", "Cash prize",
-                "tier", 0, true, null, null, CHANNEL_ID, rules);
+    private EventResponse finishFinalization(String eventId) {
+        FinalizationStart start = eventService.beginFinalization(eventId, MEMBER_ID);
+        return eventService.completeFinalization(eventId, MEMBER_ID, start.attemptId());
     }
 
-    private static CreateEventRuleRequest buildRule(String actionType, int threshold, int entries) {
-        return new CreateEventRuleRequest(actionType, threshold, entries);
+    private static CreateEventRequest request(String title, String entryCommand) {
+        return new CreateEventRequest(
+                title,
+                "Use o comando no chat durante a live.",
+                "Gift card de R$ 100",
+                entryCommand,
+                null,
+                null,
+                CHANNEL_SLUG);
+    }
+
+    private static BlazeChannelResponse channel() {
+        return new BlazeChannelResponse(CHANNEL_ID, CHANNEL_SLUG, "Creator", null);
     }
 }

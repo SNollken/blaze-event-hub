@@ -1,8 +1,8 @@
 package com.blaze.eventhub.config;
 
 import java.time.Duration;
+import java.net.http.HttpClient;
 
-import org.springframework.boot.web.client.RestClientCustomizer;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.http.client.JdkClientHttpRequestFactory;
@@ -13,13 +13,14 @@ public class HttpClientConfig {
 
 	@Bean
 	RestClient.Builder restClientBuilder() {
-		var requestFactory = new JdkClientHttpRequestFactory();
+		var httpClient = HttpClient.newBuilder()
+				.connectTimeout(Duration.ofSeconds(5))
+				.followRedirects(HttpClient.Redirect.NORMAL)
+				.build();
+		var requestFactory = new JdkClientHttpRequestFactory(httpClient);
 		requestFactory.setReadTimeout(Duration.ofSeconds(10));
-		return RestClient.builder().requestFactory(requestFactory);
-	}
-
-	@Bean
-	RestClientCustomizer blazeRestClientDefaults() {
-		return builder -> builder.defaultHeader("Accept", "application/json");
+		return RestClient.builder()
+				.requestFactory(requestFactory)
+				.defaultHeader("Accept", "application/json");
 	}
 }

@@ -1,88 +1,130 @@
 package com.blaze.eventhub.event.draw;
 
+import java.security.SecureRandom;
 import java.time.Clock;
 import java.time.Instant;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
+import java.util.SplittableRandom;
+import java.util.random.RandomGenerator;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.blaze.eventhub.common.IdGenerator;
+import com.blaze.eventhub.common.ForbiddenException;
+import com.blaze.eventhub.common.ConflictException;
 import com.blaze.eventhub.common.NotFoundException;
 import com.blaze.eventhub.event.Event;
 import com.blaze.eventhub.event.EventStatus;
 import com.blaze.eventhub.event.EventStore;
-import com.blaze.eventhub.event.interest.EventInterestService;
+import com.blaze.eventhub.event.participant.EventParticipant;
+import com.blaze.eventhub.event.participant.EventParticipantStore;
+import com.blaze.eventhub.event.participant.ParticipantPoolHasher;
 
 @Service
 public class DrawService {
 
     private static final Logger log = LoggerFactory.getLogger(DrawService.class);
+    private static final String DRAW_METHOD = "uniform_blaze_participants_v1";
 
     private final EventWinnerStore winnerStore;
     private final EventStore eventStore;
-    private final EventInterestService interestService;
+    private final EventParticipantStore participantStore;
     private final IdGenerator idGenerator;
     private final Clock clock;
+    private final RandomGenerator seedGenerator;
 
-    public DrawService(EventWinnerStore winnerStore, EventStore eventStore,
-            EventInterestService interestService,
-            IdGenerator idGenerator, Clock clock) {
-        this.winnerStore = winnerStore;
-        this.eventStore = eventStore;
-        this.interestService = interestService;
-        this.idGenerator = idGenerator;
-        this.clock = clock;
+    @Autowired
+    public DrawService(
+            EventWinnerStore winnerStore,
+            EventStore eventStore,
+            EventParticipantStore participantStore,
+            IdGenerator idGenerator,
+            Clock clock) {
+        this(winnerStore, eventStore, participantStore, idGenerator, clock, new SecureRandom());
     }
 
+    DrawService(
+            EventWinnerStore winnerStore,
+            EventStore eventStore,
+            EventParticipantStore participantStore,
+            IdGenerator idGenerator,
+            Clock clock,
+            RandomGenerator seedGenerator) {
+        this.winnerStore = winnerStore;
+        this.eventStore = eventStore;
+        this.participantStore = participantStore;
+        this.idGenerator = idGenerator;
+        this.clock = clock;
+        this.seedGenerator = seedGenerator;
+    }
+
+    @Transactional
     public EventWinner executeDraw(String eventId, String creatorMemberId) {
-        Event event = eventStore.findById(eventId)
+        Event event = eventStore.findByIdForUpdate(eventId)
                 .orElseThrow(() -> new NotFoundException("Evento nao encontrado: " + eventId));
 
+        if (!event.creatorMemberId().equals(creatorMemberId)) {
+            throw new ForbiddenException("Somente o criador pode realizar esta acao.");
+        }
+
+        Optional<EventWinner> existingResult = winnerStore.findByEventId(eventId);
+        if (event.status() == EventStatus.COMPLETED) {
+            return existingResult.orElseThrow(
+                    () -> new IllegalStateException("Evento concluido sem resultado persistido."));
+        }
+
         if (event.status() != EventStatus.CLOSED) {
-            throw new IllegalStateException("Evento precisa estar CLOSED para sortear. Status: " + event.status());
+            throw new ConflictException("O evento precisa estar finalizado antes do sorteio. Status: " + event.status());
         }
 
-        if (winnerStore.findByEventId(eventId).isPresent()) {
-            throw new IllegalStateException("Evento ja possui um vencedor.");
+        if (existingResult.isPresent()) {
+            throw new ConflictException("O evento finalizado ja possui um resultado inconsistente.");
         }
 
-        var participants = interestService.getParticipants(eventId);
+        List<EventParticipant> participants = participantStore.findByEventId(eventId).stream()
+                .sorted(Comparator.comparing(EventParticipant::blazeUserId))
+                .toList();
         if (participants.isEmpty()) {
-            throw new IllegalStateException("Nenhum participante elegivel para sorteio.");
+            throw new ConflictException("Nenhum participante elegivel para sorteio.");
         }
 
-        var random = new java.util.Random();
-        int index = random.nextInt(participants.size());
-        var winner = participants.get(index);
+        String currentPoolHash = ParticipantPoolHasher.sha256(participants);
+        if (event.finalizedParticipantCount() != participants.size()
+                || !currentPoolHash.equals(event.finalizedPoolHash())) {
+            throw new ConflictException("O pool de participantes diverge do snapshot finalizado.");
+        }
 
-        String drawSeed = String.valueOf(System.nanoTime());
+        long seed = seedGenerator.nextLong();
+        int winnerIndex = new SplittableRandom(seed).nextInt(participants.size());
+        EventParticipant winner = participants.get(winnerIndex);
         Instant now = Instant.now(clock);
 
-        int entriesAtDrawTime = winner.lastCalculatedEntries();
-
-        EventWinner eventWinner = new EventWinner(
+        EventWinner result = new EventWinner(
                 idGenerator.newId(),
                 eventId,
-                winner.memberId(),
-                entriesAtDrawTime,
-                drawSeed,
-                "simple_random",
+                winner.blazeUserId(),
+                winner.blazeUsername(),
+                winner.displayName(),
+                Long.toString(seed),
+                DRAW_METHOD,
+                currentPoolHash,
+                participants.size(),
                 now,
-                creatorMemberId,
-                "Sorteado entre " + participants.size() + " participantes");
+                creatorMemberId);
 
-        winnerStore.save(eventWinner);
+        winnerStore.save(result);
+        if (eventStore.completeEvent(eventId, now) != 1) {
+            throw new ConflictException("O sorteio nao concluiu exatamente um evento.");
+        }
 
-        // Atualiza status do evento para COMPLETED
-        eventStore.updateStatus(eventId, EventStatus.COMPLETED);
-
-        log.info("Sorteio executado: eventId={}, winner={}, participantes={}",
-                eventId, winner.memberId(), participants.size());
-
-        return eventWinner;
+        log.info("Sorteio executado: eventId={}, participantes={}", eventId, participants.size());
+        return result;
     }
 
     public Optional<EventWinner> getWinner(String eventId) {

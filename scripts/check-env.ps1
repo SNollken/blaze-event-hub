@@ -1,76 +1,88 @@
 <#
 .SYNOPSIS
-  Verifica se o .env local tem as chaves obrigatórias da Blaze sem expor valores.
+  Valida a configuracao local do Blaze Event Hub sem imprimir valores.
 .DESCRIPTION
-  Lê .env, checa chaves obrigatórias, indica configurado/ausente/placeholder.
-  Exit code = 0 se tudo ok, >0 se faltar obrigatório.
-  NUNCA imprime BLAZE_CLIENT_SECRET, tokens ou valores sensíveis.
+  Confere apenas presenca e placeholders. Nunca mostra secrets, tokens ou senhas.
 #>
+param(
+    [switch]$PassThru
+)
 
 $repoDir = Split-Path -Parent $PSScriptRoot
 $envFile = Join-Path $repoDir ".env"
-$exampleFile = Join-Path $repoDir ".env.example"
 
-if (-not (Test-Path $envFile)) {
-    Write-Host "ERRO: .env nao encontrado em $envFile" -ForegroundColor Red
+if (-not (Test-Path -LiteralPath $envFile -PathType Leaf)) {
+    Write-Host "ERRO: .env local nao encontrado." -ForegroundColor Red
+    if ($PassThru) { return $false }
     exit 1
 }
 
-$lines = Get-Content $envFile
-$vars = @{}
-foreach ($line in $lines) {
-    $line = $line.Trim()
-    if ($line -eq "" -or $line.StartsWith("#")) { continue }
-    $idx = $line.IndexOf("=")
-    if ($idx -le 0) { continue }
-    $key = $line.Substring(0, $idx).Trim()
-    $val = $line.Substring($idx + 1).Trim()
-    $vars[$key] = $val
+$values = @{}
+foreach ($rawLine in Get-Content -LiteralPath $envFile) {
+    $line = $rawLine.Trim()
+    if ($line.Length -eq 0 -or $line.StartsWith("#")) { continue }
+
+    $separator = $line.IndexOf("=")
+    if ($separator -le 0) { continue }
+
+    $key = $line.Substring(0, $separator).Trim()
+    $value = $line.Substring($separator + 1).Trim().Trim('"').Trim("'")
+    $values[$key] = $value
 }
 
-$mandatory = @(
+$required = @(
     "BLAZE_CLIENT_ID",
     "BLAZE_CLIENT_SECRET",
     "BLAZE_REDIRECT_URI",
-    "BLAZE_SCOPES"
+    "BLAZE_SCOPES",
+    "EVENTHUB_CREDENTIAL_ENCRYPTION_KEY"
 )
 
 $optional = @(
-    "BLAZE_MONITORED_CHANNEL_ID"
+    "EVENTHUB_API_KEY",
+    "EVENTHUB_DB_URL",
+    "EVENTHUB_DB_USER",
+    "EVENTHUB_DB_PASSWORD"
 )
 
-$allOk = $true
+function Test-ConfiguredValue([string]$Value) {
+    if ([string]::IsNullOrWhiteSpace($Value)) { return $false }
+    $normalized = $Value.Trim().ToLowerInvariant()
+    return -not (
+        $normalized.StartsWith("<") -or
+        $normalized.Contains("placeholder") -or
+        $normalized.Contains("change-me")
+    )
+}
 
+$valid = $true
 Write-Host ""
-Write-Host "=== check-env: NollenBlaze ===" -ForegroundColor Cyan
+Write-Host "=== check-env: Blaze Event Hub ===" -ForegroundColor Cyan
 
-foreach ($key in $mandatory) {
-    $val = $vars[$key]
-    if ([string]::IsNullOrEmpty($val)) {
-        Write-Host "  $key : AUSENTE" -ForegroundColor Red
-        $allOk = $false
-    } elseif ($val -like "<*>" -or $val -like "*placeholder*") {
-        Write-Host "  $key : PLACEHOLDER" -ForegroundColor Yellow
-        $allOk = $false
-    } else {
+foreach ($key in $required) {
+    if (Test-ConfiguredValue $values[$key]) {
         Write-Host "  $key : configurado" -ForegroundColor Green
+    } else {
+        Write-Host "  $key : AUSENTE OU PLACEHOLDER" -ForegroundColor Red
+        $valid = $false
     }
 }
 
 foreach ($key in $optional) {
-    $val = $vars[$key]
-    if ([string]::IsNullOrEmpty($val)) {
-        Write-Host "  $key : ausente (opcional)" -ForegroundColor DarkYellow
+    if (Test-ConfiguredValue $values[$key]) {
+        Write-Host "  $key : configurado (opcional)" -ForegroundColor Green
     } else {
-        Write-Host "  $key : configurado" -ForegroundColor Green
+        Write-Host "  $key : ausente (opcional)" -ForegroundColor DarkGray
     }
 }
 
 Write-Host ""
-if ($allOk) {
-    Write-Host "Resultado: todas as chaves obrigatorias configuradas." -ForegroundColor Green
-    exit 0
+if ($valid) {
+    Write-Host "Resultado: configuracao local pronta." -ForegroundColor Green
 } else {
-    Write-Host "Resultado: ha chaves ausentes ou placeholder no .env" -ForegroundColor Yellow
-    exit 1
+    Write-Host "Resultado: corrija as chaves obrigatorias antes de iniciar." -ForegroundColor Yellow
 }
+
+if ($PassThru) { return $valid }
+if ($valid) { exit 0 }
+exit 1

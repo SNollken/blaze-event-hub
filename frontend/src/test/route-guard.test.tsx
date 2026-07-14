@@ -36,8 +36,8 @@ describe('route guard', () => {
 
     renderRoute('/events/create');
     // Deve aparecer o heading do Login (tela de destino do redirect)
-    expect(await screen.findByRole('heading', { name: 'Blaze Event Hub' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Conecte sua conta Blaze' })).toBeInTheDocument();
     // E NAO o heading de criar evento
-    expect(screen.queryByRole('heading', { name: 'Criar evento' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'Prepare a entrada antes de entrar ao vivo' })).not.toBeInTheDocument();
   });
 });

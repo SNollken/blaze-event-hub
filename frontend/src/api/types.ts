@@ -1,20 +1,6 @@
-/* Blaze Event Hub - API Types (matches client.ts) */
+export type EventStatus = 'DRAFT' | 'OPEN' | 'FINALIZING' | 'CLOSED' | 'COMPLETED' | 'CANCELLED';
 
-export type EventStatus = 'DRAFT' | 'OPEN' | 'CLOSED' | 'DRAWING' | 'COMPLETED' | 'CANCELLED';
-
-export interface StatusResponse {
-  appName: string;
-  version: string;
-  javaVersion: string;
-  blazeOAuthConfigured: boolean;
-  eventsRunning: boolean;
-  sessionIdPresent: boolean;
-  oauthConnected: boolean;
-  profilePresent: boolean;
-  connectedAccountDisplayName: string | null;
-  uptimeSeconds: number;
-  nextRecommendedAction: string | null;
-}
+export type CaptureHealth = 'INACTIVE' | 'STARTING' | 'HEALTHY' | 'DEGRADED' | 'FINALIZING';
 
 export interface OAuthSessionResponse {
   connected: boolean;
@@ -26,20 +12,22 @@ export interface OAuthSessionResponse {
     username: string;
     displayName: string;
     avatarUrl: string | null;
-    rawAvailable?: boolean;
   } | null;
-  tokenType?: string | null;
-  userId?: string | null;
   scopes: string[];
   expiresAt?: string | null;
-  tokenExpiredOrUnknown?: boolean;
-  lastConnectedAt?: string | null;
-  lastProfileSyncAt?: string | null;
   nextRecommendedAction: string | null;
 }
 
 export interface OAuthStartResponse {
   authorizationUrl: string;
+}
+
+export interface OAuthActionResponse {
+  status?: string;
+  refreshed?: boolean;
+  disconnected?: boolean;
+  connected?: boolean;
+  message: string;
 }
 
 export interface MemberProfile {
@@ -51,119 +39,93 @@ export interface MemberProfile {
   status: string;
 }
 
+export interface BlazeChannelResponse {
+  id: string;
+  slug: string;
+  displayName: string;
+  avatarUrl: string | null;
+}
+
 export interface EventResponse {
   id: string;
-  creatorMemberId: string;
-  creatorBlazeUserId?: string;
   creatorChannelId: string;
-  channelSlug?: string;
+  creatorChannelSlug: string | null;
+  creatorChannelDisplayName: string | null;
+  creatorChannelAvatarUrl: string | null;
   title: string;
   description: string;
-  prizeType?: string;
-  prizeDescription?: string;
-  status: string;
-  mode?: string;
-  maxEntries?: number;
-  rulesMode: string;
-  maxEntriesPerParticipant: number;
-  requiresInterestBeforeAction: boolean;
+  prize: string;
+  entryCommand: string;
+  status: EventStatus;
+  finalizedParticipantCount: number;
+  finalizedPoolHash: string | null;
   startsAt: string | null;
   endsAt: string | null;
-  createdAt?: string | null;
-  updatedAt?: string | null;
-  closedAt?: string | null;
-  completedAt?: string | null;
-  participantCount?: number;
-  rules?: RuleResponse[];
+  createdAt: string;
+  updatedAt: string;
+  openedAt: string | null;
+  finalizationCutoffAt: string | null;
+  closedAt: string | null;
+  completedAt: string | null;
 }
 
-export interface EventStatsLast24h {
-  votes?: number;
-  subs?: number;
-  giftedSubs?: number;
-}
-
-export interface EventStatsResponse {
-  totalVotes: number;
-  totalSubs: number;
-  totalGiftedSubs: number;
-  participants: number;
-  totalEntries: number;
-  last24h: EventStatsLast24h | number;
+export interface EventLifecycleStats {
+  eventId: string;
+  status: EventStatus;
+  participantCount: number;
+  finalizedParticipantCount: number;
+  captureActive: boolean;
+  captureHealth: CaptureHealth;
+  lastPolledAt: string | null;
+  lastSuccessfulPollAt: string | null;
+  lastErrorCode: string | null;
+  canFinalize: boolean;
+  canDraw: boolean;
+  openedAt: string | null;
+  finalizationCutoffAt: string | null;
+  closedAt: string | null;
+  completedAt: string | null;
 }
 
 export interface EventHistoryResponse {
   drafts: EventResponse[];
-  upcoming: EventResponse[];
+  active: EventResponse[];
   past: EventResponse[];
-}
-
-export interface RuleResponse {
-  id: string;
-  eventId?: string;
-  actionType: string;
-  thresholdAmount: number;
-  entries: number;
-  isActive: boolean;
-  createdAt?: string | null;
-  updatedAt?: string | null;
 }
 
 export interface CreateEventRequest {
   title: string;
   description?: string;
-  prizeType?: string;
-  prizeDescription?: string;
-  rulesMode?: string;
-  maxEntriesPerParticipant?: number;
-  requiresInterestBeforeAction?: boolean;
+  prize: string;
+  entryCommand: string;
   startsAt?: string;
   endsAt?: string;
-  creatorChannelId: string;
-  rules: CreateRuleRequest[];
+  creatorChannelSlug: string;
 }
 
-export interface CreateRuleRequest {
-  actionType: string;
-  thresholdAmount: number;
-  entries: number;
+export interface UpdateEventRequest {
+  title?: string;
+  description?: string;
+  prize?: string;
+  entryCommand?: string;
+  startsAt?: string;
+  endsAt?: string;
 }
 
-export interface UpdateRuleRequest {
-  actionType?: string;
-  thresholdAmount?: number;
-  entries?: number;
-  isActive?: boolean;
-}
-
-export type Rule = CreateRuleRequest;
-
-export interface ParticipantResponse {
-  memberId: string;
-  blazeUsername: string;
+export interface EventParticipantResponse {
+  blazeUserId: string;
+  blazeUsername: string | null;
   displayName: string;
-  status: string;
-  interestedAt?: string;
-  lastCalculatedEntries: number;
+  enteredAt: string;
 }
 
-export interface EntryResponse {
-  id: string;
+export interface EventResultResponse {
   eventId: string;
-  memberId: string;
-  actionType: string;
-  amount: number;
-  entriesGranted: number;
-  calculationReason: string;
-}
-
-export interface WinnerResponse {
-  id: string;
-  eventId: string;
-  memberId: string;
-  entriesAtDrawTime: number;
+  winnerUsername: string | null;
+  winnerDisplayName: string;
   drawSeed: string;
   drawMethod: string;
+  poolHash: string;
+  participantCount: number;
   selectedAt: string;
-  notes: string;
 }

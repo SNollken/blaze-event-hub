@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 @Controller
 public class SpaController {
 
-    @RequestMapping(value = {"/", "/events/**", "/{path:[^\\.]*}"})
+    @RequestMapping(value = {"/", "/events/**", "/settings/**", "/studio/**", "/{path:[^\\.]*}"})
     public String forward() {
         return "forward:/index.html";
     }

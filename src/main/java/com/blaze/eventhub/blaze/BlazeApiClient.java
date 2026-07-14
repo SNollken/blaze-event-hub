@@ -9,7 +9,6 @@ import com.blaze.eventhub.oauth.TokenStore;
 
 import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
@@ -56,36 +55,37 @@ public class BlazeApiClient {
 	}
 
 	public Map<String, Object> getChatMessages(String channelId) {
-		TokenSnapshot token = requireToken();
+		return getChatMessages(channelId, requireToken());
+	}
+
+	public Map<String, Object> getChatMessages(String channelId, TokenSnapshot token) {
+		return getChatMessages(channelId, null, token);
+	}
+
+	public Map<String, Object> getChatMessages(String channelId, String cursor, TokenSnapshot token) {
+		if (!properties.isApiConfigured()) {
+			throw new ConfigurationMissingException("Blaze API is not configured");
+		}
+		if (token == null || token.accessTokenBlank()) {
+			throw new ConfigurationMissingException("Blaze access token is not available");
+		}
 		if (channelId == null || channelId.isBlank()) {
 			throw new IllegalArgumentException("channelId is required");
 		}
 		try {
 			return restClient.get()
-					.uri(uriBuilder -> uriBuilder.path("/v1/chats/messages").queryParam("channelId", channelId).build())
+					.uri(uriBuilder -> {
+						var request = uriBuilder.path("/v1/chats/messages")
+								.queryParam("channelId", channelId);
+						if (cursor != null && !cursor.isBlank()) {
+							return request
+									.queryParam("cursor", "{cursor}")
+									.queryParam("limit", properties.getChatMessageLimit())
+									.build(Map.of("cursor", cursor));
+						}
+						return request.queryParam("limit", properties.getChatMessageLimit()).build();
+					})
 					.headers(headers -> copyHeaders(headers, token))
-					.retrieve()
-					.body(MAP_RESPONSE);
-		}
-		catch (RestClientResponseException ex) {
-			throw BlazeApiException.from(ex);
-		}
-	}
-
-	public Map<String, Object> sendChatMessage(String channelId, String message) {
-		TokenSnapshot token = requireToken();
-		if (channelId == null || channelId.isBlank()) {
-			throw new IllegalArgumentException("channelId is required");
-		}
-		if (message == null || message.isBlank()) {
-			throw new IllegalArgumentException("message is required");
-		}
-		try {
-			return restClient.post()
-					.uri("/v1/chats/messages")
-					.contentType(MediaType.APPLICATION_JSON)
-					.headers(headers -> copyHeaders(headers, token))
-					.body(Map.of("channelId", channelId, "message", message))
 					.retrieve()
 					.body(MAP_RESPONSE);
 		}

@@ -25,27 +25,29 @@ public class JdbcEventWinnerStore implements EventWinnerStore {
     @Override
     public EventWinner save(EventWinner winner) {
         jdbc.update("""
-                MERGE INTO event_winners (id, event_id, member_id, entries_at_draw_time,
-                    draw_seed, draw_method, selected_at, selected_by, notes)
-                KEY (id)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO event_draw_results (
+                    id, event_id, winner_blaze_user_id, winner_username, winner_display_name,
+                    draw_seed, draw_method, pool_hash, participant_count, selected_at, selected_by)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 winner.id(),
                 winner.eventId(),
-                winner.memberId(),
-                winner.entriesAtDrawTime(),
+                winner.winnerBlazeUserId(),
+                winner.winnerUsername(),
+                winner.winnerDisplayName(),
                 winner.drawSeed(),
                 winner.drawMethod(),
+                winner.poolHash(),
+                winner.participantCount(),
                 toTimestamp(winner.selectedAt()),
-                winner.selectedBy(),
-                winner.notes());
+                winner.selectedBy());
         return winner;
     }
 
     @Override
     public Optional<EventWinner> findByEventId(String eventId) {
         List<EventWinner> result = jdbc.query(
-                "SELECT * FROM event_winners WHERE event_id = ? ORDER BY selected_at DESC",
+                "SELECT * FROM event_draw_results WHERE event_id = ?",
                 ROW_MAPPER, eventId);
         return result.isEmpty() ? Optional.empty() : Optional.of(result.get(0));
     }
@@ -53,7 +55,7 @@ public class JdbcEventWinnerStore implements EventWinnerStore {
     @Override
     public List<EventWinner> findAllByEventId(String eventId) {
         return jdbc.query(
-                "SELECT * FROM event_winners WHERE event_id = ? ORDER BY selected_at DESC",
+                "SELECT * FROM event_draw_results WHERE event_id = ?",
                 ROW_MAPPER, eventId);
     }
 
@@ -67,13 +69,15 @@ public class JdbcEventWinnerStore implements EventWinnerStore {
             return new EventWinner(
                     rs.getString("id"),
                     rs.getString("event_id"),
-                    rs.getString("member_id"),
-                    rs.getInt("entries_at_draw_time"),
+                    rs.getString("winner_blaze_user_id"),
+                    rs.getString("winner_username"),
+                    rs.getString("winner_display_name"),
                     rs.getString("draw_seed"),
                     rs.getString("draw_method"),
+                    rs.getString("pool_hash"),
+                    rs.getInt("participant_count"),
                     toInstant(rs.getTimestamp("selected_at")),
-                    rs.getString("selected_by"),
-                    rs.getString("notes"));
+                    rs.getString("selected_by"));
         }
 
         private static Instant toInstant(Timestamp ts) {

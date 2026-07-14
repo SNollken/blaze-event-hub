@@ -1,150 +1,177 @@
 import type {
-  StatusResponse,
+  BlazeChannelResponse,
+  CreateEventRequest,
+  EventHistoryResponse,
+  EventLifecycleStats,
+  EventParticipantResponse,
+  EventResponse,
+  EventResultResponse,
+  MemberProfile,
+  OAuthActionResponse,
   OAuthSessionResponse,
   OAuthStartResponse,
-  MemberProfile,
-  EventResponse,
-  EventStatsResponse,
-  EventHistoryResponse,
-  CreateEventRequest,
-  UpdateRuleRequest,
-  ParticipantResponse,
-  EntryResponse,
-  WinnerResponse,
-  RuleResponse,
+  UpdateEventRequest,
 } from './types';
 
 export type {
-  StatusResponse,
+  BlazeChannelResponse,
+  CreateEventRequest,
+  EventHistoryResponse,
+  EventLifecycleStats,
+  EventParticipantResponse,
+  EventResponse,
+  EventResultResponse,
+  MemberProfile,
+  OAuthActionResponse,
   OAuthSessionResponse,
   OAuthStartResponse,
-  MemberProfile,
-  EventResponse,
-  EventStatsResponse,
-  EventHistoryResponse,
-  CreateEventRequest,
-  UpdateRuleRequest,
-  ParticipantResponse,
-  EntryResponse,
-  WinnerResponse,
-  RuleResponse,
+  UpdateEventRequest,
 };
 
-const BASE = '';
-const API_KEY = import.meta.env.VITE_BLAZE_EVENT_HUB_API_KEY
-  || import.meta.env.VITE_NOLLEN_API_KEY
-  || 'dev-local-key';
+interface ApiErrorPayload {
+  code?: string;
+  message?: string;
+  detail?: string;
+  error?: string;
+}
 
-type ApiEvent = EventResponse & Record<string, unknown>;
+type ApiEvent = Omit<EventResponse, 'status'> & { status: string };
+type ApiStats = Omit<EventLifecycleStats, 'status'> & { status: string };
 
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const res = await fetch(`${BASE}${url}`, {
-    headers: {
-      'Content-Type': 'application/json',
-      Accept: 'application/json',
-      'X-Nollen-Api-Key': API_KEY,
-      ...(options?.headers || {}),
-    },
-    ...options,
-  });
-  if (!res.ok) {
-    const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status}: ${text || res.statusText}`);
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
   }
-  if (res.status === 204) return undefined as T;
-  return res.json();
 }
 
-function normalizeStatus(value: unknown) {
-  return String(value || 'DRAFT').toUpperCase();
+async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
+  const headers = new Headers(options.headers);
+  headers.set('Accept', 'application/json');
+  if (options.body != null) headers.set('Content-Type', 'application/json');
+
+  const response = await fetch(url, {
+    ...options,
+    headers,
+    credentials: 'same-origin',
+  });
+
+  if (!response.ok) {
+    const raw = await response.text().catch(() => '');
+    let payload: ApiErrorPayload = {};
+    try {
+      payload = raw ? JSON.parse(raw) as ApiErrorPayload : {};
+    } catch {
+      payload = {};
+    }
+    const message = payload.message || payload.detail || payload.error || raw || response.statusText;
+    throw new ApiError(response.status, payload.code || `HTTP_${response.status}`, message);
+  }
+
+  if (response.status === 204) return undefined as T;
+  return response.json() as Promise<T>;
 }
 
-function normalizeActionType(value: unknown) {
-  return String(value || 'vote').toLowerCase();
+function normalizeStatus(value: string): EventResponse['status'] {
+  const normalized = value.toUpperCase();
+  if (normalized === 'DRAFT' || normalized === 'OPEN' || normalized === 'FINALIZING' || normalized === 'CLOSED'
+    || normalized === 'COMPLETED' || normalized === 'CANCELLED') {
+    return normalized;
+  }
+  throw new Error(`Status de evento desconhecido: ${value}`);
 }
 
 function normalizeEvent(event: ApiEvent): EventResponse {
-  const rules = event.rules?.map((rule) => ({
-    ...rule,
-    actionType: normalizeActionType(rule.actionType),
-    isActive: rule.isActive ?? true,
-  }));
-  const rulesMode = String(event.rulesMode || event.mode || 'tier').toLowerCase();
   return {
     ...event,
-    status: normalizeStatus(event.status),
-    rulesMode,
-    mode: String(event.mode || rulesMode),
-    maxEntries: event.maxEntries ?? event.maxEntriesPerParticipant,
     description: event.description || '',
-    rules,
+    status: normalizeStatus(event.status),
   };
+}
+
+function normalizeStats(stats: ApiStats): EventLifecycleStats {
+  return { ...stats, status: normalizeStatus(stats.status) };
 }
 
 const normalizeEvents = (events: ApiEvent[]) => events.map(normalizeEvent);
 
-/* Status */
-export const getStatus = () => request<StatusResponse>('/api/status');
-
-/* Blaze API */
-export const getChannels = (slug: string) =>
-  request<{ id: string; slug: string; displayName: string; avatarUrl: string }>(`/api/blaze/channels/resolve?slug=${encodeURIComponent(slug)}`);
-
-/* OAuth */
 export const getOAuthSession = () => request<OAuthSessionResponse>('/api/blaze/oauth/session');
 export const startOAuth = () => request<OAuthStartResponse>('/api/blaze/oauth/start');
+export const refreshOAuth = () => request<OAuthActionResponse>('/api/blaze/oauth/refresh', { method: 'POST' });
+export const disconnectOAuth = () => request<OAuthActionResponse>('/api/blaze/oauth/disconnect', { method: 'POST' });
 
-/* Members */
 export const getMe = () => request<MemberProfile>('/api/members/me');
 
-/* Events */
-export const getEvents = async (status?: string) => {
-  const events = await request<ApiEvent[]>(`/api/events${status ? `?status=${encodeURIComponent(status)}` : ''}`);
-  return normalizeEvents(events);
-};
-export const getEvent = async (id: string) => normalizeEvent(await request<ApiEvent>(`/api/events/${id}`));
-export const getEventStats = (id: string) => request<EventStatsResponse>(`/api/events/${id}/stats`);
-export const getMyEventHistory = async () => {
-  const history = await request<{ drafts?: ApiEvent[]; upcoming?: ApiEvent[]; past?: ApiEvent[] }>('/api/events/my/history');
+export const resolveBlazeChannel = (slug: string) => request<BlazeChannelResponse>(
+  `/api/blaze/channels/resolve?slug=${encodeURIComponent(slug.trim())}`,
+);
+
+export async function getEvents(status?: EventResponse['status']) {
+  const query = status ? `?status=${encodeURIComponent(status.toLowerCase())}` : '';
+  return normalizeEvents(await request<ApiEvent[]>(`/api/events${query}`));
+}
+
+export async function getEvent(id: string) {
+  return normalizeEvent(await request<ApiEvent>(`/api/events/${encodeURIComponent(id)}`));
+}
+
+export async function getEventStats(id: string) {
+  return normalizeStats(await request<ApiStats>(`/api/events/${encodeURIComponent(id)}/stats`));
+}
+
+export async function getMyEventHistory(): Promise<EventHistoryResponse> {
+  const history = await request<{
+    drafts?: ApiEvent[];
+    active?: ApiEvent[];
+    upcoming?: ApiEvent[];
+    past?: ApiEvent[];
+  }>('/api/events/my/history');
   return {
     drafts: normalizeEvents(history.drafts || []),
-    upcoming: normalizeEvents(history.upcoming || []),
+    active: normalizeEvents(history.active || history.upcoming || []),
     past: normalizeEvents(history.past || []),
-  } satisfies EventHistoryResponse;
-};
-export const createEvent = async (data: CreateEventRequest) =>
-  normalizeEvent(await request<ApiEvent>('/api/events', { method: 'POST', body: JSON.stringify(data) }));
-export const updateEvent = async (id: string, data: Partial<CreateEventRequest>) =>
-  normalizeEvent(await request<ApiEvent>(`/api/events/${id}`, { method: 'PUT', body: JSON.stringify(data) }));
-export const openEvent = async (id: string) =>
-  normalizeEvent(await request<ApiEvent>(`/api/events/${id}/open`, { method: 'POST' }));
-export const closeEvent = async (id: string) =>
-  normalizeEvent(await request<ApiEvent>(`/api/events/${id}/close`, { method: 'POST' }));
-export const cancelEvent = async (id: string) =>
-  normalizeEvent(await request<ApiEvent>(`/api/events/${id}/cancel`, { method: 'POST' }));
+  };
+}
 
-export const addEventRule = (eventId: string, data: UpdateRuleRequest) =>
-  request<RuleResponse>(`/api/events/${eventId}/rules`, { method: 'POST', body: JSON.stringify(data) });
-export const updateEventRule = (eventId: string, ruleId: string, data: UpdateRuleRequest) =>
-  request<RuleResponse>(`/api/events/${eventId}/rules/${ruleId}`, { method: 'PATCH', body: JSON.stringify(data) });
-export const removeEventRule = (eventId: string, ruleId: string) =>
-  request<void>(`/api/events/${eventId}/rules/${ruleId}`, { method: 'DELETE' });
-/* Interest */
-export const expressInterest = (eventId: string) =>
-  request<unknown>(`/api/events/${eventId}/interest`, { method: 'POST' });
-export const withdrawInterest = (eventId: string) =>
-  request<void>(`/api/events/${eventId}/interest`, { method: 'DELETE' });
-export const getParticipants = (eventId: string) =>
-  request<ParticipantResponse[]>(`/api/events/${eventId}/interest/participants`);
+export async function createEvent(data: CreateEventRequest) {
+  return normalizeEvent(await request<ApiEvent>('/api/events', {
+    method: 'POST',
+    body: JSON.stringify(data),
+  }));
+}
 
-/* Entries */
-export const getEntries = (eventId: string) =>
-  request<EntryResponse[]>(`/api/events/${eventId}/entries`);
-export const recalculate = (eventId: string) =>
-  request<number>(`/api/events/${eventId}/recalculate`, { method: 'POST' });
+export async function updateEvent(id: string, data: UpdateEventRequest) {
+  return normalizeEvent(await request<ApiEvent>(`/api/events/${encodeURIComponent(id)}`, {
+    method: 'PUT',
+    body: JSON.stringify(data),
+  }));
+}
 
-/* Draw */
-export const executeDraw = (eventId: string) =>
-  request<WinnerResponse>(`/api/events/${eventId}/draw`, { method: 'POST' });
-export const getWinner = (eventId: string) =>
-  request<WinnerResponse>(`/api/events/${eventId}/winner`);
+export async function openEvent(id: string) {
+  return normalizeEvent(await request<ApiEvent>(`/api/events/${encodeURIComponent(id)}/open`, { method: 'POST' }));
+}
+
+export async function finalizeEvent(id: string) {
+  return normalizeEvent(await request<ApiEvent>(`/api/events/${encodeURIComponent(id)}/finalize`, { method: 'POST' }));
+}
+
+export async function cancelEvent(id: string) {
+  return normalizeEvent(await request<ApiEvent>(`/api/events/${encodeURIComponent(id)}/cancel`, { method: 'POST' }));
+}
+
+export const getEventParticipants = (id: string) => request<EventParticipantResponse[]>(
+  `/api/events/${encodeURIComponent(id)}/participants`,
+);
+
+export const executeDraw = (id: string) => request<EventResultResponse>(
+  `/api/events/${encodeURIComponent(id)}/draw`,
+  { method: 'POST' },
+);
+
+export const getEventResult = (id: string) => request<EventResultResponse>(
+  `/api/events/${encodeURIComponent(id)}/winner`,
+);

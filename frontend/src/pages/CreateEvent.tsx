@@ -1,447 +1,329 @@
-import { useEffect, useMemo, useState } from 'react';
-import type { FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
+import { ArrowRight, CheckCircle2, Radio, Search } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
-import { useI18n } from '../i18n/I18nContext';
-import { createEvent, getMe } from '../api/client';
-import type { CreateRuleRequest, MemberProfile } from '../api/types';
-import type { TranslationKey } from '../i18n/translations';
+import { createEvent, getMe, resolveBlazeChannel } from '../api/client';
+import type { BlazeChannelResponse, MemberProfile } from '../api/types';
+import { addToast } from '../components/Toast';
 
-type ActionType = 'vote' | 'sub' | 'gifted_sub';
+type FieldName = 'title' | 'prize' | 'entryCommand' | 'channel';
+type FieldErrors = Partial<Record<FieldName, string>>;
 
-type RuleDraft = {
-  actionType: ActionType;
-  thresholdAmount: number;
-  entries: number;
-};
-
-type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
-
-const ACTION_OPTIONS: Array<{ value: ActionType; labelKey: TranslationKey; unitKey: TranslationKey }> = [
-  { value: 'vote', labelKey: 'actionVote', unitKey: 'actionVote' },
-  { value: 'sub', labelKey: 'actionSub', unitKey: 'actionSub' },
-  { value: 'gifted_sub', labelKey: 'actionGiftedSub', unitKey: 'actionGiftedSub' },
-];
-
-const defaultRule = (): RuleDraft => ({
-  actionType: 'vote',
-  thresholdAmount: 50,
-  entries: 1,
-});
-
-function positiveInteger(value: number) {
-  return Number.isFinite(value) && Number.isInteger(value) && value > 0;
-}
-
-function toIsoDate(value: string) {
+function toIsoDate(value: string): string | undefined {
   if (!value) return undefined;
   const date = new Date(value);
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-function actionUnit(t: Translate, actionType: ActionType) {
-  const option = ACTION_OPTIONS.find((candidate) => candidate.value === actionType);
-  return option ? t(option.unitKey) : actionType;
-}
-
-function validateRules(rules: RuleDraft[], t: Translate) {
-  if (rules.length === 0) return t('ruleRequired');
-  if (rules.some((rule) => !rule.actionType)) return t('ruleActionRequired');
-  if (rules.some((rule) => !positiveInteger(rule.thresholdAmount))) {
-    return t('ruleThresholdInvalid');
-  }
-  if (rules.some((rule) => !positiveInteger(rule.entries))) {
-    return t('ruleEntriesInvalid');
-  }
-  return '';
+function normalizeChannelSlug(value: string): string {
+  const withoutOrigin = value.trim().replace(/^(?:https?:\/\/)?(?:www\.)?blaze\.stream\//i, '');
+  return withoutOrigin.split(/[/?#]/, 1)[0].replace(/^@/, '').trim();
 }
 
 export default function CreateEvent() {
   const navigate = useNavigate();
-  const { t } = useI18n();
-
+  const [member, setMember] = useState<MemberProfile | null>(null);
   const [title, setTitle] = useState('');
+  const [prize, setPrize] = useState('');
   const [description, setDescription] = useState('');
-  const [prizeTypeSelect, setPrizeTypeSelect] = useState('');
-  const [prizeTypeOther, setPrizeTypeOther] = useState('');
-  const [prizeDescription, setPrizeDescription] = useState('');
-  const [me, setMe] = useState<MemberProfile | null>(null);
-  const [isLoadingMe, setIsLoadingMe] = useState(true);
-  const [meError, setMeError] = useState('');
-  const [rulesMode, setRulesMode] = useState('tier');
-  const [maxEntriesPerParticipant, setMaxEntriesPerParticipant] = useState(0);
-  const [requiresInterestBeforeAction, setRequiresInterestBeforeAction] = useState(false);
+  const [entryCommand, setEntryCommand] = useState('!participar');
+  const [channelSlug, setChannelSlug] = useState('');
+  const [resolvedChannel, setResolvedChannel] = useState<BlazeChannelResponse | null>(null);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
-  const [rules, setRules] = useState<RuleDraft[]>([defaultRule()]);
+  const [isResolving, setIsResolving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
+  const [channelError, setChannelError] = useState('');
+  const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
 
   useEffect(() => {
-    let ignore = false;
-
+    let active = true;
     getMe()
       .then((profile) => {
-        if (!ignore) setMe(profile);
+        if (active) setMember(profile);
       })
-      .catch((err) => {
-        if (!ignore) {
-          setMe(null);
-          setMeError(err instanceof Error ? err.message : t('creatorChannelLoadError'));
-        }
-      })
-      .finally(() => {
-        if (!ignore) setIsLoadingMe(false);
+      .catch(() => {
+        if (active) setMember(null);
       });
-
     return () => {
-      ignore = true;
+      active = false;
     };
-  }, [t]);
+  }, []);
 
-  const rulesError = useMemo(() => validateRules(rules, t), [rules, t]);
   const dateError = useMemo(() => {
     if (!startsAt || !endsAt) return '';
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime()
-      ? t('dateOrderError')
+      ? 'O encerramento precisa acontecer depois do início.'
       : '';
-  }, [startsAt, endsAt, t]);
+  }, [endsAt, startsAt]);
 
-  const canSubmit = Boolean(title.trim())
-    && Boolean(me)
-    && !rulesError
-    && !dateError
-    && !isLoadingMe
-    && !isSubmitting;
-
-  const updateRule = <K extends keyof RuleDraft>(index: number, field: K, value: RuleDraft[K]) => {
-    setRules((current) => current.map((rule, ruleIndex) => (
-      ruleIndex === index ? { ...rule, [field]: value } : rule
-    )));
-  };
-
-  const addRule = () => {
-    setRules((current) => [...current, { actionType: 'vote', thresholdAmount: 100, entries: 3 }]);
-  };
-
-  const removeRule = (index: number) => {
-    setRules((current) => (current.length === 1 ? current : current.filter((_, ruleIndex) => ruleIndex !== index)));
-  };
-
-  const validateForm = () => {
-    if (!title.trim()) return t('titleRequired');
-    if (isLoadingMe) return t('creatorChannelLoading');
-    if (!me) return meError || t('creatorChannelUnavailable');
-    if (rulesError) return rulesError;
-    if (dateError) return dateError;
-    return '';
-  };
-
-  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
-    event.preventDefault();
-    const validationError = validateForm();
-    if (validationError) {
-      setError(validationError);
+  const resolveChannel = async () => {
+    const slug = normalizeChannelSlug(channelSlug);
+    if (!slug) {
+      setResolvedChannel(null);
+      setChannelError('Informe o slug do canal na Blaze.');
+      setFieldErrors((current) => ({ ...current, channel: 'Informe e localize o canal da transmissão.' }));
       return;
     }
+
+    setIsResolving(true);
+    setChannelError('');
+    setResolvedChannel(null);
+    try {
+      const channel = await resolveBlazeChannel(slug);
+      setChannelSlug(channel.slug);
+      setResolvedChannel(channel);
+      setFieldErrors((current) => ({ ...current, channel: undefined }));
+    } catch (resolveError) {
+      setChannelError(resolveError instanceof Error
+        ? resolveError.message
+        : 'Não foi possível localizar esse canal na Blaze.');
+    } finally {
+      setIsResolving(false);
+    }
+  };
+
+  const validateFields = (): FieldErrors => {
+    const next: FieldErrors = {};
+    if (!title.trim()) next.title = 'Dê um título ao giveaway.';
+    if (!prize.trim()) next.prize = 'Descreva o prêmio que será sorteado.';
+    if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
+      next.entryCommand = 'Use ! seguido de letras, números, _ ou -.';
+    }
+    if (!resolvedChannel) next.channel = 'Resolva e confirme o canal da transmissão antes de criar.';
+    return next;
+  };
+
+  const clearFieldError = (field: FieldName) => {
+    setFieldErrors((current) => ({ ...current, [field]: undefined }));
+  };
+
+  const handleSubmit = async (submitEvent: FormEvent<HTMLFormElement>) => {
+    submitEvent.preventDefault();
+    const invalidFields = validateFields();
+    setFieldErrors(invalidFields);
+    if (Object.keys(invalidFields).length > 0 || dateError) {
+      setError('Revise os campos destacados antes de criar o giveaway.');
+      return;
+    }
+    if (!resolvedChannel) return;
 
     setIsSubmitting(true);
     setError('');
-
-    if (!me) {
-      setError(t('creatorChannelUnavailable'));
-      setIsSubmitting(false);
-      return;
-    }
-
-    const payload = {
-      title: title.trim(),
-      description: description.trim() || undefined,
-      creatorChannelId: me.blazeUserId,
-      rulesMode,
-      maxEntriesPerParticipant: Math.max(0, Math.trunc(maxEntriesPerParticipant || 0)),
-      requiresInterestBeforeAction,
-      prizeType: prizeTypeSelect === 'outro' ? (prizeTypeOther.trim() || undefined) : (prizeTypeSelect || undefined),
-      prizeDescription: prizeDescription.trim() || undefined,
-      startsAt: toIsoDate(startsAt),
-      endsAt: toIsoDate(endsAt),
-      rules: rules.map<CreateRuleRequest>((rule) => ({
-        actionType: rule.actionType,
-        thresholdAmount: Math.trunc(rule.thresholdAmount),
-        entries: Math.trunc(rule.entries),
-      })),
-    };
-
     try {
-      const created = await createEvent(payload);
-      navigate(`/events/${created.id}`);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : t('createEventError'));
+      const created = await createEvent({
+        title: title.trim(),
+        prize: prize.trim(),
+        description: description.trim() || undefined,
+        entryCommand: entryCommand.trim(),
+        creatorChannelSlug: resolvedChannel.slug,
+        startsAt: toIsoDate(startsAt),
+        endsAt: toIsoDate(endsAt),
+      });
+      addToast('success', 'Giveaway criado como rascunho.');
+      navigate(`/events/${created.id}/manage`);
+    } catch (submitError) {
+      setError(submitError instanceof Error ? submitError.message : 'Não foi possível criar o giveaway.');
     } finally {
       setIsSubmitting(false);
     }
   };
 
   return (
-    <div style={{ maxWidth: 760 }}>
-      <h1 className="page-title">{t('createTitle')}</h1>
-      <p className="page-subtitle">{t('createSubtitle')}</p>
+    <div className="hub-page">
+      <header className="page-hero">
+        <div>
+          <span className="section-label">Novo giveaway</span>
+          <h1 className="page-title">Prepare a entrada antes de entrar ao vivo</h1>
+          <p>Defina o prêmio, o comando e o canal. A captura só começa quando você abrir o evento.</p>
+        </div>
+        {member && (
+          <div className="control-card creator-card" aria-label="Criador conectado">
+            <span className="section-label">Criador conectado</span>
+            <div className="creator-identity">
+              <strong>{member.displayName || member.blazeUsername}</strong>
+              <span className="creator-handle">@{member.blazeUsername}</span>
+            </div>
+          </div>
+        )}
+      </header>
 
-      {error && <div className="toast toast-error" style={{ position: 'static', marginBottom: 24 }}>{error}</div>}
+      {error && <div className="notice notice-danger" role="alert">{error}</div>}
 
-      <form onSubmit={handleSubmit} autoComplete="off">
-        <div className="form-section">
-          <label className="form-label" htmlFor="event-title">{t('title')}</label>
-          <div className="form-field">
+      <form className="control-grid" onSubmit={handleSubmit} noValidate>
+        <section className="control-card">
+          <div className="section-label">Informações públicas</div>
+          <div className="form-group">
+            <label htmlFor="event-title">Título</label>
             <input
               id="event-title"
               value={title}
-              onChange={(event) => setTitle(event.target.value)}
-              placeholder={t('titlePh')}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                clearFieldError('title');
+              }}
+              aria-invalid={Boolean(fieldErrors.title)}
+              aria-describedby={fieldErrors.title ? 'event-title-error' : undefined}
+              maxLength={140}
+              placeholder="Ex.: Sorteio de setup para a comunidade"
               disabled={isSubmitting}
               required
             />
+            {fieldErrors.title && <span id="event-title-error" className="form-helper form-helper--err" role="alert">{fieldErrors.title}</span>}
           </div>
-        </div>
-
-        <div className="form-section">
-          <label className="form-label" htmlFor="event-description">{t('description')}</label>
-          <div className="form-field">
+          <div className="form-group">
+            <label htmlFor="event-prize">Prêmio</label>
+            <input
+              id="event-prize"
+              value={prize}
+              onChange={(event) => {
+                setPrize(event.target.value);
+                clearFieldError('prize');
+              }}
+              aria-invalid={Boolean(fieldErrors.prize)}
+              aria-describedby={fieldErrors.prize ? 'event-prize-error' : undefined}
+              maxLength={180}
+              placeholder="Ex.: Gift card de R$ 200"
+              disabled={isSubmitting}
+              required
+            />
+            {fieldErrors.prize && <span id="event-prize-error" className="form-helper form-helper--err" role="alert">{fieldErrors.prize}</span>}
+          </div>
+          <div className="form-group">
+            <label htmlFor="event-description">Descrição</label>
             <textarea
               id="event-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
-              placeholder={t('descPh')}
+              maxLength={2_000}
+              placeholder="Explique o giveaway e qualquer informação importante para a comunidade."
               disabled={isSubmitting}
             />
           </div>
-        </div>
+        </section>
 
-        <div className="form-section">
-          <div className="section-label">{t('prizeSection')}</div>
-          <label className="form-label" htmlFor="event-prize-type">{t('prizeType')}</label>
-          <div className="form-field">
-            <select
-              id="event-prize-type"
-              value={prizeTypeSelect}
-              onChange={(event) => setPrizeTypeSelect(event.target.value)}
+        <section className="control-card">
+          <div className="section-label">Sinal de entrada</div>
+          <p>Quando o evento estiver aberto, cada usuário entra uma única vez ao enviar exatamente este comando no chat.</p>
+          <div className="form-group">
+            <label htmlFor="event-command">Comando do chat</label>
+            <input
+              id="event-command"
+              className="signal-command"
+              value={entryCommand}
+              onChange={(event) => {
+                setEntryCommand(event.target.value);
+                clearFieldError('entryCommand');
+              }}
+              aria-invalid={Boolean(fieldErrors.entryCommand)}
+              aria-describedby={fieldErrors.entryCommand ? 'event-command-error' : undefined}
+              maxLength={80}
+              autoComplete="off"
+              spellCheck={false}
               disabled={isSubmitting}
-            >
-              <option value="">{t('prizeType')}</option>
-              <option value="bits">{t('prizeOptBits')}</option>
-              <option value="pix">{t('prizeOptPix')}</option>
-              <option value="steam">{t('prizeOptSteam')}</option>
-              <option value="giftcard">{t('prizeOptGiftcard')}</option>
-              <option value="physical">{t('prizeOptPhysical')}</option>
-              <option value="outro">{t('prizeTypeOther')}</option>
-            </select>
+              required
+            />
+            {fieldErrors.entryCommand && <span id="event-command-error" className="form-helper form-helper--err" role="alert">{fieldErrors.entryCommand}</span>}
           </div>
-          {prizeTypeSelect === 'outro' && (
-            <div className="form-field" style={{ marginTop: 12 }}>
+
+          <div className="form-group">
+            <label htmlFor="event-channel">Canal na Blaze</label>
+            <div className="form-row">
               <input
-                id="event-prize-type-other"
-                value={prizeTypeOther}
-                onChange={(event) => setPrizeTypeOther(event.target.value)}
-                placeholder={t('prizeTypeOtherPh')}
+                id="event-channel"
+                value={channelSlug}
+                onChange={(event) => {
+                  setChannelSlug(event.target.value);
+                  setResolvedChannel(null);
+                  setChannelError('');
+                  clearFieldError('channel');
+                }}
+                aria-invalid={Boolean(channelError || fieldErrors.channel)}
+                aria-describedby={channelError || fieldErrors.channel ? 'event-channel-error' : undefined}
+                placeholder="slug-do-canal ou URL da Blaze"
+                maxLength={180}
+                autoComplete="off"
+                disabled={isSubmitting || isResolving}
+              />
+              <button
+                type="button"
+                className="btn btn-secondary"
+                onClick={() => void resolveChannel()}
+                disabled={isSubmitting || isResolving || !channelSlug.trim()}
+              >
+                <Search size={16} aria-hidden="true" />
+                {isResolving ? 'Localizando...' : 'Localizar canal'}
+              </button>
+            </div>
+            {(channelError || fieldErrors.channel) && (
+              <span id="event-channel-error" className="form-helper form-helper--err" role="alert">
+                {channelError || fieldErrors.channel}
+              </span>
+            )}
+          </div>
+
+          {resolvedChannel && (
+            <div className="control-card" role="status">
+              <CheckCircle2 size={18} aria-hidden="true" />
+              <div>
+                <strong>{resolvedChannel.displayName}</strong>
+                <span>@{resolvedChannel.slug}</span>
+                <code>{resolvedChannel.id}</code>
+              </div>
+            </div>
+          )}
+        </section>
+
+        <section className="control-card">
+          <div className="section-label">Agenda opcional</div>
+          <p>Essas datas informam a comunidade. A captura continua sob seu controle manual.</p>
+          <div className="form-row">
+            <div className="form-group">
+              <label htmlFor="event-starts-at">Início previsto</label>
+              <input
+                id="event-starts-at"
+                type="datetime-local"
+                value={startsAt}
+                onChange={(event) => setStartsAt(event.target.value)}
+                aria-invalid={Boolean(dateError)}
+                aria-describedby={dateError ? 'event-date-error' : undefined}
                 disabled={isSubmitting}
-                maxLength={80}
               />
             </div>
-          )}
-          <div className="form-field" style={{ marginTop: 12 }}>
-            <textarea
-              id="event-prize-description"
-              value={prizeDescription}
-              onChange={(event) => setPrizeDescription(event.target.value)}
-              placeholder={t('prizeDescPh')}
-              disabled={isSubmitting}
-            />
-          </div>
-        </div>
-
-        <div className="form-section">
-          <div className="form-label">{t('channelBlaze')}</div>
-          {isLoadingMe && <div className="form-helper">{t('creatorChannelLoading')}</div>}
-          {meError && <div className="form-helper form-helper--err">{meError}</div>}
-          {me && (
-            <div className="channel-preview">
-              {me.avatarUrl ? (
-                <img src={me.avatarUrl} alt="" />
-              ) : (
-                <div
-                  aria-hidden="true"
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: '50%',
-                    background: 'var(--accent-bg)',
-                    color: 'var(--accent-light)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    fontWeight: 600,
-                    flexShrink: 0,
-                  }}
-                >
-                  {(me.displayName || me.blazeUsername || '?')[0].toUpperCase()}
-                </div>
-              )}
-              <div>
-                <div className="ch-name">{me.displayName || me.blazeUsername}</div>
-                <div className="ch-meta">
-                  @{me.blazeUsername}
-                  <span style={{ opacity: 0.35 }}>.</span>
-                  <span className="ch-id">{me.blazeUserId}</span>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
-
-        <div className="form-section">
-          <div className="form-row">
-            <div>
-              <label className="form-label" htmlFor="event-rules-mode">{t('rulesMode')}</label>
-              <div className="form-field">
-                <select
-                  id="event-rules-mode"
-                  value={rulesMode}
-                  onChange={(event) => setRulesMode(event.target.value)}
-                  disabled={isSubmitting}
-                >
-                  <option value="tier">{t('modeTier')}</option>
-                  <option value="cumulative">{t('modeCumulative')}</option>
-                </select>
-              </div>
-            </div>
-            <div>
-              <label className="form-label" htmlFor="event-max-entries">{t('maxEntries')}</label>
-              <div className="form-field">
-                <input
-                  id="event-max-entries"
-                  type="number"
-                  min={0}
-                  value={maxEntriesPerParticipant || ''}
-                  onChange={(event) => setMaxEntriesPerParticipant(Number(event.target.value) || 0)}
-                  placeholder={t('maxEntriesPh')}
-                  disabled={isSubmitting}
-                />
-              </div>
+            <div className="form-group">
+              <label htmlFor="event-ends-at">Encerramento previsto</label>
+              <input
+                id="event-ends-at"
+                type="datetime-local"
+                value={endsAt}
+                onChange={(event) => setEndsAt(event.target.value)}
+                aria-invalid={Boolean(dateError)}
+                aria-describedby={dateError ? 'event-date-error' : undefined}
+                disabled={isSubmitting}
+              />
             </div>
           </div>
-        </div>
+          {dateError && <span id="event-date-error" className="form-helper form-helper--err" role="alert">{dateError}</span>}
+        </section>
 
-        <div className="form-section">
-          <div className="form-row">
-            <div>
-              <label className="form-label" htmlFor="event-starts-at">{t('startAt')}</label>
-              <div className="form-field">
-                <input
-                  id="event-starts-at"
-                  type="datetime-local"
-                  value={startsAt}
-                  onChange={(event) => setStartsAt(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-            <div>
-              <label className="form-label" htmlFor="event-ends-at">{t('endAt')}</label>
-              <div className="form-field">
-                <input
-                  id="event-ends-at"
-                  type="datetime-local"
-                  value={endsAt}
-                  onChange={(event) => setEndsAt(event.target.value)}
-                  disabled={isSubmitting}
-                />
-              </div>
-            </div>
-          </div>
-          {dateError && <div className="form-helper form-helper--err">{dateError}</div>}
-        </div>
-
-        <div className="form-section">
-          <label className="flex items-center gap-sm" style={{ color: 'var(--fg2)' }}>
-            <input
-              type="checkbox"
-              checked={requiresInterestBeforeAction}
-              onChange={(event) => setRequiresInterestBeforeAction(event.target.checked)}
-              disabled={isSubmitting}
-            />
-            {t('requiresInterest')}
-          </label>
-        </div>
-
-        <div className="form-section">
-          <div className="section-header" style={{ marginBottom: 12 }}>
-            <label className="form-label" style={{ margin: 0 }}>{t('rulesOfEntries')}</label>
-            <button type="button" className="btn-add-rule" onClick={addRule} disabled={isSubmitting}>
-              {t('addRule')}
+        <section className="control-card">
+          <div className="section-label">Como funciona</div>
+          <ol className="lifecycle">
+            <li className="is-current"><Radio aria-hidden="true" /><span><strong>Abra a captura</strong> quando a live estiver pronta.</span></li>
+            <li><span><strong>Receba participantes</strong> automaticamente pelo comando.</span></li>
+            <li><span><strong>Finalize o evento</strong> para congelar o pool antes do sorteio.</span></li>
+            <li><span><strong>Sorteie uma pessoa</strong> com chances iguais e publique o resultado.</span></li>
+          </ol>
+          <div className="form-actions">
+            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting}>
+              {isSubmitting ? 'Criando rascunho...' : 'Criar giveaway'}
+              {!isSubmitting && <ArrowRight size={17} aria-hidden="true" />}
+            </button>
+            <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(-1)} disabled={isSubmitting}>
+              Voltar
             </button>
           </div>
-
-          <div className="flex flex-col gap-sm">
-            {rules.map((rule, index) => (
-              <div className="rule-card" key={`${rule.actionType}-${index}`}>
-                <span className="r-sep">{t('each')}</span>
-                <input
-                  className="r-input"
-                  type="number"
-                  min={1}
-                  value={rule.thresholdAmount || ''}
-                  onChange={(event) => updateRule(index, 'thresholdAmount', Number(event.target.value) || 0)}
-                  disabled={isSubmitting}
-                />
-                <select
-                  className="r-input"
-                  style={{ width: 132 }}
-                  value={rule.actionType}
-                  onChange={(event) => updateRule(index, 'actionType', event.target.value as ActionType)}
-                  disabled={isSubmitting}
-                >
-                  {ACTION_OPTIONS.map((option) => (
-                    <option key={option.value} value={option.value}>{t(option.labelKey)}</option>
-                  ))}
-                </select>
-                <span className="r-sep">{t('equals')}</span>
-                <input
-                  className="r-input"
-                  type="number"
-                  min={1}
-                  value={rule.entries || ''}
-                  onChange={(event) => updateRule(index, 'entries', Number(event.target.value) || 0)}
-                  disabled={isSubmitting}
-                />
-                <span className="r-sep">
-                  {t('ruleEntriesPerAction', {
-                    entries: rule.entries,
-                    entryLabel: t('entriesUnit'),
-                    action: actionUnit(t, rule.actionType),
-                  })}
-                </span>
-                <button
-                  type="button"
-                  className="r-close"
-                  onClick={() => removeRule(index)}
-                  disabled={isSubmitting || rules.length === 1}
-                  aria-label={t('removeRule')}
-                >
-                  x
-                </button>
-              </div>
-            ))}
-          </div>
-          {rulesError && <div className="form-helper form-helper--err">{rulesError}</div>}
-        </div>
-
-        <div className="form-actions">
-          <button type="submit" className="btn btn-primary btn-lg" disabled={!canSubmit}>
-            {isSubmitting ? t('creating') : t('createBtn')}
-          </button>
-          <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(-1)} disabled={isSubmitting}>
-            {t('cancel')}
-          </button>
-        </div>
+        </section>
       </form>
     </div>
   );

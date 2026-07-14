@@ -8,6 +8,7 @@ import java.util.Optional;
 
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -21,15 +22,35 @@ public class JdbcMemberStore implements MemberStore {
 
 	@Override
 	public Member save(Member member) {
-		if (existsByBlazeUserId(member.blazeUserId())) {
-			jdbc.update("""
+		int updated = updateExisting(member);
+		if (updated == 0) {
+			try {
+				jdbc.update("""
+						INSERT INTO members (id, blaze_user_id, blaze_username, display_name, avatar_url,
+							status, created_at, updated_at)
+						VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+						""",
+						member.id(),
+						member.blazeUserId(),
+						member.blazeUsername(),
+						member.displayName(),
+						member.avatarUrl(),
+						member.status(),
+						toTimestamp(member.createdAt()),
+						toTimestamp(member.updatedAt()));
+			} catch (DuplicateKeyException concurrentInsert) {
+				updateExisting(member);
+			}
+		}
+		return findByBlazeUserId(member.blazeUserId()).orElseThrow();
+	}
+
+	private int updateExisting(Member member) {
+		return jdbc.update("""
 					UPDATE members SET
 						blaze_username = ?,
 						display_name = ?,
 						avatar_url = ?,
-						wallet_address = ?,
-						access_token_encrypted = ?,
-						refresh_token_encrypted = ?,
 						status = ?,
 						updated_at = ?
 					WHERE blaze_user_id = ?
@@ -37,32 +58,9 @@ public class JdbcMemberStore implements MemberStore {
 					member.blazeUsername(),
 					member.displayName(),
 					member.avatarUrl(),
-					member.walletAddress(),
-					member.accessTokenEncrypted(),
-					member.refreshTokenEncrypted(),
 					member.status(),
 					toTimestamp(member.updatedAt()),
 					member.blazeUserId());
-			return findByBlazeUserId(member.blazeUserId()).orElseThrow();
-		}
-		jdbc.update("""
-				INSERT INTO members (id, blaze_user_id, blaze_username, display_name, avatar_url,
-					wallet_address, access_token_encrypted, refresh_token_encrypted,
-					status, created_at, updated_at)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-				""",
-				member.id(),
-				member.blazeUserId(),
-				member.blazeUsername(),
-				member.displayName(),
-				member.avatarUrl(),
-				member.walletAddress(),
-				member.accessTokenEncrypted(),
-				member.refreshTokenEncrypted(),
-				member.status(),
-				toTimestamp(member.createdAt()),
-				toTimestamp(member.updatedAt()));
-		return findByBlazeUserId(member.blazeUserId()).orElseThrow();
 	}
 
 	@Override
@@ -106,9 +104,6 @@ public class JdbcMemberStore implements MemberStore {
 					rs.getString("blaze_username"),
 					rs.getString("display_name"),
 					rs.getString("avatar_url"),
-					rs.getString("wallet_address"),
-					rs.getString("access_token_encrypted"),
-					rs.getString("refresh_token_encrypted"),
 					rs.getString("status"),
 					toInstant(rs.getTimestamp("created_at")),
 					toInstant(rs.getTimestamp("updated_at")));

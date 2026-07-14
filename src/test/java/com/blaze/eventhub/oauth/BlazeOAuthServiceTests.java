@@ -29,6 +29,7 @@ class BlazeOAuthServiceTests {
 	private InMemoryOAuthProfileStore profileStore;
 	private FakeOAuthGateway gateway;
 	private FakeOAuthProfileClient profileClient;
+	private FakeOAuthCredentialStore credentialStore;
 	private Clock clock;
 
 	@BeforeEach
@@ -44,11 +45,13 @@ class BlazeOAuthServiceTests {
 		profileStore = new InMemoryOAuthProfileStore();
 		gateway = new FakeOAuthGateway();
 		profileClient = new FakeOAuthProfileClient();
+		credentialStore = new FakeOAuthCredentialStore();
 		OAuthProfileService profileService = new OAuthProfileService(profileClient, profileStore, clock);
 		MemberStore noopMemberStore = new NoopMemberStore();
 		IdGenerator idGenerator = new IdGenerator();
 		MemberService memberService = new MemberService(noopMemberStore, tokenStore, idGenerator, clock);
-		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, profileService, memberService, clock);
+		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, profileService,
+				memberService, credentialStore, clock);
 	}
 
 	@Test
@@ -120,10 +123,13 @@ class BlazeOAuthServiceTests {
 	}
 
 	@Test
-	void callbackRejectsOAuthError() {
+	void callbackRejectsOAuthErrorWithoutReflectingProviderInput() {
 		assertThatThrownBy(() -> service.callback(null, null, "access_denied", "User denied authorization"))
-				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("access_denied");
+				.isInstanceOfSatisfying(OAuthException.class, error -> {
+					assertThat(error.getErrorCode()).isEqualTo("OAUTH_AUTHORIZATION_ERROR");
+					assertThat(error.getMessage())
+							.doesNotContain("access_denied", "User denied authorization");
+				});
 	}
 
 	@Test
@@ -140,6 +146,7 @@ class BlazeOAuthServiceTests {
 		assertThat(tokenStore.current()).isPresent();
 		assertThat(tokenStore.current().orElseThrow().accessToken()).isEqualTo("access-token-1");
 		assertThat(profileStore.current()).isPresent();
+		assertThat(credentialStore.credentials).hasSize(1);
 	}
 
 	@Test
@@ -233,6 +240,7 @@ class BlazeOAuthServiceTests {
 		assertThat(tokenStore.current()).isEmpty();
 		assertThat(profileStore.current()).isEmpty();
 		assertThat(stateStore.find(secondState)).isEmpty();
+		assertThat(credentialStore.credentials).isEmpty();
 		assertThat(service.session().connected()).isFalse();
 	}
 
@@ -294,7 +302,55 @@ class BlazeOAuthServiceTests {
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("Blaze rejected code exchange");
 
-		assertThat(stateStore.find(state)).isPresent();
+		assertThat(stateStore.find(state)).isEmpty();
+	}
+
+	@Test
+	void callbackClearsSessionWhenPersistentCredentialCannotBeSaved() {
+		credentialStore.failSaves = true;
+		service.start();
+
+		assertThatThrownBy(() -> service.callback(
+				"auth-code-1", gateway.lastGeneratedState, null, null))
+				.isInstanceOfSatisfying(OAuthException.class, error -> {
+					assertThat(error.getErrorCode()).isEqualTo("BLAZE_TOKEN_EXCHANGE_ERROR");
+					assertThat(error.getMessage()).isEqualTo(
+							"Nao foi possivel concluir a autenticacao com a Blaze. Tente novamente.");
+					assertThat(error.getMessage()).doesNotContain("simulated database failure");
+				});
+
+		assertThat(tokenStore.current()).isEmpty();
+		assertThat(profileStore.current()).isEmpty();
+		assertThat(service.session().connected()).isFalse();
+	}
+
+	private static class FakeOAuthCredentialStore implements OAuthCredentialStore {
+
+		private final java.util.Map<String, TokenSnapshot> credentials = new java.util.HashMap<>();
+		private boolean failSaves;
+
+		@Override
+		public void save(String memberId, TokenSnapshot token) {
+			if (failSaves) {
+				throw new IllegalStateException("credential persistence unavailable");
+			}
+			credentials.put(memberId, token);
+		}
+
+		@Override
+		public java.util.Optional<TokenSnapshot> findByMemberId(String memberId) {
+			return java.util.Optional.ofNullable(credentials.get(memberId));
+		}
+
+		@Override
+		public void deleteByMemberId(String memberId) {
+			credentials.remove(memberId);
+		}
+
+		@Override
+		public void deleteByBlazeUserId(String blazeUserId) {
+			credentials.entrySet().removeIf(entry -> blazeUserId.equals(entry.getValue().userId()));
+		}
 	}
 
 	private static class FakeOAuthGateway implements BlazeOAuthGateway {

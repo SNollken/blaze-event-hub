@@ -1,19 +1,28 @@
 spring:
   application:
     name: blaze-event-hub
+  profiles:
+    default: local
   config:
     import: "optional:file:.env[.properties]"
-  datasource:
-    url: ${EVENTHUB_DB_URL:jdbc:h2:file:./data/eventhub-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
-    driver-class-name: org.h2.Driver
-    username: ${EVENTHUB_DB_USER:sa}
-    password: ${EVENTHUB_DB_PASSWORD:}
   sql:
     init:
-      mode: always
+      mode: never
+  flyway:
+    enabled: true
+    locations: classpath:db/migration/common
+    validate-on-migrate: true
 
 server:
   port: ${SERVER_PORT:9090}
+  forward-headers-strategy: framework
+  servlet:
+    session:
+      cookie:
+        path: /
+        http-only: true
+        secure: ${EVENTHUB_SESSION_COOKIE_SECURE:true}
+        same-site: ${EVENTHUB_SESSION_COOKIE_SAME_SITE:Lax}
 
 management:
   endpoints:
@@ -26,14 +35,19 @@ management:
 
 eventhub:
   security:
-    api-key: ${EVENTHUB_API_KEY:dev-local-key}
+    api-key: ${EVENTHUB_API_KEY:}
+    credential-encryption-key: ${EVENTHUB_CREDENTIAL_ENCRYPTION_KEY:}
   blaze:
     client-id: ${BLAZE_CLIENT_ID:}
     client-secret: ${BLAZE_CLIENT_SECRET:}
-    redirect-uri: ${BLAZE_REDIRECT_URI:https://blaze-event-hub.onrender.com/api/blaze/oauth/callback}
+    redirect-uri: ${BLAZE_REDIRECT_URI:http://localhost:9090/api/blaze/oauth/callback}
     auth-base-url: ${BLAZE_AUTH_BASE_URL:https://blaze.stream}
     api-base-url: ${BLAZE_API_BASE_URL:https://api.blaze.stream}
-    socket-url: ${BLAZE_SOCKET_URL:https://blaze.stream}
-    socket-path: ${BLAZE_SOCKET_PATH:/ws}
     scopes: ${BLAZE_SCOPES:users.read,offline.access}
-    monitored-channel-id: ${BLAZE_MONITORED_CHANNEL_ID:}
+    chat-message-limit: ${BLAZE_CHAT_MESSAGE_LIMIT:100}
+    chat-max-pages-per-poll: ${BLAZE_CHAT_MAX_PAGES_PER_POLL:20}
+    chat-history-coverage-max-age-ms: ${BLAZE_CHAT_HISTORY_COVERAGE_MAX_AGE_MS:25200000}
+    chat-polling-enabled: ${BLAZE_CHAT_POLLING_ENABLED:true}
+    chat-poll-interval-ms: ${BLAZE_CHAT_POLL_INTERVAL_MS:2000}
+    stale-finalization-ms: ${EVENTHUB_STALE_FINALIZATION_MS:300000}
+    finalization-recovery-interval-ms: ${EVENTHUB_FINALIZATION_RECOVERY_INTERVAL_MS:60000}
