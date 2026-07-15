@@ -415,6 +415,19 @@
 .form-group textarea { min-height: 112px; resize: vertical; }
 .form-group input:focus,
 .form-group textarea:focus { border-color: var(--accent-ring); box-shadow: 0 0 0 3px var(--accent-bg), 0 0 22px var(--accent-glow); }
+.form-group input.is-invalid,
+.form-group textarea.is-invalid {
+  border-color: rgba(239, 68, 68, 0.78);
+  background:
+    linear-gradient(100deg, rgba(239, 68, 68, 0.08), transparent 48%),
+    var(--bg-input);
+  box-shadow: 0 0 0 3px var(--danger-bg);
+}
+.form-group input.is-invalid:focus,
+.form-group textarea.is-invalid:focus {
+  border-color: #f87171;
+  box-shadow: 0 0 0 4px rgba(239, 68, 68, 0.18), 0 0 22px rgba(239, 68, 68, 0.12);
+}
 .form-group .signal-command { font-family: var(--font-mono); font-size: 18px; font-weight: 650; }
 .form-field-group textarea,
 .field-group textarea { min-height: 112px; resize: vertical; }
@@ -446,6 +459,54 @@
   color: var(--muted);
   font-family: var(--font-mono);
   font-size: 12px;
+}
+.connected-channel-card {
+  display: grid;
+  grid-template-columns: auto minmax(0, 1fr);
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 14px;
+  border: 1px solid var(--accent-ring);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--accent-bg), rgba(13, 19, 34, 0.72));
+}
+.connected-channel-card__avatar {
+  display: grid;
+  width: 42px;
+  height: 42px;
+  overflow: hidden;
+  place-items: center;
+  border: 1px solid var(--accent-ring);
+  border-radius: 50%;
+  color: var(--accent-light);
+  background: var(--bg-panel);
+  font-family: var(--font-display);
+  font-weight: 700;
+}
+.connected-channel-card__avatar img { width: 100%; height: 100%; object-fit: cover; }
+.connected-channel-card__body { display: grid; min-width: 0; gap: 3px; }
+.connected-channel-card__body .section-label { margin: 0; }
+.connected-channel-card__body strong {
+  overflow: hidden;
+  color: var(--fg);
+  font-family: var(--font-mono);
+  font-size: 14px;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.connected-channel-card__body small { color: var(--muted); font-size: 11px; line-height: 1.45; }
+.create-error-notice {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 18px;
+}
+.create-error-notice a {
+  color: #fff;
+  font-weight: 650;
+  text-underline-offset: 3px;
 }
 .connection-profile {
   display: grid;

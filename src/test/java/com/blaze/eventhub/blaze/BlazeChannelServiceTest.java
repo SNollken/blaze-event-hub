@@ -6,6 +6,8 @@ import java.util.Map;
 
 import com.blaze.eventhub.common.ForbiddenException;
 import com.blaze.eventhub.member.Member;
+import com.blaze.eventhub.oauth.PersistentOAuthCredentialService;
+import com.blaze.eventhub.oauth.TokenSnapshot;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -13,17 +15,20 @@ import org.junit.jupiter.api.Test;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 class BlazeChannelServiceTest {
 
     private BlazeApiClient apiClient;
+    private PersistentOAuthCredentialService credentialService;
     private BlazeChannelService service;
 
     @BeforeEach
     void setUp() {
         apiClient = mock(BlazeApiClient.class);
-        service = new BlazeChannelService(apiClient);
+        credentialService = mock(PersistentOAuthCredentialService.class);
+        service = new BlazeChannelService(apiClient, credentialService);
     }
 
     @Test
@@ -39,29 +44,52 @@ class BlazeChannelServiceTest {
     }
 
     @Test
-    void onlyAllowsTheConnectedCreatorsOwnChannel() {
-        when(apiClient.getChannelsBySlug("other-channel"))
-                .thenReturn(channelResponse("other-channel"));
+    void derivesTheChannelFromTheConnectedAccountAndAcceptsDifferentUserAndChannelIds() {
         Member member = new Member(
                 "member-1", "user-1", "creator", "Creator", null, "active",
                 Instant.EPOCH, Instant.EPOCH);
+        TokenSnapshot token = new TokenSnapshot(
+                "user", "user-1", "Bearer", "access", "refresh",
+                Instant.now().plusSeconds(3600), List.of("users.read"), Instant.now());
+        when(credentialService.currentValid(member.id())).thenReturn(token);
+        when(apiClient.getChannelsBySlug(member.blazeUsername(), token))
+                .thenReturn(channelResponse("channel-1", "creator"));
 
-        assertThatThrownBy(() -> service.resolveOwned("other-channel", member))
-                .isInstanceOf(ForbiddenException.class)
-                .hasMessageContaining("conta Blaze conectada");
+        BlazeChannelResponse channel = service.resolveOwned(member);
+
+        assertThat(channel.id()).isEqualTo("channel-1");
+        assertThat(channel.id()).isNotEqualTo(member.blazeUserId());
+        assertThat(channel.slug()).isEqualTo(member.blazeUsername());
+        verify(credentialService).currentValid(member.id());
+        verify(apiClient).getChannelsBySlug(member.blazeUsername(), token);
     }
 
     @Test
-    void provesChannelOwnershipWithTheAuthenticatedBlazeUserId() {
-        when(apiClient.getChannelsBySlug("creator"))
-                .thenReturn(channelResponse("user-1", "creator"));
+    void rejectsConnectedAccountWithoutAChannelSlug() {
+        Member member = new Member(
+                "member-1", "user-1", " ", "Creator", null, "active",
+                Instant.EPOCH, Instant.EPOCH);
+
+        assertThatThrownBy(() -> service.resolveOwned(member))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("canal");
+    }
+
+    @Test
+    void reportsAConnectionProblemWhenTheAuthenticatedChannelCannotBeResolved() {
         Member member = new Member(
                 "member-1", "user-1", "creator", "Creator", null, "active",
                 Instant.EPOCH, Instant.EPOCH);
+        TokenSnapshot token = new TokenSnapshot(
+                "user", "user-1", "Bearer", "access", "refresh",
+                Instant.now().plusSeconds(3600), List.of("users.read"), Instant.now());
+        when(credentialService.currentValid(member.id())).thenReturn(token);
+        when(apiClient.getChannelsBySlug(member.blazeUsername(), token))
+                .thenReturn(Map.of("data", Map.of("rows", List.of())));
 
-        BlazeChannelResponse channel = service.resolveOwned("creator", member);
-
-        assertThat(channel.id()).isEqualTo(member.blazeUserId());
+        assertThatThrownBy(() -> service.resolveOwned(member))
+                .isInstanceOf(ForbiddenException.class)
+                .hasMessageContaining("vincular o canal");
     }
 
     @Test

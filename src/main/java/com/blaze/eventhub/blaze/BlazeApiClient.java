@@ -38,7 +38,16 @@ public class BlazeApiClient {
 	}
 
 	public Map<String, Object> getChannelsBySlug(String slug) {
-		TokenSnapshot token = requireToken();
+		return getChannelsBySlug(slug, requireToken());
+	}
+
+	public Map<String, Object> getChannelsBySlug(String slug, TokenSnapshot token) {
+		if (!properties.isApiConfigured()) {
+			throw new ConfigurationMissingException("Blaze API is not configured");
+		}
+		if (token == null || token.accessTokenBlank()) {
+			throw new ConfigurationMissingException("Blaze access token is not available");
+		}
 		if (slug == null || slug.isBlank()) {
 			throw new IllegalArgumentException("slug is required");
 		}

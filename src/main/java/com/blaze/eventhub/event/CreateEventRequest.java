@@ -10,5 +10,5 @@ public record CreateEventRequest(
         @NotBlank @Size(max = 80) String entryCommand,
         String startsAt,
         String endsAt,
-        @NotBlank @Size(max = 255) String creatorChannelSlug) {
+        @Size(max = 255) String creatorChannelSlug) {
 }

@@ -418,9 +418,6 @@ public class EventService {
             throw new IllegalArgumentException("O premio e obrigatorio.");
         }
         normalizeAndValidateCommand(request.entryCommand());
-        if (request.creatorChannelSlug() == null || request.creatorChannelSlug().isBlank()) {
-            throw new IllegalArgumentException("O canal Blaze e obrigatorio.");
-        }
     }
 
     private static Instant parseInstant(String value) {

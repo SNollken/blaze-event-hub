@@ -1,13 +1,12 @@
-import { useEffect, useMemo, useState, type FormEvent } from 'react';
-import { ArrowRight, CheckCircle2, Radio, Search } from 'lucide-react';
-import { useNavigate } from 'react-router-dom';
-import { createEvent, getMe, resolveBlazeChannel } from '../api/client';
-import type { BlazeChannelResponse, MemberProfile } from '../api/types';
+import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
+import { ArrowRight, Radio } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ApiError, createEvent, getMe } from '../api/client';
+import type { MemberProfile } from '../api/types';
 import { addToast } from '../components/Toast';
-import { getUserFacingErrorMessage } from '../errors/user-facing-error';
 import { useI18n } from '../i18n/I18nContext';
 
-type FieldName = 'title' | 'prize' | 'entryCommand' | 'channel';
+type FieldName = 'title' | 'prize' | 'entryCommand';
 type FieldErrors = Partial<Record<FieldName, string>>;
 
 function toIsoDate(value: string): string | undefined {
@@ -16,32 +15,41 @@ function toIsoDate(value: string): string | undefined {
   return Number.isNaN(date.getTime()) ? undefined : date.toISOString();
 }
 
-function normalizeChannelSlug(value: string): string {
-  const withoutOrigin = value.trim().replace(/^(?:https?:\/\/)?(?:www\.)?blaze\.stream\//i, '');
-  return withoutOrigin.split(/[/?#]/, 1)[0].replace(/^@/, '').trim();
+function isBlazeConnectionError(error: unknown): boolean {
+  if (!(error instanceof ApiError)) return false;
+  return error.status === 401
+    || error.code === 'AUTHENTICATION_REQUIRED'
+    || error.code === 'FORBIDDEN'
+    || error.code === 'BLAZE_API_ERROR'
+    || error.code === 'CONFIG_MISSING'
+    || error.code.startsWith('BLAZE_TOKEN_')
+    || error.code.startsWith('OAUTH_');
 }
 
 export default function CreateEvent() {
   const navigate = useNavigate();
   const { lang, t } = useI18n();
   const [member, setMember] = useState<MemberProfile | null>(null);
+  const [memberLoading, setMemberLoading] = useState(true);
+  const [memberUnavailable, setMemberUnavailable] = useState(false);
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
   const [description, setDescription] = useState('');
   const [entryCommand, setEntryCommand] = useState('!participar');
-  const [channelSlug, setChannelSlug] = useState('');
-  const [resolvedChannel, setResolvedChannel] = useState<BlazeChannelResponse | null>(null);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
-  const [isResolving, setIsResolving] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState('');
-  const [channelError, setChannelError] = useState('');
+  const [showReconnectAction, setShowReconnectAction] = useState(false);
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+  const titleRef = useRef<HTMLInputElement>(null);
+  const prizeRef = useRef<HTMLInputElement>(null);
+  const commandRef = useRef<HTMLInputElement>(null);
+  const endsAtRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     setError('');
-    setChannelError('');
+    setShowReconnectAction(false);
     setFieldErrors({});
   }, [lang]);
 
@@ -49,10 +57,21 @@ export default function CreateEvent() {
     let active = true;
     getMe()
       .then((profile) => {
-        if (active) setMember(profile);
+        if (!active) return;
+        setMember(profile);
+        setMemberUnavailable(false);
+        setError('');
+        setShowReconnectAction(false);
       })
       .catch(() => {
-        if (active) setMember(null);
+        if (!active) return;
+        setMember(null);
+        setMemberUnavailable(true);
+        setError('');
+        setShowReconnectAction(false);
+      })
+      .finally(() => {
+        if (active) setMemberLoading(false);
       });
     return () => {
       active = false;
@@ -66,30 +85,6 @@ export default function CreateEvent() {
       : '';
   }, [endsAt, startsAt, t]);
 
-  const resolveChannel = async () => {
-    const slug = normalizeChannelSlug(channelSlug);
-    if (!slug) {
-      setResolvedChannel(null);
-      setChannelError(t('createChannelSlugRequired'));
-      setFieldErrors((current) => ({ ...current, channel: t('createChannelResolveRequired') }));
-      return;
-    }
-
-    setIsResolving(true);
-    setChannelError('');
-    setResolvedChannel(null);
-    try {
-      const channel = await resolveBlazeChannel(slug);
-      setChannelSlug(channel.slug);
-      setResolvedChannel(channel);
-      setFieldErrors((current) => ({ ...current, channel: undefined }));
-    } catch (resolveError) {
-      setChannelError(getUserFacingErrorMessage(resolveError, t('createChannelResolveFallback')));
-    } finally {
-      setIsResolving(false);
-    }
-  };
-
   const validateFields = (): FieldErrors => {
     const next: FieldErrors = {};
     if (!title.trim()) next.title = t('createTitleRequired');
@@ -97,12 +92,18 @@ export default function CreateEvent() {
     if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
       next.entryCommand = t('createCommandInvalid');
     }
-    if (!resolvedChannel) next.channel = t('createChannelConfirmRequired');
     return next;
   };
 
   const clearFieldError = (field: FieldName) => {
     setFieldErrors((current) => ({ ...current, [field]: undefined }));
+    setError('');
+    setShowReconnectAction(false);
+  };
+
+  const clearFormError = () => {
+    setError('');
+    setShowReconnectAction(false);
   };
 
   const handleSubmit = async (submitEvent: FormEvent<HTMLFormElement>) => {
@@ -111,26 +112,46 @@ export default function CreateEvent() {
     setFieldErrors(invalidFields);
     if (Object.keys(invalidFields).length > 0 || dateError) {
       setError(t('createReviewFields'));
+      setShowReconnectAction(false);
+      const firstInvalidField = invalidFields.title
+        ? titleRef.current
+        : invalidFields.prize
+          ? prizeRef.current
+          : invalidFields.entryCommand
+            ? commandRef.current
+            : endsAtRef.current;
+      firstInvalidField?.focus();
       return;
     }
-    if (!resolvedChannel) return;
+    if (memberLoading) {
+      setError(t('createAccountLoading'));
+      setShowReconnectAction(false);
+      return;
+    }
+    if (!member) {
+      setError(t('createAccountUnavailable'));
+      setShowReconnectAction(true);
+      return;
+    }
 
     setIsSubmitting(true);
     setError('');
+    setShowReconnectAction(false);
     try {
       const created = await createEvent({
         title: title.trim(),
         prize: prize.trim(),
         description: description.trim() || undefined,
         entryCommand: entryCommand.trim(),
-        creatorChannelSlug: resolvedChannel.slug,
         startsAt: toIsoDate(startsAt),
         endsAt: toIsoDate(endsAt),
       });
       addToast('success', t('createSuccessToast'));
       navigate(`/events/${created.id}/manage`);
     } catch (submitError) {
-      setError(getUserFacingErrorMessage(submitError, t('createSubmitFallback')));
+      const connectionFailure = isBlazeConnectionError(submitError);
+      setError(connectionFailure ? t('createConnectionError') : t('createSubmitFallback'));
+      setShowReconnectAction(connectionFailure);
     } finally {
       setIsSubmitting(false);
     }
@@ -155,7 +176,18 @@ export default function CreateEvent() {
         )}
       </header>
 
-      {error && <div className="notice notice-danger" role="alert">{error}</div>}
+      {error && (
+        <div className="notice notice-danger create-error-notice" role="alert">
+          <span>{error}</span>
+          {showReconnectAction && <Link to="/settings/blaze">{t('createReconnectBlaze')}</Link>}
+        </div>
+      )}
+      {memberUnavailable && (
+        <div className="notice notice-danger create-error-notice" role="alert">
+          <span>{t('createAccountUnavailable')}</span>
+          <Link to="/settings/blaze">{t('createReconnectBlaze')}</Link>
+        </div>
+      )}
 
       <form className="control-grid" onSubmit={handleSubmit} noValidate>
         <section className="control-card">
@@ -163,7 +195,9 @@ export default function CreateEvent() {
           <div className="form-group">
             <label htmlFor="event-title">{t('createEventTitleLabel')}</label>
             <input
+              ref={titleRef}
               id="event-title"
+              className={fieldErrors.title ? 'is-invalid' : undefined}
               value={title}
               onChange={(event) => {
                 setTitle(event.target.value);
@@ -181,7 +215,9 @@ export default function CreateEvent() {
           <div className="form-group">
             <label htmlFor="event-prize">{t('createPrizeLabel')}</label>
             <input
+              ref={prizeRef}
               id="event-prize"
+              className={fieldErrors.prize ? 'is-invalid' : undefined}
               value={prize}
               onChange={(event) => {
                 setPrize(event.target.value);
@@ -215,8 +251,9 @@ export default function CreateEvent() {
           <div className="form-group">
             <label htmlFor="event-command">{t('createChatCommandLabel')}</label>
             <input
+              ref={commandRef}
               id="event-command"
-              className="signal-command"
+              className={`signal-command${fieldErrors.entryCommand ? ' is-invalid' : ''}`}
               value={entryCommand}
               onChange={(event) => {
                 setEntryCommand(event.target.value);
@@ -233,52 +270,20 @@ export default function CreateEvent() {
             {fieldErrors.entryCommand && <span id="event-command-error" className="form-helper form-helper--err" role="alert">{fieldErrors.entryCommand}</span>}
           </div>
 
-          <div className="form-group">
-            <label htmlFor="event-channel">{t('createBlazeChannelLabel')}</label>
-            <div className="form-row">
-              <input
-                id="event-channel"
-                value={channelSlug}
-                onChange={(event) => {
-                  setChannelSlug(event.target.value);
-                  setResolvedChannel(null);
-                  setChannelError('');
-                  clearFieldError('channel');
-                }}
-                aria-invalid={Boolean(channelError || fieldErrors.channel)}
-                aria-describedby={channelError || fieldErrors.channel ? 'event-channel-error' : undefined}
-                placeholder={t('createChannelPlaceholder')}
-                maxLength={180}
-                autoComplete="off"
-                disabled={isSubmitting || isResolving}
-              />
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => void resolveChannel()}
-                disabled={isSubmitting || isResolving || !channelSlug.trim()}
-              >
-                <Search size={16} aria-hidden="true" />
-                {isResolving ? t('createResolvingChannel') : t('createResolveChannel')}
-              </button>
+          <div className="connected-channel-card" role="group" aria-label={t('createConnectedChannelAria')}>
+            <span className="connected-channel-card__avatar" aria-hidden="true">
+              {member?.avatarUrl
+                ? <img src={member.avatarUrl} alt="" />
+                : (member?.displayName || member?.blazeUsername || '?')[0]?.toUpperCase()}
+            </span>
+            <div className="connected-channel-card__body">
+              <span className="section-label">{t('createConnectedChannelLabel')}</span>
+              {memberLoading && <strong>{t('createLoadingChannel')}</strong>}
+              {!memberLoading && member && <strong>@{member.blazeUsername}</strong>}
+              {!memberLoading && !member && <strong>{t('createChannelUnavailable')}</strong>}
+              <small>{member ? t('createConnectedChannelHelp') : t('createReconnectChannelHelp')}</small>
             </div>
-            {(channelError || fieldErrors.channel) && (
-              <span id="event-channel-error" className="form-helper form-helper--err" role="alert">
-                {channelError || fieldErrors.channel}
-              </span>
-            )}
           </div>
-
-          {resolvedChannel && (
-            <div className="control-card" role="status">
-              <CheckCircle2 size={18} aria-hidden="true" />
-              <div>
-                <strong>{resolvedChannel.displayName}</strong>
-                <span>@{resolvedChannel.slug}</span>
-                <code>{resolvedChannel.id}</code>
-              </div>
-            </div>
-          )}
         </section>
 
         <section className="control-card">
@@ -289,9 +294,13 @@ export default function CreateEvent() {
               <label htmlFor="event-starts-at">{t('createStartsAtLabel')}</label>
               <input
                 id="event-starts-at"
+                className={dateError ? 'is-invalid' : undefined}
                 type="datetime-local"
                 value={startsAt}
-                onChange={(event) => setStartsAt(event.target.value)}
+                onChange={(event) => {
+                  setStartsAt(event.target.value);
+                  clearFormError();
+                }}
                 aria-invalid={Boolean(dateError)}
                 aria-describedby={dateError ? 'event-date-error' : undefined}
                 disabled={isSubmitting}
@@ -300,10 +309,15 @@ export default function CreateEvent() {
             <div className="form-group">
               <label htmlFor="event-ends-at">{t('createEndsAtLabel')}</label>
               <input
+                ref={endsAtRef}
                 id="event-ends-at"
+                className={dateError ? 'is-invalid' : undefined}
                 type="datetime-local"
                 value={endsAt}
-                onChange={(event) => setEndsAt(event.target.value)}
+                onChange={(event) => {
+                  setEndsAt(event.target.value);
+                  clearFormError();
+                }}
                 aria-invalid={Boolean(dateError)}
                 aria-describedby={dateError ? 'event-date-error' : undefined}
                 disabled={isSubmitting}
@@ -322,7 +336,11 @@ export default function CreateEvent() {
             <li><span><strong>{t('createLifecycleDrawTitle')}</strong> {t('createLifecycleDrawText')}</span></li>
           </ol>
           <div className="form-actions">
-            <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting}>
+            <button
+              type="submit"
+              className="btn btn-primary btn-lg"
+              disabled={isSubmitting || memberLoading || memberUnavailable}
+            >
               {isSubmitting ? t('createCreatingDraft') : t('createSubmit')}
               {!isSubmitting && <ArrowRight size={17} aria-hidden="true" />}
             </button>

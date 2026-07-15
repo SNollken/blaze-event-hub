@@ -8,14 +8,20 @@ import org.springframework.stereotype.Service;
 
 import com.blaze.eventhub.common.ForbiddenException;
 import com.blaze.eventhub.member.Member;
+import com.blaze.eventhub.oauth.PersistentOAuthCredentialService;
+import com.blaze.eventhub.oauth.TokenSnapshot;
 
 @Service
 public class BlazeChannelService {
 
     private final BlazeApiClient apiClient;
+    private final PersistentOAuthCredentialService credentialService;
 
-    public BlazeChannelService(BlazeApiClient apiClient) {
+    public BlazeChannelService(
+            BlazeApiClient apiClient,
+            PersistentOAuthCredentialService credentialService) {
         this.apiClient = apiClient;
+        this.credentialService = credentialService;
     }
 
     public BlazeChannelResponse resolve(String requestedSlug) {
@@ -24,7 +30,19 @@ public class BlazeChannelService {
             throw new IllegalArgumentException("Informe o canal Blaze.");
         }
 
-        Map<String, Object> response = apiClient.getChannelsBySlug(slug);
+        return parseChannel(slug, apiClient.getChannelsBySlug(slug));
+    }
+
+    private BlazeChannelResponse resolve(String requestedSlug, TokenSnapshot token) {
+        String slug = normalizeSlug(requestedSlug);
+        if (slug.isBlank()) {
+            throw new IllegalArgumentException("Informe o canal Blaze.");
+        }
+
+        return parseChannel(slug, apiClient.getChannelsBySlug(slug, token));
+    }
+
+    private BlazeChannelResponse parseChannel(String slug, Map<String, Object> response) {
         Map<?, ?> data = response == null ? null : asMap(response.get("data"));
         List<?> rows = data == null ? null : asList(data.get("rows"));
         Map<?, ?> channel = rows == null || rows.isEmpty() ? null : asMap(rows.getFirst());
@@ -47,14 +65,21 @@ public class BlazeChannelService {
                 avatarUrl);
     }
 
-    public BlazeChannelResponse resolveOwned(String requestedSlug, Member member) {
-        BlazeChannelResponse channel = resolve(requestedSlug);
-        String authenticatedBlazeUserId = member == null ? "" : text(member.blazeUserId());
-        if (authenticatedBlazeUserId.isBlank() || !channel.id().equals(authenticatedBlazeUserId)) {
-            throw new ForbiddenException(
-                    "Neste MVP, crie giveaways apenas no canal da conta Blaze conectada.");
+    public BlazeChannelResponse resolveOwned(Member member) {
+        String memberId = member == null ? "" : text(member.id());
+        String authenticatedChannelSlug = member == null ? "" : normalizeSlug(member.blazeUsername());
+        if (memberId.isBlank() || authenticatedChannelSlug.isBlank()) {
+            throw new ForbiddenException("A conta Blaze conectada nao informou um canal valido.");
         }
-        return channel;
+
+        TokenSnapshot token = credentialService.currentValid(memberId);
+        try {
+            return resolve(authenticatedChannelSlug, token);
+        }
+        catch (IllegalArgumentException ex) {
+            throw new ForbiddenException(
+                    "Nao foi possivel vincular o canal da conta Blaze conectada.");
+        }
     }
 
     private static String normalizeSlug(String value) {

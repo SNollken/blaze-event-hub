@@ -7,7 +7,7 @@ O sistema centraliza giveaways da Blaze.stream. O criador define o evento e o co
 ## Fluxo principal
 
 1. **OAuth:** a Blaze entrega `code` e `state`; o backend valida a sessão, troca o código e persiste a credencial cifrada.
-2. **Criação:** o backend resolve o slug informado e aceita, neste MVP, apenas o canal da conta Blaze conectada.
+2. **Criação:** o backend deriva o slug do membro autenticado, valida a credencial OAuth persistente e resolve automaticamente o canal da conta Blaze conectada; o browser não escolhe o canal.
 3. **Abertura:** o evento passa de `draft` para `open` e habilita a captura.
 4. **Captura automática:** a cada ciclo, o backend lê o chat, normaliza as mensagens e registra uma entrada por usuário Blaze.
 5. **Finalização:** o evento entra em `finalizing` com um cutoff persistido; uma última sincronização aceita apenas mensagens até esse instante antes de congelar quantidade e SHA-256 do pool.
@@ -41,7 +41,7 @@ draft --open--> open --finalize--> finalizing --sync--> closed --draw--> complet
 Regras centrais:
 
 - somente o criador altera, abre, finaliza, cancela ou sorteia seu evento;
-- ao criar, o ID do canal resolvido deve coincidir com o ID do usuário Blaze autenticado; slug sozinho não comprova posse;
+- ao criar, o canal vem exclusivamente do perfil e da credencial persistente do membro autenticado; ID de usuário e ID de canal são identidades distintas;
 - rascunhos só são visíveis ao dono;
 - um canal não pode ter dois giveaways em captura ao mesmo tempo;
 - um usuário Blaze e uma mensagem só geram uma entrada por evento;

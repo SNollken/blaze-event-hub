@@ -112,6 +112,26 @@ class BlazeApiClientTests {
 	}
 
 	@Test
+	void resolvesChannelSlugWithTheExplicitPersistentCredential() {
+		TokenSnapshot persistentToken = new TokenSnapshot(
+				"user", "creator-1", "Bearer", "persistent-access-token", "refresh",
+				Instant.now().plusSeconds(3600), List.of("users.read", "offline.access"), Instant.now());
+		server.expect(once(), requestTo(
+				"https://api.blaze.stream/v1/channels?slug%5B%5D=snollken"))
+				.andExpect(method(HttpMethod.GET))
+				.andExpect(header("client-id", "client-123"))
+				.andExpect(header("Authorization", "Bearer persistent-access-token"))
+				.andRespond(withSuccess(
+						"{\"data\":{\"rows\":[{\"id\":\"channel-42\",\"slug\":\"snollken\"}]}}",
+						MediaType.APPLICATION_JSON));
+
+		Map<String, Object> response = client.getChannelsBySlug("snollken", persistentToken);
+
+		assertThat(response).containsKey("data");
+		server.verify();
+	}
+
+	@Test
 	void sendsOpaqueCursorWhenReadingTheNextChatPage() {
 		TokenSnapshot backgroundToken = new TokenSnapshot(
 				"user", "creator-1", "Bearer", "background-access-token", "refresh",

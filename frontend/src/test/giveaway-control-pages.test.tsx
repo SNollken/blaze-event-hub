@@ -41,26 +41,56 @@ describe('páginas de controle do giveaway', () => {
     localStorage.setItem('blaze-event-hub:language', 'pt-BR');
   });
 
-  it('permite enviar o formulário vazio e associa os erros aos campos', () => {
+  it('destaca e foca o primeiro campo inválido sem pedir o canal novamente', async () => {
     render(<I18nProvider><MemoryRouter><CreateEvent /></MemoryRouter></I18nProvider>);
 
     const submit = screen.getByRole('button', { name: 'Criar giveaway' });
-    expect(submit).toBeEnabled();
+    await waitFor(() => expect(submit).toBeEnabled());
     fireEvent.click(submit);
 
     const title = screen.getByLabelText('Título');
     const prize = screen.getByLabelText('Prêmio');
     const command = screen.getByLabelText('Comando do chat');
-    const channel = screen.getByLabelText('Canal na Blaze');
     expect(title).toHaveAttribute('aria-invalid', 'true');
     expect(title).toHaveAttribute('aria-describedby', 'event-title-error');
+    expect(title).toHaveClass('is-invalid');
+    expect(title).toHaveFocus();
     expect(prize).toHaveAttribute('aria-invalid', 'true');
     expect(command).toHaveAttribute('aria-invalid', 'false');
-    expect(channel).toHaveAttribute('aria-invalid', 'true');
+    expect(screen.queryByLabelText('Canal na Blaze')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Localizar canal' })).not.toBeInTheDocument();
     expect(screen.getByText('Sorteie uma pessoa')).toBeInTheDocument();
   });
 
-  it('envia o slug para o backend validar e resolver novamente', async () => {
+  it('aguarda a confirmação da conta conectada antes de liberar a criação', async () => {
+    let resolveMember!: (response: Response) => void;
+    const memberRequest = new Promise<Response>((resolve) => {
+      resolveMember = resolve;
+    });
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      return url === '/api/members/me' ? memberRequest : json({});
+    }));
+
+    render(<I18nProvider><MemoryRouter><CreateEvent /></MemoryRouter></I18nProvider>);
+
+    const submit = screen.getByRole('button', { name: 'Criar giveaway' });
+    expect(submit).toBeDisabled();
+    resolveMember(new Response(JSON.stringify({
+      id: 'member-1',
+      blazeUserId: 'user-1',
+      blazeUsername: 'sofia',
+      displayName: 'Sofia',
+      avatarUrl: null,
+      status: 'ACTIVE',
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } }));
+
+    await waitFor(() => expect(submit).toBeEnabled());
+    expect(screen.queryByText('Estamos confirmando sua conta Blaze conectada. Tente novamente em instantes.'))
+      .not.toBeInTheDocument();
+  });
+
+  it('usa automaticamente a conta Blaze conectada sem enviar um canal escolhido pelo navegador', async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL, options?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
       if (url === '/api/members/me') {
@@ -72,9 +102,6 @@ describe('páginas de controle do giveaway', () => {
           avatarUrl: null,
           status: 'ACTIVE',
         });
-      }
-      if (url.startsWith('/api/blaze/channels/resolve')) {
-        return json({ id: 'channel-real-42', slug: 'canal-sofia', displayName: 'Canal da Sofia', avatarUrl: null });
       }
       if (url === '/api/events' && options?.method === 'POST') {
         return json({ ...openEvent, status: 'DRAFT' }, 201);
@@ -90,20 +117,20 @@ describe('páginas de controle do giveaway', () => {
     expect(creatorIdentity).not.toBeNull();
     expect(within(creatorIdentity!).getByText('Sofia')).toBeInTheDocument();
     expect(within(creatorIdentity!).getByText('@sofia')).toBeInTheDocument();
+    const connectedChannel = screen.getByLabelText('Canal conectado');
+    expect(within(connectedChannel).getByText('@sofia')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Canal na Blaze')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Localizar canal' })).not.toBeInTheDocument();
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Giveaway da comunidade' } });
     fireEvent.change(screen.getByLabelText('Prêmio'), { target: { value: 'Gift card de R$ 200' } });
-    fireEvent.change(screen.getByLabelText('Canal na Blaze'), { target: { value: 'https://blaze.stream/canal-sofia' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Localizar canal' }));
-
-    expect(await screen.findByText('@canal-sofia')).toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Criar giveaway' }));
 
     await waitFor(() => {
       const createCall = fetchMock.mock.calls.find(([input, options]) => input === '/api/events' && options?.method === 'POST');
       expect(createCall).toBeDefined();
       const payload = JSON.parse(String(createCall?.[1]?.body));
-      expect(payload.creatorChannelSlug).toBe('canal-sofia');
+      expect(payload.creatorChannelSlug).toBeUndefined();
       expect(payload.creatorChannelId).toBeUndefined();
       expect(payload.entryCommand).toBe('!participar');
     });

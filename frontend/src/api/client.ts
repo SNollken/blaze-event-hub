@@ -1,5 +1,4 @@
 import type {
-  BlazeChannelResponse,
   CreateEventRequest,
   EventHistoryResponse,
   EventLifecycleStats,
@@ -14,7 +13,6 @@ import type {
 } from './types';
 
 export type {
-  BlazeChannelResponse,
   CreateEventRequest,
   EventHistoryResponse,
   EventLifecycleStats,
@@ -105,10 +103,6 @@ export const refreshOAuth = () => request<OAuthActionResponse>('/api/blaze/oauth
 export const disconnectOAuth = () => request<OAuthActionResponse>('/api/blaze/oauth/disconnect', { method: 'POST' });
 
 export const getMe = () => request<MemberProfile>('/api/members/me');
-
-export const resolveBlazeChannel = (slug: string) => request<BlazeChannelResponse>(
-  `/api/blaze/channels/resolve?slug=${encodeURIComponent(slug.trim())}`,
-);
 
 export async function getEvents(status?: EventResponse['status']) {
   const query = status ? `?status=${encodeURIComponent(status.toLowerCase())}` : '';

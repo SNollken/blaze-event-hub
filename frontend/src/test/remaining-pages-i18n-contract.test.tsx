@@ -283,12 +283,14 @@ describe('complete English contract for remaining pages', () => {
   it('returns English validation feedback from the giveaway creation form', async () => {
     renderPage('/events/create', '/events/create', <CreateEvent />);
 
-    fireEvent.click(screen.getByRole('button', { name: /giveaway/i }));
+    const submit = screen.getByRole('button', { name: /giveaway/i });
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.click(submit);
 
     expect(await screen.findByText('Give the giveaway a title.')).toBeInTheDocument();
     expect(screen.getByText('Describe the prize to be drawn.')).toBeInTheDocument();
-    expect(screen.getByText('Resolve and confirm the stream channel before creating.')).toBeInTheDocument();
-    expect(screen.getByText('Review the highlighted fields before creating the giveaway.')).toBeInTheDocument();
+    expect(screen.getByText('Fix the fields outlined in red before creating the giveaway.')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Blaze channel')).not.toBeInTheDocument();
     expect(screen.queryByText('Dê um título ao giveaway.')).not.toBeInTheDocument();
   });
 
@@ -301,7 +303,9 @@ describe('complete English contract for remaining pages', () => {
       </I18nProvider>,
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Create giveaway' }));
+    const submit = screen.getByRole('button', { name: 'Create giveaway' });
+    await waitFor(() => expect(submit).toBeEnabled());
+    fireEvent.click(submit);
     expect(await screen.findByText('Give the giveaway a title.')).toBeInTheDocument();
 
     fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {

@@ -39,13 +39,6 @@ export interface MemberProfile {
   status: string;
 }
 
-export interface BlazeChannelResponse {
-  id: string;
-  slug: string;
-  displayName: string;
-  avatarUrl: string | null;
-}
-
 export interface EventResponse {
   id: string;
   creatorChannelId: string;
@@ -100,7 +93,6 @@ export interface CreateEventRequest {
   entryCommand: string;
   startsAt?: string;
   endsAt?: string;
-  creatorChannelSlug: string;
 }
 
 export interface UpdateEventRequest {

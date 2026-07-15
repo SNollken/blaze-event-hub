@@ -50,21 +50,11 @@ function renderRoute(path: string, route: string, page: React.ReactNode) {
 }
 
 describe('erros seguros nas páginas', () => {
-  it('não exibe a mensagem técnica ao falhar a resolução do canal em inglês', async () => {
+  it('não exibe a mensagem técnica quando a conta conectada não pode ser confirmada', async () => {
     vi.mocked(globalThis.fetch).mockImplementation((input) => {
       const path = new URL(String(input), 'http://localhost').pathname;
       if (path === '/api/members/me') {
-        return json({
-          id: 'member-1',
-          blazeUserId: 'creator-1',
-          blazeUsername: 'sofia',
-          displayName: 'Sofia',
-          avatarUrl: null,
-          status: 'active',
-        });
-      }
-      if (path === '/api/blaze/channels/resolve') {
-        return json({ message: 'database.internal:5432 leaked by upstream' }, 502);
+        return json({ message: 'database.internal:5432 leaked by member lookup' }, 502);
       }
       return json({}, 404);
     });
@@ -75,10 +65,8 @@ describe('erros seguros nas páginas', () => {
       </I18nProvider>,
     );
 
-    fireEvent.change(screen.getByLabelText('Blaze channel'), { target: { value: 'sofia' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Find channel' }));
-
-    expect(await screen.findByText('We could not find this channel on Blaze.')).toBeInTheDocument();
+    expect(await screen.findByText('We could not confirm your connected Blaze account.')).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Review Blaze connection' })).toHaveAttribute('href', '/settings/blaze');
     expect(screen.queryByText(/database\.internal/i)).not.toBeInTheDocument();
   });
 
@@ -95,9 +83,6 @@ describe('erros seguros nas páginas', () => {
           status: 'active',
         });
       }
-      if (path === '/api/blaze/channels/resolve') {
-        return json({ id: 'channel-1', slug: 'sofia', displayName: 'Sofia', avatarUrl: null });
-      }
       if (path === '/api/events' && options?.method === 'POST') {
         return json({ message: 'database.internal:5432 leaked by create' }, 502);
       }
@@ -112,14 +97,49 @@ describe('erros seguros nas páginas', () => {
 
     fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Community giveaway' } });
     fireEvent.change(screen.getByLabelText('Prize'), { target: { value: 'Gift card' } });
-    fireEvent.change(screen.getByLabelText('Blaze channel'), { target: { value: 'sofia' } });
-    fireEvent.click(screen.getByRole('button', { name: 'Find channel' }));
     expect((await screen.findAllByText('@sofia')).length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Create giveaway' }));
 
-    expect(await screen.findByText('We could not create the giveaway.')).toBeInTheDocument();
+    expect(await screen.findByText('We could not create the giveaway. Try again.')).toBeInTheDocument();
     expect(screen.queryByText(/database\.internal/i)).not.toBeInTheDocument();
+  });
+
+  it('orienta a reconexão quando a Blaze rejeita o vínculo automático do canal', async () => {
+    vi.mocked(globalThis.fetch).mockImplementation((input, options) => {
+      const path = new URL(String(input), 'http://localhost').pathname;
+      if (path === '/api/members/me') {
+        return json({
+          id: 'member-1',
+          blazeUserId: 'creator-1',
+          blazeUsername: 'sofia',
+          displayName: 'Sofia',
+          avatarUrl: null,
+          status: 'active',
+        });
+      }
+      if (path === '/api/events' && options?.method === 'POST') {
+        return json({ code: 'BLAZE_API_ERROR', message: 'private upstream rejected access-token-secret' }, 502);
+      }
+      return json({}, 404);
+    });
+
+    render(
+      <I18nProvider>
+        <MemoryRouter><CreateEvent /></MemoryRouter>
+      </I18nProvider>,
+    );
+
+    await screen.findByLabelText('Connected channel');
+    fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Community giveaway' } });
+    fireEvent.change(screen.getByLabelText('Prize'), { target: { value: 'Gift card' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Create giveaway' }));
+
+    expect(await screen.findByText(
+      'We could not link the giveaway to your Blaze channel. Reconnect your account and try again.',
+    )).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Review Blaze connection' })).toHaveAttribute('href', '/settings/blaze');
+    expect(screen.queryByText(/access-token-secret/i)).not.toBeInTheDocument();
   });
 
   it('does not expose an API message when the management page fails to load', async () => {

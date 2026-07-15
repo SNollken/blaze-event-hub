@@ -47,7 +47,7 @@ public class EventController {
     @PostMapping
     ResponseEntity<EventResponse> createEvent(@Valid @RequestBody CreateEventRequest request) {
         var member = memberService.getCurrentMember();
-        var channel = channelService.resolveOwned(request.creatorChannelSlug(), member);
+        var channel = channelService.resolveOwned(member);
         EventResponse response = eventService.createEvent(request, member.id(), member.blazeUserId(),
                 channel);
         return ResponseEntity.status(HttpStatus.CREATED).body(response);
