@@ -82,7 +82,7 @@
 
   /* Typography */
   --font:      'Manrope', system-ui, -apple-system, sans-serif;
-  --font-display: 'Space Grotesk', 'Manrope', system-ui, sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Manrope', system-ui, sans-serif;
   --font-mono: 'JetBrains Mono', ui-monospace, monospace;
   /* legacy aliases */
   --font-body: var(--font);
@@ -543,7 +543,7 @@ code, .mono {
   to { background-position: calc(100% + 240px) 0, 0 0; }
 }
 
-@media (max-width: 760px) {
+@media (max-width: 720px) {
   .app-layout {
     flex-direction: column;
     overflow: auto;
@@ -698,7 +698,7 @@ a.card {
 .form-helper { font-size: 11px; color: var(--muted); margin-top: 6px; }
 .form-helper--err { color: var(--danger); }
 .form-row { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
-.form-actions { display: flex; gap: 12px; padding-top: 8px; }
+.form-actions { display: flex; flex-wrap: wrap; gap: 12px; padding-top: 8px; }
 
 /* Channel preview */
 .channel-preview {

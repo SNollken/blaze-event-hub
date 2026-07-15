@@ -28,6 +28,7 @@ function routeMetadata(pathname: string): readonly [TranslationKey, TranslationK
   if (pathname === '/my-events') return ['metaMyEventsTitle', 'metaMyEventsDescription'];
   if (pathname === '/login') return ['metaLoginTitle', 'metaLoginDescription'];
   if (pathname === '/settings/blaze') return ['metaBlazeSettingsTitle', 'metaBlazeSettingsDescription'];
+  if (pathname === '/help') return ['metaHelpTitle', 'metaHelpDescription'];
   if (pathname.endsWith('/result')) return null;
   if (pathname.endsWith('/draw')) return ['metaDrawTitle', 'metaDrawDescription'];
   if (pathname.endsWith('/manage') || pathname.endsWith('/edit')) return ['metaManageTitle', 'metaManageDescription'];

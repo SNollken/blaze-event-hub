@@ -59,7 +59,8 @@ describe('páginas de controle do giveaway', () => {
     expect(command).toHaveAttribute('aria-invalid', 'false');
     expect(screen.queryByLabelText('Canal na Blaze')).not.toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Localizar canal' })).not.toBeInTheDocument();
-    expect(screen.getByText('Sorteie uma pessoa')).toBeInTheDocument();
+    expect(screen.getByText('RASCUNHO / 01')).toBeInTheDocument();
+    expect(screen.getByText('Salve a configuração. A captura continua desligada.')).toBeInTheDocument();
   });
 
   it('aguarda a confirmação da conta conectada antes de liberar a criação', async () => {

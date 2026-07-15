@@ -10,6 +10,7 @@ const navItems = [
   { to: '/events/create', labelKey: 'navCreate' as const, icon: 'plus' },
   { to: '/my-events', labelKey: 'navMyEvents' as const, icon: 'events' },
   { to: '/settings/blaze', labelKey: 'navStudioChannel' as const, icon: 'link' },
+  { to: '/help', labelKey: 'navHelp' as const, icon: 'help' },
 ];
 
 const icons: Record<string, JSX.Element> = {
@@ -17,6 +18,7 @@ const icons: Record<string, JSX.Element> = {
   plus: <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" /><path d="M12 8v8M8 12h8" /></svg>,
   events: <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 3v4M16 3v4M5 9h14" /></svg>,
   link: <svg viewBox="0 0 24 24"><path d="M9.5 14.5 14.5 9M7.5 16.5l-1 1a3.5 3.5 0 0 1-5-5l3-3a3.5 3.5 0 0 1 5 0M16.5 7.5l1-1a3.5 3.5 0 0 1 5 5l-3 3a3.5 3.5 0 0 1-5 0" /></svg>,
+  help: <svg viewBox="0 0 24 24"><path d="M5 4h10a4 4 0 0 1 4 4v12l-4-3H5z" /><path d="M9.5 9a2.5 2.5 0 1 1 3.5 2.3c-.7.3-1 .8-1 1.4M12 15h.01" /></svg>,
 };
 
 interface SidebarProps {

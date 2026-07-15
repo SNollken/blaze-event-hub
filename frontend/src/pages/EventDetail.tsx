@@ -215,7 +215,7 @@ export default function EventDetail() {
           {event.description && <p className="page-subtitle">{event.description}</p>}
         </div>
         <div className="page-actions">
-          {event.creatorChannelSlug && (
+          {event.creatorChannelSlug && event.status === 'OPEN' && (
             <a
               className="btn btn-primary"
               href={`https://blaze.stream/${encodeURIComponent(event.creatorChannelSlug)}`}
@@ -224,6 +224,11 @@ export default function EventDetail() {
             >
               {t('eventDetailOpenStream')} <span aria-hidden="true">↗</span>
             </a>
+          )}
+          {event.status === 'COMPLETED' && (
+            <Link className="btn btn-primary" to={`/events/${event.id}/result`}>
+              {t('eventDetailViewDrawRecord')}
+            </Link>
           )}
           <span className={`pill ${STATUS_CLASSES[event.status]}`}>{t(STATUS_LABEL_KEYS[event.status])}</span>
         </div>
@@ -251,16 +256,18 @@ export default function EventDetail() {
           <h2 id="prize-title">{event.prize}</h2>
           {event.creatorChannelSlug && (
             <p className="channel-identity">
-              {t('eventDetailCreatorBy')} <strong>{event.creatorChannelDisplayName || event.creatorChannelSlug}</strong>
-              {' '}@{event.creatorChannelSlug}
+              {t('eventDetailCreatorBy')} <strong>{event.creatorChannelDisplayName || event.creatorChannelSlug}</strong>{' '}
+              <a href={`https://blaze.stream/${encodeURIComponent(event.creatorChannelSlug)}`} target="_blank" rel="noreferrer">
+                @{event.creatorChannelSlug} <span aria-hidden="true">↗</span>
+              </a>
             </p>
           )}
           <p>{t('eventDetailPrizeResponsibility')}</p>
         </section>
 
         <section className="control-card command-card" aria-labelledby="command-title">
-          <span className="section-label">{t('eventDetailHowToEnter')}</span>
-          <h2 id="command-title">{t('eventDetailSendCommand')}</h2>
+          <span className="section-label">{t(event.status === 'OPEN' ? 'eventDetailHowToEnter' : 'eventDetailEntryCommand')}</span>
+          <h2 id="command-title">{t(event.status === 'OPEN' ? 'eventDetailSendCommand' : 'eventDetailCommandUsed')}</h2>
           <code className={`signal-command${event.status === 'OPEN' ? ' is-live' : ''}`}>
             {event.entryCommand}
           </code>
@@ -268,24 +275,27 @@ export default function EventDetail() {
         </section>
       </div>
 
-      <section className="metrics-row" aria-label={t('eventDetailSummaryAria')}>
-        <div className="metric">
-          <strong className="metric-val">{participantLabel}</strong>
-          <span className="metric-lbl">{t('eventDetailCurrentPool')}</span>
+      <section className="event-vitals" aria-label={t('eventDetailSummaryAria')}>
+        <div className="event-vital">
+          <span className="event-vital__index" aria-hidden="true">01</span>
+          <span className="event-vital__label">{t(event.status === 'OPEN' || event.status === 'FINALIZING' ? 'eventDetailCurrentPool' : 'eventDetailFinalPool')}</span>
+          <strong>{participantLabel}</strong>
         </div>
-        <div className="metric">
-          <strong className="metric-val">{numberFormatter.format(1)}</strong>
-          <span className="metric-lbl">{t('eventDetailChancePerUser')}</span>
+        <div className="event-vital">
+          <span className="event-vital__index" aria-hidden="true">02</span>
+          <span className="event-vital__label">{t('eventDetailChancePerUser')}</span>
+          <strong>{numberFormatter.format(1)}</strong>
         </div>
-        <div className="metric">
-          <strong className="metric-val">
+        <div className="event-vital">
+          <span className="event-vital__index" aria-hidden="true">03</span>
+          <span className="event-vital__label">{t('eventDetailPoolState')}</span>
+          <strong>
             {t(event.status === 'OPEN'
               ? 'eventDetailPoolOpen'
               : event.status === 'FINALIZING'
                 ? 'eventDetailPoolClosing'
                 : 'eventDetailPoolLocked')}
           </strong>
-          <span className="metric-lbl">{t('eventDetailPoolState')}</span>
         </div>
       </section>
 

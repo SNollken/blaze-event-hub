@@ -1,11 +1,13 @@
 import { commonEn } from './locales/en/common';
 import { creatorGiveawaysEn } from './locales/en/creatorGiveaways';
 import { dashboardEn } from './locales/en/dashboard';
+import { helpEn } from './locales/en/help';
 import { loginEn } from './locales/en/login';
 import { publicGiveawaysEn } from './locales/en/publicGiveaways';
 import { commonPtBR } from './locales/pt-BR/common';
 import { creatorGiveawaysPtBR } from './locales/pt-BR/creatorGiveaways';
 import { dashboardPtBR } from './locales/pt-BR/dashboard';
+import { helpPtBR } from './locales/pt-BR/help';
 import { loginPtBR } from './locales/pt-BR/login';
 import { publicGiveawaysPtBR } from './locales/pt-BR/publicGiveaways';
 
@@ -13,6 +15,7 @@ const en = {
   ...commonEn,
   ...creatorGiveawaysEn,
   ...dashboardEn,
+  ...helpEn,
   ...loginEn,
   ...publicGiveawaysEn,
 } as const;
@@ -21,6 +24,7 @@ const ptBR = {
   ...commonPtBR,
   ...creatorGiveawaysPtBR,
   ...dashboardPtBR,
+  ...helpPtBR,
   ...loginPtBR,
   ...publicGiveawaysPtBR,
 } as const satisfies Record<keyof typeof en, string>;

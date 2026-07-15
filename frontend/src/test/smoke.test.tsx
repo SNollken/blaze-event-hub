@@ -51,6 +51,12 @@ describe('frontend smoke', () => {
     expect(await screen.findByRole('heading', { name: 'Conecte sua conta Blaze' })).toBeInTheDocument();
   });
 
+  it('renderiza a central pública de ajuda', async () => {
+    renderRoute('/help');
+    expect(await screen.findByRole('heading', { name: 'Cuide do giveaway, não do painel.' })).toBeInTheDocument();
+    expect(screen.getAllByText('@snollken').length).toBeGreaterThan(0);
+  });
+
   it('renderiza sorteio ao vivo com dados da API', async () => {
     renderRoute('/events/event-1/draw');
     expect(await screen.findByRole('heading', { name: 'Sorteio ao vivo' })).toBeInTheDocument();

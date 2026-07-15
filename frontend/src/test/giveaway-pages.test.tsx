@@ -108,8 +108,10 @@ describe('páginas do giveaway', () => {
     expect(screen.getByText('Teclado mecânico')).toBeInTheDocument();
     expect(screen.getByText('!participar')).toBeInTheDocument();
     expect(screen.getByText('2 participantes')).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Abrir transmissão/i }))
+    expect(screen.queryByRole('link', { name: /Abrir transmissão/i })).not.toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /@sofia/i }))
       .toHaveAttribute('href', 'https://blaze.stream/sofia');
+    expect(screen.getByRole('heading', { name: 'Comando usado durante a captura' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /participar/i })).not.toBeInTheDocument();
   });
 

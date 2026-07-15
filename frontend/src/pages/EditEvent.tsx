@@ -147,26 +147,28 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
             {t('editSyncAttention')}
           </div>
         )}
-        <div className="form-actions">
-          <button
-            type="button"
-            className="btn btn-primary btn-lg"
-            onClick={() => setConfirmFinalize(true)}
-            disabled={!canFinalize || finalizationInProgress}
-          >
-            <CircleStop size={17} aria-hidden="true" />
-            {finalizationInProgress ? t('editFinalizingAction') : t('editFinalizeEvent')}
-          </button>
-          <button
-            type="button"
-            className="btn btn-secondary"
-            onClick={() => void Promise.all([stats.reload(), participants.reload()])}
-            disabled={stats.loading || participants.loading}
-          >
-            {t('editRefreshNow')}
-          </button>
+        <div className="manage-actions">
+          <div className="manage-actions__primary">
+            <button
+              type="button"
+              className="btn btn-primary btn-lg"
+              onClick={() => setConfirmFinalize(true)}
+              disabled={!canFinalize || finalizationInProgress}
+            >
+              <CircleStop size={17} aria-hidden="true" />
+              {finalizationInProgress ? t('editFinalizingAction') : t('editFinalizeEvent')}
+            </button>
+            <button
+              type="button"
+              className="btn btn-secondary"
+              onClick={() => void Promise.all([stats.reload(), participants.reload()])}
+              disabled={stats.loading || participants.loading}
+            >
+              {t('editRefreshNow')}
+            </button>
+          </div>
           {event.status === 'OPEN' && (
-            <button type="button" className="btn btn-danger" onClick={onCancel} disabled={finalizationInProgress}>
+            <button type="button" className="btn btn-danger manage-actions__danger" onClick={onCancel} disabled={finalizationInProgress}>
               <Ban size={16} aria-hidden="true" /> {t('editCancelEvent')}
             </button>
           )}
@@ -409,7 +411,7 @@ export default function EditEvent() {
       {error && <div className="notice notice-danger" role="alert">{error}</div>}
 
       {event.status === 'DRAFT' && (
-        <form className="control-grid" onSubmit={handleSave} noValidate>
+        <form className="control-grid manage-draft-grid" onSubmit={handleSave} noValidate>
           <section className="control-card">
             <div className="section-label">{t('editDraftSection')}</div>
             <div className="form-group">
@@ -453,7 +455,7 @@ export default function EditEvent() {
             </div>
           </section>
 
-          <section className="control-card">
+          <section className="control-card manage-schedule-card">
             <div className="section-label">{t('editOptionalSchedule')}</div>
             <div className="form-row">
               <div className="form-group">
@@ -468,18 +470,20 @@ export default function EditEvent() {
             {dateError && <span className="form-helper form-helper--err" role="alert">{dateError}</span>}
           </section>
 
-          <section className="control-card">
+          <section className="control-card manage-action-card">
             <div className="section-label">{t('editNextStep')}</div>
             <p>{t('editNextStepDescription')}</p>
-            <div className="form-actions">
-              <button type="submit" className="btn btn-secondary" disabled={busy}>
-                <Save size={16} aria-hidden="true" />
-                {pendingAction === 'save' ? t('editSaving') : t('editSaveDraft')}
-              </button>
-              <button type="button" className="btn btn-primary" onClick={() => setConfirmOpen(true)} disabled={busy || Boolean(formError())}>
-                <Radio size={16} aria-hidden="true" /> {t('editOpenCapture')}
-              </button>
-              <button type="button" className="btn btn-danger" onClick={() => setConfirmCancel(true)} disabled={busy}>
+            <div className="manage-actions">
+              <div className="manage-actions__primary">
+                <button type="submit" className="btn btn-secondary" disabled={busy}>
+                  <Save size={16} aria-hidden="true" />
+                  {pendingAction === 'save' ? t('editSaving') : t('editSaveDraft')}
+                </button>
+                <button type="button" className="btn btn-primary" onClick={() => setConfirmOpen(true)} disabled={busy || Boolean(formError())}>
+                  <Radio size={16} aria-hidden="true" /> {t('editOpenCapture')}
+                </button>
+              </div>
+              <button type="button" className="btn btn-danger manage-actions__danger" onClick={() => setConfirmCancel(true)} disabled={busy}>
                 <Ban size={16} aria-hidden="true" /> {t('editCancelEvent')}
               </button>
             </div>

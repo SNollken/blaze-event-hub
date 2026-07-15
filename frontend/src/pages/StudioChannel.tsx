@@ -1,5 +1,5 @@
 import { useCallback, useState } from 'react';
-import { Link2, LogOut, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
+import { Link2, LogOut, MessageCircle, RefreshCw, ShieldCheck, UserRound } from 'lucide-react';
 import {
   disconnectOAuth,
   getMe,
@@ -19,18 +19,8 @@ interface ConnectionState {
   profile: MemberProfile | null;
 }
 
-function formatExpiry(value: string | null | undefined, locale: string, unavailable: string): string {
-  if (!value) return unavailable;
-  const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return unavailable;
-  return new Intl.DateTimeFormat(locale, {
-    dateStyle: 'short',
-    timeStyle: 'short',
-  }).format(date);
-}
-
 export default function StudioChannel() {
-  const { lang, t } = useI18n();
+  const { t } = useI18n();
   const fetchConnection = useCallback(async (): Promise<ConnectionState> => {
     const session = await getOAuthSession();
     if (!session.connected) return { session, profile: null };
@@ -79,8 +69,8 @@ export default function StudioChannel() {
   const connectionUnavailable = Boolean(connection.error && !connection.data);
 
   return (
-    <div className="hub-page">
-      <header className="page-hero">
+    <div className="hub-page connection-page">
+      <header className="page-hero connection-page__hero">
         <div>
           <span className="section-label">{t('studioEyebrow')}</span>
           <h1 className="page-title">{t('studioHeading')}</h1>
@@ -95,76 +85,85 @@ export default function StudioChannel() {
         <div className="notice notice-danger" role="alert">{t('studioUnavailable')}</div>
       )}
 
-      <div className="control-grid">
-        <section className="control-card">
-          <div className="section-label">{t('studioAccountStatus')}</div>
-          {connection.loading && !connection.data ? (
-            <div className="empty" role="status">{t('studioChecking')}</div>
-          ) : connectionUnavailable ? (
-            <div className="empty" role="alert">{t('studioUnavailable')}</div>
-          ) : connected ? (
-            <div className="connection-profile" aria-label={t('studioConnectedAccountAria')}>
-              <div className="profile-avatar">
-                {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserRound aria-hidden="true" />}
-              </div>
-              <div className="creator-identity">
-                <strong>{displayName}</strong>
-                {username && <span className="creator-handle">@{username}</span>}
-                <span className="pill pill--open">{t('studioConnected')}</span>
-              </div>
-            </div>
-          ) : (
-            <div className="empty">
-              <Link2 aria-hidden="true" />
-              <strong>{t('studioNoAccount')}</strong>
-              <span>{t('studioNoAccountDescription')}</span>
-            </div>
-          )}
+      <section className={`connection-console${connected ? ' is-connected' : ''}`}>
+        <div className="connection-console__topline">
+          <span>{t('studioOperationalLabel')}</span>
+          <span className="connection-console__state" role="status" aria-live="polite">
+            <span aria-hidden="true" />
+            {connectionUnavailable ? t('studioStateUnavailable') : connected ? t('studioStateActive') : t('studioStateDisconnected')}
+          </span>
+        </div>
 
-          <div className="form-actions">
-            <button type="button" className="btn btn-primary" onClick={() => void connect()} disabled={action !== null}>
-              <Link2 size={16} aria-hidden="true" />
-              {action === 'connect' ? t('studioOpeningBlaze') : connected ? t('studioReconnect') : t('studioConnect')}
-            </button>
-            {connected && (
-              <button type="button" className="btn btn-danger" onClick={() => setConfirmDisconnect(true)} disabled={action !== null}>
-                <LogOut size={16} aria-hidden="true" /> {t('studioDisconnect')}
-              </button>
+        <div className="connection-console__body">
+          <div className="connection-console__identity">
+            {connection.loading && !connection.data ? (
+              <div className="empty" role="status">{t('studioChecking')}</div>
+            ) : connectionUnavailable ? (
+              <div className="empty" role="alert">{t('studioUnavailable')}</div>
+            ) : connected ? (
+              <div className="connection-profile connection-profile--bare" aria-label={t('studioConnectedAccountAria')}>
+                <div className="profile-avatar">
+                  {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserRound aria-hidden="true" />}
+                </div>
+                <div className="creator-identity">
+                  <strong>{displayName}</strong>
+                  {username && <span className="creator-handle">@{username}</span>}
+                  <span className="pill pill--open">{t('studioConnected')}</span>
+                </div>
+              </div>
+            ) : (
+              <div className="connection-console__empty">
+                <Link2 aria-hidden="true" />
+                <strong>{t('studioNoAccount')}</strong>
+              </div>
             )}
           </div>
-        </section>
 
-        <section className="control-card">
-          <ShieldCheck size={28} aria-hidden="true" />
-          <div className="section-label">{t('studioProtectedCredentials')}</div>
-          <h2>{t('studioSecretHeading')}</h2>
-          <p>{t('studioSecretDescription')}</p>
-          <dl className="event-stats">
-            <div>
-              <dt>{t('studioSession')}</dt>
-              <dd>{connectionUnavailable ? t('studioStateUnavailable') : connected ? t('studioStateActive') : t('studioStateDisconnected')}</dd>
-            </div>
-            <div>
-              <dt>{t('studioCurrentExpiry')}</dt>
-              <dd>{formatExpiry(connection.data?.session.expiresAt, lang, t('studioExpiryUnavailable'))}</dd>
-            </div>
-          </dl>
-        </section>
+          <div className="connection-console__message">
+            <span className="section-label">{t('studioAccountStatus')}</span>
+            <h2>{connectionUnavailable ? t('studioStatusUnavailableHeading') : connected ? t('studioReadyHeading') : t('studioNoAccount')}</h2>
+            <p>{connectionUnavailable ? t('studioStatusUnavailableText') : connected ? t('studioReadyDescription') : t('studioNoAccountDescription')}</p>
+          </div>
+        </div>
 
-        <section className="control-card">
-          <div className="section-label">{t('studioPermissions')}</div>
-          <p>{t('studioPermissionsDescription')}</p>
-          {(connection.data?.session.scopes || []).length ? (
-            <ul className="participant-list">
-              {(connection.data?.session.scopes || []).map((scope) => (
-                <li key={scope}><ShieldCheck size={16} aria-hidden="true" /><code>{scope}</code></li>
-              ))}
-            </ul>
-          ) : (
-            <div className="empty">{t('studioPermissionsEmpty')}</div>
+        <div className="connection-console__actions">
+          <button type="button" className="btn btn-primary" onClick={() => void connect()} disabled={action !== null}>
+            <Link2 size={16} aria-hidden="true" />
+            {action === 'connect' ? t('studioOpeningBlaze') : connected ? t('studioReconnect') : t('studioConnect')}
+          </button>
+          {connected && (
+            <button type="button" className="btn btn-danger" onClick={() => setConfirmDisconnect(true)} disabled={action !== null}>
+              <LogOut size={16} aria-hidden="true" /> {t('studioDisconnect')}
+            </button>
           )}
-        </section>
-      </div>
+        </div>
+      </section>
+
+      <section className="access-map" aria-labelledby="access-map-title">
+        <div className="access-map__heading">
+          <span className="section-label">{t('studioAccessLabel')}</span>
+          <h2 id="access-map-title">{t('studioAccessHeading')}</h2>
+          <p>{t('studioAccessDescription')}</p>
+        </div>
+        <ul className="access-map__items">
+          <li>
+            <UserRound aria-hidden="true" />
+            <div><strong>{t('studioIdentityAccessTitle')}</strong><span>{t('studioIdentityAccessText')}</span></div>
+          </li>
+          <li>
+            <MessageCircle aria-hidden="true" />
+            <div><strong>{t('studioChatAccessTitle')}</strong><span>{t('studioChatAccessText')}</span></div>
+          </li>
+        </ul>
+        <details className="scope-disclosure">
+          <summary><ShieldCheck size={16} aria-hidden="true" /> {t('studioTechnicalPermissions')}</summary>
+          {(connection.data?.session.scopes || []).length ? (
+            <div className="scope-disclosure__codes">
+              {(connection.data?.session.scopes || []).map((scope) => <code key={scope}>{scope}</code>)}
+            </div>
+          ) : <p>{t('studioPermissionsEmpty')}</p>}
+        </details>
+      </section>
 
       <Modal
         open={confirmDisconnect}

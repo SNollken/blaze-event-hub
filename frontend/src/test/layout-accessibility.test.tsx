@@ -120,6 +120,7 @@ describe('shell acessível', () => {
 
     expect(screen.getByRole('link', { name: 'Explore' })).toBeInTheDocument();
     expect(screen.getByRole('link', { name: 'Create giveaway' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Help & support' })).toHaveAttribute('href', '/help');
     expect(screen.queryByText('Studio')).not.toBeInTheDocument();
   });
 

@@ -340,12 +340,16 @@ describe('complete English contract for remaining pages', () => {
     expect((await screen.findAllByText(expected)).length).toBeGreaterThanOrEqual(2);
   });
 
-  it('translates public giveaway instructions, stream CTA and summary ARIA', async () => {
+  it('uses the official result CTA for a completed giveaway', async () => {
+    mockCompletedResult();
     renderPage('/events/event-1', '/events/:id', <EventDetail />);
 
-    expect(await screen.findByRole('heading', { level: 1, name: 'Giveaway de teste' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /Open stream/ })).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'Send this command in chat' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { level: 1, name: 'Deterministic giveaway' })).toBeInTheDocument();
+    const resultLinks = screen.getAllByRole('link', { name: 'View draw record' });
+    expect(resultLinks.length).toBeGreaterThan(0);
+    resultLinks.forEach((link) => expect(link).toHaveAttribute('href', '/events/event-1/result'));
+    expect(screen.queryByRole('link', { name: /Open stream/ })).not.toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Command used during capture' })).toBeInTheDocument();
     expect(screen.getByRole('region', { name: 'Giveaway summary' })).toBeInTheDocument();
     expect(screen.queryByText('Envie este comando no chat')).not.toBeInTheDocument();
   });
@@ -586,19 +590,21 @@ describe('complete English contract for remaining pages', () => {
     expect(await screen.findByRole('heading', { level: 1, name: 'Your stream connection' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Refresh status' })).toBeInTheDocument();
     expect(await screen.findByLabelText('Connected Blaze account')).toBeInTheDocument();
-    expect(screen.getByRole('heading', { level: 2, name: 'The secret never reaches the browser' })).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent('Active');
+    expect(screen.getByRole('heading', { level: 2, name: 'Connected and ready for capture.' })).toBeInTheDocument();
+    expect(screen.getByRole('heading', { level: 2, name: 'Only what the giveaway needs.' })).toBeInTheDocument();
+    expect(screen.queryByText('The secret never reaches the browser')).not.toBeInTheDocument();
     expect(screen.queryByText('Sua conexão com a transmissão')).not.toBeInTheDocument();
   });
 
-  it('formats the OAuth expiry with the active English locale', async () => {
+  it('keeps raw OAuth scopes behind a technical disclosure', async () => {
     mockStudioWithExpiry();
     renderPage('/settings/blaze', '/settings/blaze', <StudioChannel />);
 
-    const expected = new Intl.DateTimeFormat('en', {
-      dateStyle: 'short',
-      timeStyle: 'short',
-    }).format(new Date(now));
-    expect(await screen.findByText(expected)).toBeInTheDocument();
+    const summary = await screen.findByText('Technical permissions');
+    const disclosure = summary.closest('details');
+    expect(disclosure).not.toBeNull();
+    expect(disclosure).toHaveTextContent('users.read');
   });
 });
 

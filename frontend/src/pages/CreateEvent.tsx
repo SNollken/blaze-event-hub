@@ -159,14 +159,15 @@ export default function CreateEvent() {
 
   return (
     <div className="hub-page">
-      <header className="page-hero">
+      <header className="page-hero create-page-hero">
         <div>
           <span className="section-label">{t('createEyebrow')}</span>
           <h1 className="page-title">{t('createHeading')}</h1>
           <p>{t('createSubtitle')}</p>
         </div>
         {member && (
-          <div className="control-card creator-card" aria-label={t('createConnectedCreatorAria')}>
+          <div className="creator-chip" aria-label={t('createConnectedCreatorAria')}>
+            <span className="creator-chip__signal" aria-hidden="true" />
             <span className="section-label">{t('createConnectedCreatorLabel')}</span>
             <div className="creator-identity">
               <strong>{member.displayName || member.blazeUsername}</strong>
@@ -189,8 +190,8 @@ export default function CreateEvent() {
         </div>
       )}
 
-      <form className="control-grid" onSubmit={handleSubmit} noValidate>
-        <section className="control-card">
+      <form className="create-workbench" onSubmit={handleSubmit} noValidate>
+        <section className="create-sheet create-sheet--details" data-index="01">
           <div className="section-label">{t('createPublicInfo')}</div>
           <div className="form-group">
             <label htmlFor="event-title">{t('createEventTitleLabel')}</label>
@@ -245,7 +246,7 @@ export default function CreateEvent() {
           </div>
         </section>
 
-        <section className="control-card">
+        <section className="create-sheet create-sheet--signal" data-index="02">
           <div className="section-label">{t('createEntrySignal')}</div>
           <p>{t('createEntrySignalDescription')}</p>
           <div className="form-group">
@@ -286,7 +287,7 @@ export default function CreateEvent() {
           </div>
         </section>
 
-        <section className="control-card">
+        <section className="create-sheet create-sheet--schedule" data-index="03">
           <div className="section-label">{t('createOptionalSchedule')}</div>
           <p>{t('createScheduleDescription')}</p>
           <div className="form-row">
@@ -327,15 +328,16 @@ export default function CreateEvent() {
           {dateError && <span id="event-date-error" className="form-helper form-helper--err" role="alert">{dateError}</span>}
         </section>
 
-        <section className="control-card">
-          <div className="section-label">{t('createHowItWorks')}</div>
-          <ol className="lifecycle">
-            <li className="is-current"><Radio aria-hidden="true" /><span><strong>{t('createLifecycleOpenTitle')}</strong> {t('createLifecycleOpenText')}</span></li>
-            <li><span><strong>{t('createLifecycleReceiveTitle')}</strong> {t('createLifecycleReceiveText')}</span></li>
-            <li><span><strong>{t('createLifecycleFinalizeTitle')}</strong> {t('createLifecycleFinalizeText')}</span></li>
-            <li><span><strong>{t('createLifecycleDrawTitle')}</strong> {t('createLifecycleDrawText')}</span></li>
-          </ol>
-          <div className="form-actions">
+        <section className="create-launch-panel">
+          <div className="create-launch-panel__note">
+            <span className="create-launch-panel__index">{t('createDraftIndex')}</span>
+            <Radio aria-hidden="true" />
+            <div>
+              <strong>{t('createDraftNoteTitle')}</strong>
+              <p>{t('createDraftNoteText')}</p>
+            </div>
+          </div>
+          <div className="form-actions create-launch-panel__actions">
             <button
               type="submit"
               className="btn btn-primary btn-lg"

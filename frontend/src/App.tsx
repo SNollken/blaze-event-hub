@@ -15,6 +15,7 @@ const EventResult = lazy(() => import('./pages/EventResult'));
 const MyEvents = lazy(() => import('./pages/MyEvents'));
 const Login = lazy(() => import('./pages/Login'));
 const StudioChannel = lazy(() => import('./pages/StudioChannel'));
+const HelpSupport = lazy(() => import('./pages/HelpSupport'));
 const NotFound = lazy(() => import('./pages/NotFound'));
 
 export default function App() {
@@ -36,6 +37,7 @@ export default function App() {
             <Route path="/my-events" element={<RequireAuth><MyEvents /></RequireAuth>} />
             <Route path="/login" element={<Login />} />
             <Route path="/settings/blaze" element={<RequireAuth><StudioChannel /></RequireAuth>} />
+            <Route path="/help" element={<HelpSupport />} />
             <Route path="/studio/*" element={<Navigate to="/settings/blaze" replace />} />
             <Route path="*" element={<NotFound />} />
           </Routes>
