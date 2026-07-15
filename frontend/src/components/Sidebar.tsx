@@ -126,7 +126,10 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
       <div className="sb-brand">
         <NavLink to="/" className="sb-logo" onClick={onClose}>
           <span className="logo-icon" aria-hidden="true">
-            <svg viewBox="0 0 24 24"><path d="M5 5h14v14H5zM8 3v4M16 3v4M5 9h14" /><circle cx="12" cy="14" r="2" /></svg>
+            <svg data-app-mark="giveaway" viewBox="0 0 24 24">
+              <path d="M4 10h16v10H4zM3 7h18v4H3zM12 7v13" />
+              <path d="M12 7H9.6C7.9 7 7 6.1 7 4.8 7 3.8 7.8 3 8.9 3 10.7 3 12 5.1 12 7Zm0 0h2.4C16.1 7 17 6.1 17 4.8 17 3.8 16.2 3 15.1 3 13.3 3 12 5.1 12 7Z" />
+            </svg>
           </span>
           <span>Blaze Event Hub</span>
         </NavLink>

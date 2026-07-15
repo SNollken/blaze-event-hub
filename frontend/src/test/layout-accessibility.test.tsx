@@ -122,4 +122,11 @@ describe('shell acessível', () => {
     expect(screen.getByRole('link', { name: 'Create giveaway' })).toBeInTheDocument();
     expect(screen.queryByText('Studio')).not.toBeInTheDocument();
   });
+
+  it('usa a marca de giveaway no ícone principal do app', () => {
+    renderLayout();
+
+    const brand = screen.getByRole('link', { name: /Blaze Event Hub/i });
+    expect(brand.querySelector('[data-app-mark="giveaway"]')).toBeInTheDocument();
+  });
 });
