@@ -3,6 +3,7 @@ package com.blaze.eventhub.oauth;
 import java.util.List;
 import java.util.Map;
 
+import com.blaze.eventhub.common.ConfigurationMissingException;
 import com.blaze.eventhub.common.OAuthException;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -49,6 +50,9 @@ class BlazeOAuthControllerTests {
 
 	@MockBean
 	private OAuthProfileClient profileClient;
+
+	@MockBean
+	private OAuthCredentialStore credentialStore;
 
 	private MockHttpSession session;
 
@@ -156,7 +160,7 @@ class BlazeOAuthControllerTests {
 	}
 
 	@Test
-	void callbackReturnsFriendlyHtmlForBrowserWithoutSensitiveValues() throws Exception {
+	void browserCallbackRedirectsToLoginAfterSuccessWithoutSensitiveValues() throws Exception {
 		mockMvc.perform(get("/api/blaze/oauth/start").session(session))
 				.andExpect(status().isOk());
 
@@ -165,17 +169,47 @@ class BlazeOAuthControllerTests {
 						.param("code", "auth-code-1")
 						.param("state", "blaze-state-1")
 						.header(HttpHeaders.ACCEPT, "text/html"))
-				.andExpect(status().isOk())
-				.andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("text/html")))
-				.andExpect(content().string(containsString("Blaze conectada com sucesso")))
-				.andExpect(content().string(containsString("href=\"/login?oauth=success\"")))
-				.andExpect(content().string(not(containsString("href=\"/dashboard\""))))
-				.andExpect(content().string(not(containsString("auth-code-1"))))
-				.andExpect(content().string(not(containsString("blaze-state-1"))))
-				.andExpect(content().string(not(containsString("verifier-1"))))
-				.andExpect(content().string(not(containsString("access-token-1"))))
-				.andExpect(content().string(not(containsString("refresh-token-1"))))
-				.andExpect(content().string(not(containsString("client-secret"))));
+				.andExpect(status().isSeeOther())
+				.andExpect(header().string(HttpHeaders.LOCATION, "/login?oauth=success"))
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void browserCallbackRedirectsToLoginAfterOAuthErrorWithoutSensitiveValues() throws Exception {
+		mockMvc.perform(get("/api/blaze/oauth/start").session(session))
+				.andExpect(status().isOk());
+		given(gateway.exchangeCode(any(OAuthTokenExchangeRequest.class)))
+				.willThrow(new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
+						"code=auth-code-1 state=blaze-state-1 verifier=verifier-1 "
+								+ "accessToken=access-token-1 refreshToken=refresh-token-1 clientSecret=client-secret"));
+
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(session)
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "text/html"))
+				.andExpect(status().isSeeOther())
+				.andExpect(header().string(HttpHeaders.LOCATION, "/login?oauth=error"))
+				.andExpect(content().string(""));
+	}
+
+	@Test
+	void browserCallbackRedirectsToLoginAfterConfigurationFailureWithoutSensitiveValues() throws Exception {
+		mockMvc.perform(get("/api/blaze/oauth/start").session(session))
+				.andExpect(status().isOk());
+		org.mockito.BDDMockito.willThrow(new ConfigurationMissingException(
+				"EVENTHUB_CREDENTIAL_ENCRYPTION_KEY sensitive-marker"))
+				.given(credentialStore)
+				.save(any(String.class), any(TokenSnapshot.class));
+
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(session)
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "text/html"))
+				.andExpect(status().isSeeOther())
+				.andExpect(header().string(HttpHeaders.LOCATION, "/login?oauth=error"))
+				.andExpect(content().string(""));
 	}
 
 	@Test

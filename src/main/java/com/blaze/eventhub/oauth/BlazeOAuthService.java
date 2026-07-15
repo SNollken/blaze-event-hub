@@ -28,11 +28,12 @@ public class BlazeOAuthService {
 	private final OAuthProfileService profileService;
 	private final MemberService memberService;
 	private final OAuthCredentialStore credentialStore;
+	private final AesGcmCredentialCipher credentialCipher;
 	private final Clock clock;
 
 	public BlazeOAuthService(BlazeProperties properties, BlazeOAuthGateway gateway, OAuthStateStore stateStore,
 			TokenStore tokenStore, OAuthProfileService profileService, MemberService memberService,
-			OAuthCredentialStore credentialStore, Clock clock) {
+			OAuthCredentialStore credentialStore, AesGcmCredentialCipher credentialCipher, Clock clock) {
 		this.properties = properties;
 		this.gateway = gateway;
 		this.stateStore = stateStore;
@@ -40,11 +41,20 @@ public class BlazeOAuthService {
 		this.profileService = profileService;
 		this.memberService = memberService;
 		this.credentialStore = credentialStore;
+		this.credentialCipher = credentialCipher;
 		this.clock = clock;
 	}
 
 	public OAuthStartResponse start() {
 		requireOAuthConfiguration();
+		try {
+			credentialCipher.validateConfiguration();
+		}
+		catch (ConfigurationMissingException failure) {
+			log.warn("Falha OAuth; operacao=start etapa=validacao-criptografia categoria=configuracao tipo={}",
+					failure.getClass().getSimpleName());
+			throw failure;
+		}
 		GeneratedAuthUrl generated = gateway.generateAuthUrl(new OAuthGenerateAuthUrlRequest(
 				properties.getClientId(),
 				properties.getClientSecret(),
@@ -88,18 +98,30 @@ public class BlazeOAuthService {
 			try {
 				return saveCallbackAndSanitize(response);
 			}
+			catch (ConfigurationMissingException persistenceFailure) {
+				clearSessionAfterPersistenceFailure();
+				log.warn("Falha OAuth; operacao=callback etapa=persistencia-credencial categoria=configuracao tipo={}",
+						persistenceFailure.getClass().getSimpleName());
+				throw persistenceFailure;
+			}
 			catch (RuntimeException persistenceFailure) {
 				clearSessionAfterPersistenceFailure();
-				throw persistenceFailure;
+				log.warn("Falha OAuth; operacao=callback etapa=persistencia-credencial categoria=interna tipo={}",
+						persistenceFailure.getClass().getSimpleName());
+				throw new OAuthException(503, "OAUTH_CREDENTIAL_PERSISTENCE_UNAVAILABLE",
+						"Nao foi possivel salvar a sessao Blaze. Tente novamente.");
 			}
 		} catch (OAuthException e) {
 			// Erros do gateway (4xx/5xx da Blaze) — deixa propagar com codigo especifico
+			throw e;
+		} catch (ConfigurationMissingException e) {
 			throw e;
 		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_EXCHANGE_UNAVAILABLE",
 					"Nao foi possivel conectar a Blaze para trocar o codigo por token. Verifique rede/firewall e tente novamente.");
 		} catch (Exception e) {
-			log.warn("Falha inesperada na troca de codigo OAuth; tipo={}", e.getClass().getSimpleName());
+			log.warn("Falha OAuth; operacao=callback etapa=troca-token categoria=interna tipo={}",
+					e.getClass().getSimpleName());
 			throw new OAuthException(502, "BLAZE_TOKEN_EXCHANGE_ERROR",
 					"Nao foi possivel concluir a autenticacao com a Blaze. Tente novamente.");
 		}
@@ -129,12 +151,24 @@ public class BlazeOAuthService {
 				return actionResponse("refreshed", true, false, snapshot, syncResult,
 						profileMessage(syncResult, "Sessao Blaze atualizada."));
 			}
+			catch (ConfigurationMissingException persistenceFailure) {
+				clearSessionAfterPersistenceFailure();
+				log.warn("Falha OAuth; operacao=refresh etapa=persistencia-credencial categoria=configuracao tipo={}",
+						persistenceFailure.getClass().getSimpleName());
+				throw persistenceFailure;
+			}
 			catch (RuntimeException persistenceFailure) {
 				clearSessionAfterPersistenceFailure();
-				throw persistenceFailure;
+				log.warn("Falha OAuth; operacao=refresh etapa=persistencia-credencial categoria=interna tipo={}",
+						persistenceFailure.getClass().getSimpleName());
+				throw new OAuthException(503, "OAUTH_CREDENTIAL_PERSISTENCE_UNAVAILABLE",
+						"Nao foi possivel salvar a sessao Blaze. Tente novamente.");
 			}
 		}
 		catch (OAuthException e) {
+			throw e;
+		}
+		catch (ConfigurationMissingException e) {
 			throw e;
 		}
 		catch (ResourceAccessException e) {
@@ -142,6 +176,8 @@ public class BlazeOAuthService {
 					"Nao foi possivel conectar a Blaze para renovar a sessao. Verifique rede/firewall e tente novamente.");
 		}
 		catch (Exception e) {
+			log.warn("Falha OAuth; operacao=refresh etapa=renovacao-token categoria=interna tipo={}",
+					e.getClass().getSimpleName());
 			throw new OAuthException(502, "BLAZE_TOKEN_REFRESH_ERROR",
 					"Erro inesperado ao renovar a sessao Blaze.");
 		}

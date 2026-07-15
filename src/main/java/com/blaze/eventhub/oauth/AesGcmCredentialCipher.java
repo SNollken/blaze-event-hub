@@ -31,6 +31,10 @@ public class AesGcmCredentialCipher {
         this.configuredKey = configuredKey == null ? "" : configuredKey.trim();
     }
 
+    public void validateConfiguration() {
+        requireKey();
+    }
+
     public String encrypt(String plaintext, String context) {
         if (plaintext == null) {
             return null;
@@ -88,17 +92,17 @@ public class AesGcmCredentialCipher {
             throw new ConfigurationMissingException(
                     "EVENTHUB_CREDENTIAL_ENCRYPTION_KEY e obrigatoria para persistir OAuth");
         }
+        final byte[] key;
         try {
-            byte[] key = Base64.getDecoder().decode(configuredKey);
-            if (key.length != 32) {
-                throw new IllegalArgumentException(
-                        "EVENTHUB_CREDENTIAL_ENCRYPTION_KEY deve conter exatamente 32 bytes em Base64");
-            }
-            return key;
+            key = Base64.getDecoder().decode(configuredKey);
         } catch (IllegalArgumentException invalidBase64) {
-            throw new IllegalArgumentException(
-                    "EVENTHUB_CREDENTIAL_ENCRYPTION_KEY deve ser Base64 valido de 32 bytes",
-                    invalidBase64);
+            throw new ConfigurationMissingException(
+                    "EVENTHUB_CREDENTIAL_ENCRYPTION_KEY deve ser Base64 valido de 32 bytes");
         }
+        if (key.length != 32) {
+            throw new ConfigurationMissingException(
+                    "EVENTHUB_CREDENTIAL_ENCRYPTION_KEY deve conter exatamente 32 bytes em Base64");
+        }
+        return key;
     }
 }

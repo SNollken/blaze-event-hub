@@ -1,5 +1,7 @@
 package com.blaze.eventhub.oauth;
 
+import java.net.URI;
+
 import com.blaze.eventhub.common.OAuthException;
 import com.blaze.eventhub.config.SessionCookiePolicy;
 
@@ -19,6 +21,8 @@ import jakarta.servlet.http.HttpServletRequest;
 @RestController
 @RequestMapping("/api/blaze/oauth")
 public class BlazeOAuthController {
+	private static final URI LOGIN_OAUTH_SUCCESS = URI.create("/login?oauth=success");
+	private static final URI LOGIN_OAUTH_ERROR = URI.create("/login?oauth=error");
 
 	private final BlazeOAuthService oAuthService;
 	private final SessionCookiePolicy sessionCookiePolicy;
@@ -52,20 +56,19 @@ public class BlazeOAuthController {
 			if (json) {
 				return ResponseEntity.ok(response);
 			}
-			return html(HttpStatus.OK, successPage(response));
+			return redirect(LOGIN_OAUTH_SUCCESS);
 		}
 		catch (OAuthException ex) {
 			if (json) {
 				throw ex;
 			}
-			HttpStatus status = HttpStatus.resolve(ex.getHttpStatus());
-			return html(status == null ? HttpStatus.BAD_REQUEST : status, errorPage("Nao foi possivel conectar a Blaze."));
+			return redirect(LOGIN_OAUTH_ERROR);
 		}
 		catch (RuntimeException ex) {
 			if (json) {
 				throw ex;
 			}
-			return html(HttpStatus.BAD_GATEWAY, errorPage("Nao foi possivel concluir a conexao com a Blaze."));
+			return redirect(LOGIN_OAUTH_ERROR);
 		}
 	}
 
@@ -90,51 +93,10 @@ public class BlazeOAuthController {
 		return accept != null && accept.toLowerCase().contains(MediaType.APPLICATION_JSON_VALUE);
 	}
 
-	private static ResponseEntity<String> html(HttpStatus status, String body) {
-		return ResponseEntity.status(status)
-				.contentType(MediaType.TEXT_HTML)
-				.body(body);
+	private static ResponseEntity<Void> redirect(URI location) {
+		return ResponseEntity.status(HttpStatus.SEE_OTHER)
+				.location(location)
+				.build();
 	}
 
-	private static String successPage(OAuthCallbackResponse response) {
-		String profileStatus = response.profilePresent()
-				? "Perfil Blaze sincronizado."
-				: "Conta conectada. Perfil ainda indisponivel; atualize a sessao pelo dashboard.";
-		return page("Blaze conectada com sucesso", profileStatus, true);
-	}
-
-	private static String errorPage(String message) {
-		return page("Falha ao conectar Blaze", message + " Volte ao dashboard e tente novamente.", false);
-	}
-
-	private static String page(String title, String message, boolean success) {
-		String tone = success ? "#067647" : "#b42318";
-		String returnUrl = success ? "/login?oauth=success" : "/login?oauth=error";
-		return """
-				<!doctype html>
-				<html lang="pt-BR">
-				<head>
-					<meta charset="utf-8">
-					<meta name="viewport" content="width=device-width, initial-scale=1">
-					<title>%s</title>
-					<style>
-						body { margin: 0; min-height: 100vh; display: grid; place-items: center; font-family: Arial, Helvetica, sans-serif; background: #f5f7fb; color: #152033; }
-						main { width: min(560px, calc(100%% - 32px)); background: #fff; border: 1px solid #d8e0eb; border-radius: 8px; padding: 28px; box-shadow: 0 1px 2px rgba(15, 23, 42, .06); }
-						.status { margin: 0 0 10px; color: %s; font-size: 13px; font-weight: 700; text-transform: uppercase; letter-spacing: 0; }
-						h1 { margin: 0 0 12px; font-size: 28px; line-height: 1.15; }
-						p { margin: 0 0 20px; color: #475569; line-height: 1.5; }
-						a { display: inline-block; border: 1px solid #2f5f99; border-radius: 6px; background: #2f5f99; color: #fff; font-weight: 700; padding: 10px 14px; text-decoration: none; }
-					</style>
-				</head>
-				<body>
-					<main>
-						<p class="status">Blaze Event Hub</p>
-						<h1>%s</h1>
-						<p>%s</p>
-						<a href="%s">Voltar ao Blaze Event Hub</a>
-					</main>
-				</body>
-				</html>
-				""".formatted(title, tone, title, message, returnUrl);
-	}
 }

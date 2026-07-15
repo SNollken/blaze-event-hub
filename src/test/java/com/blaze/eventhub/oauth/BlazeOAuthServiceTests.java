@@ -6,6 +6,7 @@ import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
+import com.blaze.eventhub.common.ConfigurationMissingException;
 import com.blaze.eventhub.common.OAuthException;
 import com.blaze.eventhub.common.IdGenerator;
 import com.blaze.eventhub.config.BlazeProperties;
@@ -16,7 +17,13 @@ import com.blaze.eventhub.member.MemberStore;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
+import org.slf4j.LoggerFactory;
+
 import org.springframework.web.client.ResourceAccessException;
+
+import ch.qos.logback.classic.Logger;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -51,7 +58,8 @@ class BlazeOAuthServiceTests {
 		IdGenerator idGenerator = new IdGenerator();
 		MemberService memberService = new MemberService(noopMemberStore, tokenStore, idGenerator, clock);
 		service = new BlazeOAuthService(properties, gateway, stateStore, tokenStore, profileService,
-				memberService, credentialStore, clock);
+				memberService, credentialStore,
+				new AesGcmCredentialCipher("AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA="), clock);
 	}
 
 	@Test
@@ -187,6 +195,42 @@ class BlazeOAuthServiceTests {
 	}
 
 	@Test
+	void refreshPreservesConfigurationFailureWhenPersistentCredentialCannotBeSaved() {
+		service.start();
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		credentialStore.saveFailure = new ConfigurationMissingException(
+				"EVENTHUB_CREDENTIAL_ENCRYPTION_KEY ausente durante refresh");
+
+		assertThatThrownBy(service::refresh)
+				.isInstanceOf(ConfigurationMissingException.class)
+				.hasMessageContaining("EVENTHUB_CREDENTIAL_ENCRYPTION_KEY");
+
+		assertThat(tokenStore.current()).isEmpty();
+		assertThat(profileStore.current()).isEmpty();
+		assertThat(service.session().connected()).isFalse();
+	}
+
+	@Test
+	void refreshReportsPersistenceFailureAsServiceUnavailable() {
+		service.start();
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		credentialStore.saveFailure = new IllegalStateException("simulated database failure");
+
+		assertThatThrownBy(service::refresh)
+				.isInstanceOfSatisfying(OAuthException.class, error -> {
+					assertThat(error.getHttpStatus()).isEqualTo(503);
+					assertThat(error.getErrorCode()).isEqualTo("OAUTH_CREDENTIAL_PERSISTENCE_UNAVAILABLE");
+					assertThat(error.getMessage()).isEqualTo(
+							"Nao foi possivel salvar a sessao Blaze. Tente novamente.");
+					assertThat(error.getMessage()).doesNotContain("simulated database failure");
+				});
+
+		assertThat(tokenStore.current()).isEmpty();
+		assertThat(profileStore.current()).isEmpty();
+		assertThat(service.session().connected()).isFalse();
+	}
+
+	@Test
 	void sessionWithoutTokenIsDisconnected() {
 		OAuthSessionResponse session = service.session();
 
@@ -313,9 +357,10 @@ class BlazeOAuthServiceTests {
 		assertThatThrownBy(() -> service.callback(
 				"auth-code-1", gateway.lastGeneratedState, null, null))
 				.isInstanceOfSatisfying(OAuthException.class, error -> {
-					assertThat(error.getErrorCode()).isEqualTo("BLAZE_TOKEN_EXCHANGE_ERROR");
+					assertThat(error.getHttpStatus()).isEqualTo(503);
+					assertThat(error.getErrorCode()).isEqualTo("OAUTH_CREDENTIAL_PERSISTENCE_UNAVAILABLE");
 					assertThat(error.getMessage()).isEqualTo(
-							"Nao foi possivel concluir a autenticacao com a Blaze. Tente novamente.");
+							"Nao foi possivel salvar a sessao Blaze. Tente novamente.");
 					assertThat(error.getMessage()).doesNotContain("simulated database failure");
 				});
 
@@ -324,13 +369,64 @@ class BlazeOAuthServiceTests {
 		assertThat(service.session().connected()).isFalse();
 	}
 
+	@Test
+	void callbackPreservesConfigurationFailureWhenPersistentCredentialCannotBeSaved() {
+		credentialStore.saveFailure = new ConfigurationMissingException(
+				"EVENTHUB_CREDENTIAL_ENCRYPTION_KEY ausente durante persistencia");
+		service.start();
+
+		assertThatThrownBy(() -> service.callback(
+				"auth-code-1", gateway.lastGeneratedState, null, null))
+				.isInstanceOf(ConfigurationMissingException.class)
+				.hasMessageContaining("EVENTHUB_CREDENTIAL_ENCRYPTION_KEY");
+
+		assertThat(tokenStore.current()).isEmpty();
+		assertThat(profileStore.current()).isEmpty();
+		assertThat(service.session().connected()).isFalse();
+	}
+
+	@Test
+	void callbackLogsPersistenceFailureStageAndCategoryWithoutSensitiveExceptionText() {
+		String sensitiveMarker = "access-token-sensitive-marker";
+		credentialStore.saveFailure = new IllegalStateException(sensitiveMarker);
+		Logger logger = (Logger) LoggerFactory.getLogger(BlazeOAuthService.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		logger.addAppender(appender);
+
+		try {
+			service.start();
+			assertThatThrownBy(() -> service.callback(
+					"auth-code-1", gateway.lastGeneratedState, null, null))
+					.isInstanceOf(OAuthException.class);
+		}
+		finally {
+			logger.detachAppender(appender);
+			appender.stop();
+		}
+
+		String logOutput = appender.list.stream()
+				.map(ILoggingEvent::getFormattedMessage)
+				.reduce("", (left, right) -> left + "\n" + right);
+		assertThat(logOutput)
+				.contains("operacao=callback")
+				.contains("etapa=persistencia-credencial")
+				.contains("categoria=interna")
+				.contains("tipo=IllegalStateException")
+				.doesNotContain(sensitiveMarker, "access-token-1", "refresh-token-1");
+	}
+
 	private static class FakeOAuthCredentialStore implements OAuthCredentialStore {
 
 		private final java.util.Map<String, TokenSnapshot> credentials = new java.util.HashMap<>();
 		private boolean failSaves;
+		private RuntimeException saveFailure;
 
 		@Override
 		public void save(String memberId, TokenSnapshot token) {
+			if (saveFailure != null) {
+				throw saveFailure;
+			}
 			if (failSaves) {
 				throw new IllegalStateException("credential persistence unavailable");
 			}
