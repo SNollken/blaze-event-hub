@@ -2,6 +2,9 @@ import { type ReactNode, useCallback, useEffect, useRef, useState } from 'react'
 import { useLocation } from 'react-router-dom';
 import { Sidebar } from './Sidebar';
 import { ToastContainer } from './Toast';
+import { LanguageSwitcher } from './LanguageSwitcher';
+import { useI18n } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/translations';
 
 interface LayoutProps {
   children: ReactNode;
@@ -18,18 +21,18 @@ const focusableSelector = [
 
 const mobileNavigationQuery = '(max-width: 720px)';
 
-function routeMetadata(pathname: string) {
-  if (pathname === '/') return ['Blaze Event Hub', 'Giveaways da Blaze.stream capturados pelo chat, do evento ao resultado.'] as const;
-  if (pathname === '/events') return ['Explorar giveaways | Blaze Event Hub', 'Giveaways públicos em captura, finalizados e sorteados.'] as const;
-  if (pathname === '/events/create') return ['Criar giveaway | Blaze Event Hub', 'Configure um giveaway e capture entradas pelo chat da Blaze.stream.'] as const;
-  if (pathname === '/my-events') return ['Meus giveaways | Blaze Event Hub', 'Gerencie a captura, a finalização e o sorteio dos seus giveaways.'] as const;
-  if (pathname === '/login') return ['Conectar Blaze | Blaze Event Hub', 'Conecte sua conta Blaze com OAuth para criar e gerenciar giveaways.'] as const;
-  if (pathname === '/settings/blaze') return ['Conexão Blaze | Blaze Event Hub', 'Consulte e gerencie a conexão segura da sua conta Blaze.'] as const;
-  if (pathname.endsWith('/result')) return ['Resultado do giveaway | Blaze Event Hub', 'Consulte o vencedor e o registro técnico do sorteio.'] as const;
-  if (pathname.endsWith('/draw')) return ['Realizar sorteio | Blaze Event Hub', 'Área do criador para sortear o pool finalizado.'] as const;
-  if (pathname.endsWith('/manage') || pathname.endsWith('/edit')) return ['Gerenciar giveaway | Blaze Event Hub', 'Controle a captura e o ciclo de vida do giveaway.'] as const;
-  if (pathname.startsWith('/events/')) return ['Detalhes do giveaway | Blaze Event Hub', 'Acompanhe o estado, o comando e o resultado do giveaway.'] as const;
-  return ['Página não encontrada | Blaze Event Hub', 'Blaze Event Hub.'] as const;
+function routeMetadata(pathname: string): readonly [TranslationKey, TranslationKey] | null {
+  if (pathname === '/') return ['metaHomeTitle', 'metaHomeDescription'];
+  if (pathname === '/events') return ['metaExploreTitle', 'metaExploreDescription'];
+  if (pathname === '/events/create') return ['metaCreateTitle', 'metaCreateDescription'];
+  if (pathname === '/my-events') return ['metaMyEventsTitle', 'metaMyEventsDescription'];
+  if (pathname === '/login') return ['metaLoginTitle', 'metaLoginDescription'];
+  if (pathname === '/settings/blaze') return ['metaBlazeSettingsTitle', 'metaBlazeSettingsDescription'];
+  if (pathname.endsWith('/result')) return null;
+  if (pathname.endsWith('/draw')) return ['metaDrawTitle', 'metaDrawDescription'];
+  if (pathname.endsWith('/manage') || pathname.endsWith('/edit')) return ['metaManageTitle', 'metaManageDescription'];
+  if (pathname.startsWith('/events/')) return null;
+  return ['metaNotFoundTitle', 'metaNotFoundDescription'];
 }
 
 function isVisibleFocusable(element: HTMLElement) {
@@ -40,6 +43,7 @@ function isVisibleFocusable(element: HTMLElement) {
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const { t } = useI18n();
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [mobileNavigation, setMobileNavigation] = useState(
     () => window.matchMedia(mobileNavigationQuery).matches,
@@ -73,16 +77,22 @@ export function Layout({ children }: LayoutProps) {
   }, []);
 
   useEffect(() => {
-    setSidebarOpen(false);
-    if (pageContentRef.current) pageContentRef.current.scrollTop = 0;
-    document.documentElement.scrollTop = 0;
-    document.body.scrollTop = 0;
-
-    const [title, description] = routeMetadata(location.pathname);
+    const metadata = routeMetadata(location.pathname);
+    if (!metadata) return;
+    const [titleKey, descriptionKey] = metadata;
+    const title = t(titleKey);
+    const description = t(descriptionKey);
     document.title = title;
     document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', description);
     document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', title);
     document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', description);
+  }, [location.pathname, t]);
+
+  useEffect(() => {
+    setSidebarOpen(false);
+    if (pageContentRef.current) pageContentRef.current.scrollTop = 0;
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
 
     if (initialRoute.current) {
       initialRoute.current = false;
@@ -148,13 +158,13 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="app-layout">
-      <a className="skip-link" href="#main-content">Pular para o conteúdo</a>
+      <a className="skip-link" href="#main-content">{t('layoutSkipLink')}</a>
       <button
         ref={menuButtonRef}
         type="button"
         className={`mobile-menu-btn${sidebarOpen ? ' is-hidden' : ''}`}
         onClick={() => setSidebarOpen(true)}
-        aria-label="Abrir navegação"
+        aria-label={t('layoutOpenNavigation')}
         aria-controls="sidebar"
         aria-expanded={sidebarOpen}
         aria-hidden={sidebarOpen}
@@ -177,6 +187,10 @@ export function Layout({ children }: LayoutProps) {
         mobile={mobileNavigation}
         onClose={closeSidebar}
       />
+
+      <div className="app-language-control">
+        <LanguageSwitcher />
+      </div>
 
       <main id="main-content" ref={mainRef} className="main-content" tabIndex={-1}>
         <div ref={pageContentRef} className="page-content">{children}</div>

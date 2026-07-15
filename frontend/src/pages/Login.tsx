@@ -8,13 +8,10 @@ import {
   type OAuthSessionResponse,
 } from '../api/client';
 import { notifyAuthSessionChanged } from '../auth-session';
+import { useI18n } from '../i18n/I18nContext';
 import { toSafeOAuthUrl } from '../oauth-navigation';
 
 const RETURN_TO_KEY = 'beh_return_to';
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
-}
 
 function safeReturnTo(value: unknown): string | null {
   if (typeof value !== 'string'
@@ -53,11 +50,15 @@ function storeReturnTo(value: string | null) {
 
 export default function Login() {
   const location = useLocation();
+  const { t } = useI18n();
+  const oauthStatus = new URLSearchParams(location.search).get('oauth');
   const [session, setSession] = useState<OAuthSessionResponse | null>(null);
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [loading, setLoading] = useState(true);
   const [connecting, setConnecting] = useState(false);
-  const [error, setError] = useState('');
+  const [error, setError] = useState<'callback' | 'session' | 'start' | null>(
+    () => oauthStatus === 'error' ? 'callback' : null,
+  );
 
   const routeReturnTo = safeReturnTo((location.state as { from?: unknown } | null)?.from);
   const returnTo = routeReturnTo || readStoredReturnTo();
@@ -71,13 +72,13 @@ export default function Login() {
 
     async function loadSession() {
       setLoading(true);
-      setError('');
 
       try {
         const currentSession = await getOAuthSession();
         if (!active) return;
         setSession(currentSession);
         if (currentSession.connected) notifyAuthSessionChanged();
+        if (currentSession.connected) setError(null);
 
         if (currentSession.connected) {
           try {
@@ -87,9 +88,9 @@ export default function Login() {
             if (active) setMember(null);
           }
         }
-      } catch (sessionError) {
+      } catch {
         if (active) {
-          setError(getErrorMessage(sessionError, 'Não foi possível verificar sua sessão Blaze.'));
+          setError('session');
         }
       } finally {
         if (active) setLoading(false);
@@ -104,14 +105,14 @@ export default function Login() {
 
   const handleConnect = async () => {
     setConnecting(true);
-    setError('');
+    setError(null);
     storeReturnTo(returnTo);
 
     try {
       const { authorizationUrl } = await startOAuth();
       window.location.assign(toSafeOAuthUrl(authorizationUrl));
-    } catch (connectError) {
-      setError(getErrorMessage(connectError, 'Não foi possível iniciar a conexão com a Blaze.'));
+    } catch {
+      setError('start');
       setConnecting(false);
     }
   };
@@ -120,9 +121,16 @@ export default function Login() {
   const displayName = member?.displayName
     || session?.profile?.displayName
     || session?.profile?.username
-    || 'Criador Blaze';
+    || t('loginCreatorFallback');
   const avatarUrl = member?.avatarUrl || session?.profile?.avatarUrl || null;
   const oauthSucceeded = new URLSearchParams(location.search).get('oauth') === 'success';
+  const errorMessage = error === 'callback'
+    ? t('loginCallbackError')
+    : error === 'session'
+      ? t('loginSessionError')
+      : error === 'start'
+        ? t('loginStartError')
+        : '';
 
   if (!loading && connected && oauthSucceeded && returnTo) {
     storeReturnTo(null);
@@ -132,50 +140,42 @@ export default function Login() {
   return (
     <div className="hub-page login-center">
       <section className="login-card" aria-labelledby="login-title">
-        {connected && avatarUrl ? (
+        {connected && avatarUrl && (
           <div className="login-logo login-logo-avatar">
             <img className="login-avatar" src={avatarUrl} alt="" />
           </div>
-        ) : (
-          <div className="login-logo" aria-hidden="true">BEH</div>
         )}
 
-        <span className="page-eyebrow">Blaze Event Hub</span>
-        <h1 id="login-title" className="page-title">Conecte sua conta Blaze</h1>
-        <p className="login-headline">
-          Crie giveaways, capture participantes pelo comando no chat e faça o sorteio somente depois de
-          finalizar o evento.
-        </p>
+        <h1 id="login-title" className="page-title">{t('loginTitle')}</h1>
+        <p className="login-headline">{t('loginDescription')}</p>
 
         {loading ? (
-          <div className="empty" role="status">Verificando sua sessão…</div>
+          <div className="empty" role="status">{t('loginChecking')}</div>
         ) : connected ? (
           <div className="login-connected">
-            <p className="login-identity">Conta conectada: <strong>{displayName}</strong></p>
+            <p className="login-identity">{t('loginConnectedAs')} <strong>{displayName}</strong></p>
             <div className="login-actions">
               <Link className="btn btn-primary" to={returnTo || '/my-events'}>
-                {returnTo ? 'Continuar de onde parei' : 'Abrir meus giveaways'}
+                {returnTo ? t('loginContinue') : t('loginOpenMine')}
               </Link>
-              <Link className="btn btn-secondary" to="/events">Explorar giveaways</Link>
+              <Link className="btn btn-secondary" to="/events">{t('loginExplore')}</Link>
             </div>
           </div>
         ) : (
           <div className="login-connect">
-            {error && <div className="notice notice-danger" role="alert">{error}</div>}
+            {errorMessage && <div className="notice notice-danger" role="alert">{errorMessage}</div>}
             <button
               type="button"
               className="btn btn-primary"
               disabled={connecting}
               onClick={() => void handleConnect()}
             >
-              {connecting ? 'Abrindo a Blaze…' : 'Conectar com Blaze'}
+              {connecting ? t('loginOpening') : t('loginConnect')}
             </button>
           </div>
         )}
 
-        <p className="login-footer">
-          A autenticação acontece na Blaze. Sua senha nunca passa pelo Blaze Event Hub.
-        </p>
+        <p className="login-footer">{t('loginPrivacy')}</p>
       </section>
     </div>
   );

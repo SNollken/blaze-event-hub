@@ -1,0 +1,16 @@
+export const loginPtBR = {
+  loginCreatorFallback: 'Criador Blaze',
+  loginSessionError: 'Não foi possível verificar sua sessão Blaze. Tente novamente.',
+  loginStartError: 'Não foi possível iniciar a conexão com a Blaze. Tente novamente.',
+  loginCallbackError: 'Não foi possível conectar sua conta Blaze. Tente novamente.',
+  loginTitle: 'Conecte sua conta Blaze',
+  loginDescription: 'Crie giveaways, capture participantes pelo comando no chat e faça o sorteio somente depois de finalizar o evento.',
+  loginChecking: 'Verificando sua sessão…',
+  loginConnectedAs: 'Conta conectada:',
+  loginContinue: 'Continuar de onde parei',
+  loginOpenMine: 'Abrir meus giveaways',
+  loginExplore: 'Explorar giveaways',
+  loginOpening: 'Abrindo a Blaze…',
+  loginConnect: 'Conectar com Blaze',
+  loginPrivacy: 'A autenticação acontece na Blaze. Sua senha nunca passa pelo Blaze Event Hub.',
+} as const;

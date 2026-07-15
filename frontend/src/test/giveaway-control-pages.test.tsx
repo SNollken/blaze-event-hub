@@ -1,6 +1,6 @@
 import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CreateEvent from '../pages/CreateEvent';
 import EditEvent from '../pages/EditEvent';
 import StudioChannel from '../pages/StudioChannel';
@@ -37,8 +37,12 @@ const openEvent = {
 };
 
 describe('páginas de controle do giveaway', () => {
+  beforeEach(() => {
+    localStorage.setItem('blaze-event-hub:language', 'pt-BR');
+  });
+
   it('permite enviar o formulário vazio e associa os erros aos campos', () => {
-    render(<MemoryRouter><CreateEvent /></MemoryRouter>);
+    render(<I18nProvider><MemoryRouter><CreateEvent /></MemoryRouter></I18nProvider>);
 
     const submit = screen.getByRole('button', { name: 'Criar giveaway' });
     expect(submit).toBeEnabled();
@@ -79,7 +83,7 @@ describe('páginas de controle do giveaway', () => {
     });
     vi.stubGlobal('fetch', fetchMock);
 
-    render(<MemoryRouter><CreateEvent /></MemoryRouter>);
+    render(<I18nProvider><MemoryRouter><CreateEvent /></MemoryRouter></I18nProvider>);
 
     const creatorCard = await screen.findByLabelText('Criador conectado');
     const creatorIdentity = creatorCard.querySelector<HTMLElement>('.creator-identity');
@@ -167,7 +171,7 @@ describe('páginas de controle do giveaway', () => {
       expect.objectContaining({ method: 'POST' }),
     );
 
-    fireEvent.click(screen.getByRole('button', { name: 'Finalizar com 1 participantes' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Finalizar com 1 participante' }));
     expect(await screen.findByText('Pool final registrado')).toBeInTheDocument();
     expect(fetchMock).toHaveBeenCalledWith(
       '/api/events/event-1/finalize',
@@ -282,7 +286,8 @@ describe('páginas de controle do giveaway', () => {
       </I18nProvider>,
     );
 
-    expect(await screen.findByRole('alert')).toHaveTextContent('Falha ao consultar OAuth');
+    expect(await screen.findByRole('alert')).toHaveTextContent('O estado da conta não está disponível no momento.');
+    expect(screen.queryByText('Falha ao consultar OAuth')).not.toBeInTheDocument();
     expect(screen.queryByText('Nenhuma conta Blaze conectada')).not.toBeInTheDocument();
   });
 

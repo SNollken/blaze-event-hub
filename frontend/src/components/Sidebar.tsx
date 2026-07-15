@@ -98,7 +98,7 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
   const name = member?.displayName
     || oauth?.profile?.displayName
     || oauth?.profile?.username
-    || 'Criador Blaze';
+    || t('sidebarCreatorFallback');
   const avatarUrl = member?.avatarUrl || oauth?.profile?.avatarUrl || null;
 
   const handleLogout = async () => {
@@ -120,7 +120,7 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
       ref={sidebarRef}
       id="sidebar"
       className={open ? 'open' : undefined}
-      aria-label="Navegação principal"
+      aria-label={t('sidebarPrimaryNavigation')}
       aria-hidden={mobile && !open ? true : undefined}
     >
       <div className="sb-brand">
@@ -130,12 +130,19 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
           </span>
           <span>Blaze Event Hub</span>
         </NavLink>
-        <p className="sb-sub">Giveaways do chat, do início ao resultado.</p>
-        <button type="button" className="sidebar-close" onClick={onClose} aria-label="Fechar navegação">Fechar</button>
+        <p className="sb-sub">{t('sidebarSubtitle')}</p>
+        <button
+          type="button"
+          className="sidebar-close"
+          onClick={onClose}
+          aria-label={t('sidebarCloseNavigation')}
+        >
+          {t('close')}
+        </button>
       </div>
 
-      <nav className="sb-nav" aria-label="Seções do produto">
-        <span className="sb-nav-label">Central de giveaways</span>
+      <nav className="sb-nav" aria-label={t('sidebarProductSections')}>
+        <span className="sb-nav-label">{t('sidebarControlCenter')}</span>
         {navItems.map((item) => (
           <NavLink
             key={item.to}
@@ -167,7 +174,7 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
               </span>
               <span className="sb-profile-info">
                 <span className="sb-username">{name}</span>
-                <span className="sb-status">Blaze conectada</span>
+                <span className="sb-status">{t('sidebarConnected')}</span>
               </span>
             </button>
             <div
@@ -181,7 +188,7 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
             {logoutError && <p className="sb-error" role="alert">{logoutError}</p>}
           </div>
         ) : (
-          <NavLink className="sb-connect" to="/login" onClick={onClose}>Conectar Blaze</NavLink>
+          <NavLink className="sb-connect" to="/login" onClick={onClose}>{t('sidebarConnectBlaze')}</NavLink>
         )}
       </div>
     </aside>

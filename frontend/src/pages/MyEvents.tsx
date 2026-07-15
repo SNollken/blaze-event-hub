@@ -5,17 +5,42 @@ import { getMyEventHistory, getOAuthSession } from '../api/client';
 import type { EventHistoryResponse, EventResponse, EventStatus } from '../api/types';
 import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
+import type { Lang, TranslationKey } from '../i18n/translations';
 
 const EMPTY_HISTORY: EventHistoryResponse = { drafts: [], active: [], past: [] };
 
-const STATUS_META: Record<EventStatus, { label: string; className: string }> = {
-  DRAFT: { label: 'Rascunho', className: 'status-pill--draft' },
-  OPEN: { label: 'Captando', className: 'status-pill--open' },
-  FINALIZING: { label: 'Finalizando entradas', className: 'status-pill--finalizing' },
-  CLOSED: { label: 'Finalizado', className: 'status-pill--closed' },
-  COMPLETED: { label: 'Sorteado', className: 'status-pill--completed' },
-  CANCELLED: { label: 'Cancelado', className: 'status-pill--cancelled' },
+const STATUS_META: Record<EventStatus, { labelKey: TranslationKey; className: string }> = {
+  DRAFT: { labelKey: 'publicStatusDraft', className: 'status-pill--draft' },
+  OPEN: { labelKey: 'publicStatusOpen', className: 'status-pill--open' },
+  FINALIZING: { labelKey: 'publicStatusFinalizing', className: 'status-pill--finalizing' },
+  CLOSED: { labelKey: 'publicStatusClosed', className: 'status-pill--closed' },
+  COMPLETED: { labelKey: 'publicStatusCompleted', className: 'status-pill--completed' },
+  CANCELLED: { labelKey: 'publicStatusCancelled', className: 'status-pill--cancelled' },
 };
+
+const ACTION_LABEL_KEYS: Record<EventStatus, TranslationKey> = {
+  DRAFT: 'myEventsActionContinueSetup',
+  OPEN: 'myEventsActionManageCapture',
+  FINALIZING: 'myEventsActionFollowFinalization',
+  CLOSED: 'myEventsActionReviewDraw',
+  COMPLETED: 'myEventsActionViewResult',
+  CANCELLED: 'myEventsActionReviewEvent',
+};
+
+const LIFECYCLE_STEP_KEYS: TranslationKey[] = [
+  'myEventsStepConfigure',
+  'myEventsStepCapture',
+  'myEventsStepFinalize',
+  'myEventsStepDraw',
+];
+
+function localeFor(lang: Lang) {
+  return lang === 'pt-BR' ? 'pt-BR' : 'en-US';
+}
+
+function formatNumber(value: number, lang: Lang) {
+  return new Intl.NumberFormat(localeFor(lang)).format(value);
+}
 
 function lifecycleStep(status: EventStatus) {
   if (status === 'DRAFT') return 0;
@@ -24,19 +49,10 @@ function lifecycleStep(status: EventStatus) {
   return 3;
 }
 
-function actionLabel(status: EventStatus) {
-  if (status === 'DRAFT') return 'Continuar configuração';
-  if (status === 'OPEN') return 'Gerenciar captação';
-  if (status === 'FINALIZING') return 'Acompanhar finalização';
-  if (status === 'CLOSED') return 'Revisar e sortear';
-  if (status === 'COMPLETED') return 'Ver resultado';
-  return 'Revisar evento';
-}
-
 function EventCard({ event }: { event: EventResponse }) {
+  const { lang, t } = useI18n();
   const status = STATUS_META[event.status];
   const currentStep = lifecycleStep(event.status);
-  const steps = ['Configurar', 'Captar', 'Finalizar', 'Sortear'];
   const target = event.status === 'COMPLETED'
     ? `/events/${event.id}/result`
     : `/events/${event.id}/manage`;
@@ -44,9 +60,11 @@ function EventCard({ event }: { event: EventResponse }) {
   return (
     <Link to={target} className={`event-card event-card--manage event-card--${event.status.toLowerCase()}`}>
       <div className="event-card__topline">
-        <span className={`status-pill ${status.className}`}>{status.label}</span>
+        <span className={`status-pill ${status.className}`}>{t(status.labelKey)}</span>
         {event.status === 'OPEN' && (
-          <span className="event-card__signal" aria-label="Captação ativa"><span aria-hidden="true" /> ao vivo</span>
+          <span className="event-card__signal" aria-label={t('publicCaptureActiveAria')}>
+            <span aria-hidden="true" /> {t('publicLive')}
+          </span>
         )}
       </div>
 
@@ -54,21 +72,21 @@ function EventCard({ event }: { event: EventResponse }) {
         {event.creatorChannelSlug && (
           <span className="event-card__creator">@{event.creatorChannelSlug}</span>
         )}
-        <p className="event-card__prize">{event.prize || 'Prêmio a confirmar'}</p>
+        <p className="event-card__prize">{event.prize || t('publicPrizePending')}</p>
         <h3 className="event-card__title">{event.title}</h3>
         <p className="event-card__description">
-          {event.description || 'Evento sem descrição adicional.'}
+          {event.description || t('publicEventFallbackDescription')}
         </p>
       </div>
 
-      <ol className="lifecycle-mini" aria-label={`Ciclo de ${event.title}`}>
-        {steps.map((step, index) => (
+      <ol className="lifecycle-mini" aria-label={t('myEventsLifecycleAria', { title: event.title })}>
+        {LIFECYCLE_STEP_KEYS.map((stepKey, index) => (
           <li
-            key={step}
+            key={stepKey}
             className={index < currentStep ? 'is-complete' : index === currentStep ? 'is-current' : undefined}
             aria-current={index === currentStep ? 'step' : undefined}
           >
-            <span>{String(index + 1).padStart(2, '0')}</span> {step}
+            <span>{String(index + 1).padStart(2, '0')}</span> {t(stepKey)}
           </li>
         ))}
       </ol>
@@ -76,33 +94,42 @@ function EventCard({ event }: { event: EventResponse }) {
       <footer className="event-card__footer">
         <span>
           {event.status === 'OPEN' && <><Radio size={15} aria-hidden="true" /> {event.entryCommand || '!participar'}</>}
-          {event.status === 'FINALIZING' && <><Radio size={15} aria-hidden="true" /> última sincronização</>}
-          {event.status === 'DRAFT' && <><FilePenLine size={15} aria-hidden="true" /> configuração pendente</>}
-          {(event.status === 'CLOSED' || event.status === 'COMPLETED') && <><Trophy size={15} aria-hidden="true" /> {event.finalizedParticipantCount} no pool</>}
-          {event.status === 'CANCELLED' && 'evento cancelado'}
+          {event.status === 'FINALIZING' && <><Radio size={15} aria-hidden="true" /> {t('myEventsFinalSync')}</>}
+          {event.status === 'DRAFT' && <><FilePenLine size={15} aria-hidden="true" /> {t('myEventsConfigurationPending')}</>}
+          {(event.status === 'CLOSED' || event.status === 'COMPLETED') && (
+            <><Trophy size={15} aria-hidden="true" /> {t('myEventsPoolCount', {
+              count: formatNumber(event.finalizedParticipantCount, lang),
+            })}</>
+          )}
+          {event.status === 'CANCELLED' && t('myEventsCancelled')}
         </span>
-        <span className="event-card__link">{actionLabel(event.status)} <ArrowRight size={15} aria-hidden="true" /></span>
+        <span className="event-card__link">
+          {t(ACTION_LABEL_KEYS[event.status])} <ArrowRight size={15} aria-hidden="true" />
+        </span>
       </footer>
     </Link>
   );
 }
 
 interface HistorySectionProps {
+  id: string;
   title: string;
   eyebrow: string;
   events: EventResponse[];
   emptyText: string;
 }
 
-function HistorySection({ title, eyebrow, events, emptyText }: HistorySectionProps) {
+function HistorySection({ id, title, eyebrow, events, emptyText }: HistorySectionProps) {
+  const { lang } = useI18n();
+
   return (
-    <section className="history-section" aria-labelledby={`history-${eyebrow}`}>
+    <section className="history-section" aria-labelledby={id}>
       <div className="section-heading">
         <div>
           <p className="section-heading__eyebrow">{eyebrow}</p>
-          <h2 id={`history-${eyebrow}`}>{title}</h2>
+          <h2 id={id}>{title}</h2>
         </div>
-        <span className="section-heading__count">{events.length}</span>
+        <span className="section-heading__count">{formatNumber(events.length, lang)}</span>
       </div>
       {events.length === 0 ? (
         <div className="empty-state empty-state--compact">
@@ -118,7 +145,7 @@ function HistorySection({ title, eyebrow, events, emptyText }: HistorySectionPro
 }
 
 export default function MyEvents() {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
   const fetchHistory = useCallback(async () => {
     const session = await getOAuthSession();
     if (!session.connected) return { history: EMPTY_HISTORY, requiresLogin: true };
@@ -139,38 +166,34 @@ export default function MyEvents() {
     <div className="page hub-page hub-page--my-events">
       <header className="page-hero page-hero--compact">
         <div className="page-hero__copy">
-          <p className="page-eyebrow">Painel do criador</p>
+          <p className="page-eyebrow">{t('myEventsEyebrow')}</p>
           <h1 className="page-title">{t('myEventsTitle')}</h1>
-          <p className="page-subtitle">
-            Prepare, abra, finalize e sorteie seus giveaways sem perder o estado do evento.
-          </p>
+          <p className="page-subtitle">{t('myEventsSubtitle')}</p>
         </div>
-        <Link to="/events/create" className="btn btn-primary">Criar giveaway</Link>
+        <Link to="/events/create" className="btn btn-primary">{t('publicCreateGiveaway')}</Link>
       </header>
 
       {historyState.error && historyState.data && (
-        <div className="notice notice--warning" role="status">
-          A atualização automática falhou. Seu histórico abaixo pode estar desatualizado.
-        </div>
+        <div className="notice notice--warning" role="status">{t('myEventsRefreshWarning')}</div>
       )}
 
       {loading && (
         <div className="empty-state" role="status" aria-live="polite">
           <span className="empty-state__signal" aria-hidden="true" />
-          <h2>Carregando seus eventos</h2>
-          <p>Organizando rascunhos, captações e sorteios.</p>
+          <h2>{t('myEventsLoadingTitle')}</h2>
+          <p>{t('myEventsLoadingDescription')}</p>
         </div>
       )}
 
       {!loading && error && (
         <div className="empty-state empty-state--error" role="alert">
-          <h2>Não foi possível carregar seus eventos</h2>
-          <p>A sessão ou a conexão com o Hub pode ter expirado.</p>
+          <h2>{t('myEventsLoadErrorTitle')}</h2>
+          <p>{t('myEventsLoadErrorDescription')}</p>
           <div className="empty-state__actions">
             <button type="button" className="btn btn-secondary" onClick={() => void historyState.reload()}>
-              Tentar novamente
+              {t('publicTryAgain')}
             </button>
-            <Link to="/login" className="btn btn-ghost">Conectar de novo</Link>
+            <Link to="/login" className="btn btn-ghost">{t('myEventsReconnect')}</Link>
           </div>
         </div>
       )}
@@ -178,45 +201,48 @@ export default function MyEvents() {
       {!loading && !error && requiresLogin && (
         <div className="empty-state">
           <Radio size={30} aria-hidden="true" />
-          <h2>Conecte sua conta Blaze</h2>
-          <p>A conexão identifica seus eventos e permite gerenciar a captação do chat com segurança.</p>
-          <Link to="/login" className="btn btn-primary">Conectar conta</Link>
+          <h2>{t('myEventsConnectTitle')}</h2>
+          <p>{t('myEventsConnectDescription')}</p>
+          <Link to="/login" className="btn btn-primary">{t('myEventsConnectAccount')}</Link>
         </div>
       )}
 
       {!loading && !error && !requiresLogin && totalEvents === 0 && (
         <div className="empty-state">
           <Trophy size={30} aria-hidden="true" />
-          <h2>Seu primeiro giveaway começa aqui</h2>
-          <p>Cadastre o prêmio e o comando. Depois, abra a captação quando a transmissão estiver pronta.</p>
-          <Link to="/events/create" className="btn btn-primary">Criar primeiro giveaway</Link>
+          <h2>{t('myEventsFirstTitle')}</h2>
+          <p>{t('myEventsFirstDescription')}</p>
+          <Link to="/events/create" className="btn btn-primary">{t('myEventsCreateFirst')}</Link>
         </div>
       )}
 
       {!loading && !error && !requiresLogin && totalEvents > 0 && (
         <div className="history-groups">
-          <div className="creator-summary" aria-label="Resumo dos seus eventos">
-            <span><strong>{totalEvents}</strong> no total</span>
-            <span><strong>{history.active.length}</strong> em andamento</span>
-            <span><strong>{history.drafts.length}</strong> para configurar</span>
+          <div className="creator-summary" aria-label={t('myEventsSummaryAria')}>
+            <span><strong>{formatNumber(totalEvents, lang)}</strong> {t('myEventsSummaryTotal')}</span>
+            <span><strong>{formatNumber(history.active.length, lang)}</strong> {t('myEventsSummaryActive')}</span>
+            <span><strong>{formatNumber(history.drafts.length, lang)}</strong> {t('myEventsSummaryDrafts')}</span>
           </div>
           <HistorySection
-            eyebrow="preparação"
-            title="Rascunhos"
+            id="my-events-drafts"
+            eyebrow={t('myEventsDraftsEyebrow')}
+            title={t('myEventsDraftsTitle')}
             events={history.drafts}
-            emptyText="Nenhum rascunho aguardando configuração."
+            emptyText={t('myEventsDraftsEmpty')}
           />
           <HistorySection
-            eyebrow="operação"
-            title="Ativos"
+            id="my-events-active"
+            eyebrow={t('myEventsActiveEyebrow')}
+            title={t('myEventsActiveTitle')}
             events={history.active}
-            emptyText="Nenhum evento captando ou aguardando sorteio."
+            emptyText={t('myEventsActiveEmpty')}
           />
           <HistorySection
-            eyebrow="arquivo"
-            title="Passados"
+            id="my-events-past"
+            eyebrow={t('myEventsPastEyebrow')}
+            title={t('myEventsPastTitle')}
             events={history.past}
-            emptyText="Seus sorteios concluídos e eventos cancelados aparecerão aqui."
+            emptyText={t('myEventsPastEmpty')}
           />
         </div>
       )}

@@ -1,0 +1,16 @@
+export const loginEn = {
+  loginCreatorFallback: 'Blaze creator',
+  loginSessionError: 'We could not verify your Blaze session. Please try again.',
+  loginStartError: 'We could not start the Blaze connection. Please try again.',
+  loginCallbackError: "We couldn't connect your Blaze account. Please try again.",
+  loginTitle: 'Connect your Blaze account',
+  loginDescription: 'Create giveaways, capture participants through a chat command, and draw a winner only after the giveaway is finalized.',
+  loginChecking: 'Checking your session…',
+  loginConnectedAs: 'Connected account:',
+  loginContinue: 'Continue where I left off',
+  loginOpenMine: 'Open my giveaways',
+  loginExplore: 'Explore giveaways',
+  loginOpening: 'Opening Blaze…',
+  loginConnect: 'Connect with Blaze',
+  loginPrivacy: 'Authentication happens on Blaze. Your password never passes through Blaze Event Hub.',
+} as const;

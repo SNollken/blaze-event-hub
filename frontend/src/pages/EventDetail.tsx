@@ -9,21 +9,16 @@ import {
   type EventResultResponse,
 } from '../api/client';
 import { usePolling } from '../components/Toast';
+import { useI18n } from '../i18n/I18nContext';
+import type { Lang, TranslationKey } from '../i18n/translations';
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
-
-const numberFormatter = new Intl.NumberFormat('pt-BR');
-
-const STATUS_LABELS: Record<EventResponse['status'], string> = {
-  DRAFT: 'Rascunho',
-  OPEN: 'Capturando entradas',
-  FINALIZING: 'Finalizando entradas',
-  CLOSED: 'Entradas finalizadas',
-  COMPLETED: 'Sorteio concluído',
-  CANCELLED: 'Cancelado',
+const STATUS_LABEL_KEYS: Record<EventResponse['status'], TranslationKey> = {
+  DRAFT: 'publicStatusDraft',
+  OPEN: 'publicStatusOpen',
+  FINALIZING: 'publicStatusFinalizing',
+  CLOSED: 'publicStatusClosed',
+  COMPLETED: 'publicStatusCompleted',
+  CANCELLED: 'publicStatusCancelled',
 };
 
 const STATUS_CLASSES: Record<EventResponse['status'], string> = {
@@ -44,14 +39,8 @@ interface LifecycleStep {
   timestamp: string | null;
 }
 
-function formatDate(value: string | null | undefined) {
-  if (!value) return 'Ainda não ocorreu';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Data indisponível' : dateFormatter.format(date);
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+function localeFor(lang: Lang) {
+  return lang === 'pt-BR' ? 'pt-BR' : 'en';
 }
 
 function lifecycleState(event: EventResponse, step: LifecycleKey) {
@@ -75,29 +64,41 @@ function lifecycleState(event: EventResponse, step: LifecycleKey) {
 
 export default function EventDetail() {
   const { id } = useParams<{ id: string }>();
+  const { lang, t } = useI18n();
   const [result, setResult] = useState<EventResultResponse | null>(null);
-  const [resultNotice, setResultNotice] = useState('');
+  const [resultUnavailable, setResultUnavailable] = useState(false);
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(localeFor(lang), {
+    dateStyle: 'medium',
+    timeStyle: 'short',
+  }), [lang]);
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(localeFor(lang)), [lang]);
+
+  const formatDate = (value: string | null | undefined) => {
+    if (!value) return t('eventDetailDatePending');
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? t('eventDetailDateUnavailable') : dateFormatter.format(date);
+  };
 
   const fetchDetail = useCallback(async () => {
-    if (!id) throw new Error('O identificador do giveaway não foi informado.');
+    if (!id) throw new Error(t('eventDetailMissingId'));
     const loadedEvent = await getEvent(id);
     try {
-      return { event: loadedEvent, stats: await getEventStats(id), statsError: '' };
+      return { event: loadedEvent, stats: await getEventStats(id), statsError: false };
     } catch {
-      return { event: loadedEvent, stats: null, statsError: 'Contagem indisponível' };
+      return { event: loadedEvent, stats: null, statsError: true };
     }
-  }, [id]);
+  }, [id, t]);
   const detail = usePolling(fetchDetail, 10_000);
   const currentDetail = detail.data?.event.id === id ? detail.data : null;
   const event = currentDetail?.event || null;
   const stats: EventLifecycleStats | null = currentDetail?.stats || null;
-  const statsError = currentDetail?.statsError || '';
+  const statsError = currentDetail?.statsError === true;
   const loading = !currentDetail && !detail.error;
-  const error = detail.error || '';
+  const error = detail.error ? t('eventDetailUnavailableDescription') : '';
 
   useEffect(() => {
     let active = true;
-    setResultNotice('');
+    setResultUnavailable(false);
     if (!id || event?.status !== 'COMPLETED') {
       setResult(null);
       return () => { active = false; };
@@ -107,13 +108,10 @@ export default function EventDetail() {
       .then((loadedResult) => {
         if (active) setResult(loadedResult);
       })
-      .catch((resultError) => {
+      .catch(() => {
         if (!active) return;
         setResult(null);
-        setResultNotice(getErrorMessage(
-          resultError,
-          'O sorteio foi concluído, mas a publicação do resultado ainda não está disponível.',
-        ));
+        setResultUnavailable(true);
       });
 
     return () => {
@@ -122,54 +120,58 @@ export default function EventDetail() {
   }, [event?.status, id]);
 
   useEffect(() => {
-    if (!event) return;
-    document.title = `${event.title} | Blaze Event Hub`;
-    document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute(
-      'content',
-      `${event.title}: acompanhe o comando, o estado e o resultado deste giveaway.`,
-    );
-  }, [event]);
+    const title = event ? `${event.title} | Blaze Event Hub` : t('metaEventDetailsTitle');
+    const description = event
+      ? t('eventDetailMetaDescription', { title: event.title })
+      : t('metaEventDetailsDescription');
+    document.title = title;
+    document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', description);
+    document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', title);
+    document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', description);
+  }, [event, t]);
 
   const lifecycle = useMemo<LifecycleStep[]>(() => event ? [
     {
       key: 'created',
-      title: 'Evento registrado',
-      description: 'O criador preparou o giveaway e definiu o prêmio.',
+      title: t('eventDetailLifecycleCreatedTitle'),
+      description: t('eventDetailLifecycleCreatedDescription'),
       timestamp: event.createdAt,
     },
     {
       key: 'opened',
-      title: 'Captura iniciada',
-      description: `Mensagens com ${event.entryCommand} passaram a valer como entrada.`,
+      title: t('eventDetailLifecycleOpenedTitle'),
+      description: t('eventDetailLifecycleOpenedDescription', { command: event.entryCommand }),
       timestamp: event.openedAt,
     },
     {
       key: 'closed',
-      title: 'Entradas finalizadas',
-      description: 'O pool foi congelado e novas mensagens não alteram o sorteio.',
+      title: t('eventDetailLifecycleClosedTitle'),
+      description: t('eventDetailLifecycleClosedDescription'),
       timestamp: event.closedAt,
     },
     {
       key: 'completed',
-      title: 'Vencedor sorteado',
-      description: 'O servidor persistiu um único resultado para este evento.',
+      title: t('eventDetailLifecycleCompletedTitle'),
+      description: t('eventDetailLifecycleCompletedDescription'),
       timestamp: event.completedAt,
     },
-  ] : [], [event]);
+  ] : [], [event, t]);
 
   if (loading) {
-    return <div className="hub-page"><div className="empty" role="status">Carregando giveaway…</div></div>;
+    return <div className="hub-page"><div className="empty" role="status">{t('eventDetailLoading')}</div></div>;
   }
 
   if (!event) {
     return (
       <div className="hub-page">
         <div className="empty-state" role="alert">
-          <h1 className="empty-state-title">Giveaway indisponível</h1>
-          <p className="empty-state-desc">{error || 'Este giveaway não foi encontrado.'}</p>
+          <h1 className="empty-state-title">{t('eventDetailUnavailableTitle')}</h1>
+          <p className="empty-state-desc">{error || t('eventDetailUnavailableDescription')}</p>
           <div className="page-actions">
-            <button type="button" className="btn btn-secondary" onClick={() => void detail.reload()}>Tentar novamente</button>
-            <Link className="btn btn-ghost" to="/events">Ver giveaways</Link>
+            <button type="button" className="btn btn-secondary" onClick={() => void detail.reload()}>
+              {t('publicTryAgain')}
+            </button>
+            <Link className="btn btn-ghost" to="/events">{t('eventDetailViewGiveaways')}</Link>
           </div>
         </div>
       </div>
@@ -183,12 +185,32 @@ export default function EventDetail() {
     : event.status === 'CLOSED' || event.status === 'COMPLETED'
       ? event.finalizedParticipantCount
       : null;
+  const participantLabel = participantCount === null
+    ? t('eventDetailMetricUnavailable')
+    : t(participantCount === 1 ? 'eventDetailParticipantOne' : 'eventDetailParticipantMany', {
+        count: numberFormatter.format(participantCount),
+      });
+
+  let captureDescriptionKey: TranslationKey;
+  if (event.status === 'OPEN') {
+    captureDescriptionKey = stats?.captureHealth === 'HEALTHY'
+      ? 'eventDetailCaptureHealthy'
+      : stats?.captureHealth === 'DEGRADED'
+        ? 'eventDetailCaptureDegraded'
+        : 'eventDetailCaptureWaiting';
+  } else if (event.status === 'FINALIZING') {
+    captureDescriptionKey = 'eventDetailCaptureFinalizing';
+  } else if (event.status === 'DRAFT') {
+    captureDescriptionKey = 'eventDetailCaptureDraft';
+  } else {
+    captureDescriptionKey = 'eventDetailCaptureClosed';
+  }
 
   return (
     <div className="hub-page event-detail-page">
       <header className="page-hero">
         <div className="page-hero-copy">
-          <span className="page-eyebrow">Giveaway na Blaze.stream</span>
+          <span className="page-eyebrow">{t('eventDetailEyebrow')}</span>
           <h1 className="page-title">{event.title}</h1>
           {event.description && <p className="page-subtitle">{event.description}</p>}
         </div>
@@ -200,98 +222,78 @@ export default function EventDetail() {
               target="_blank"
               rel="noreferrer"
             >
-              Abrir transmissão <span aria-hidden="true">↗</span>
+              {t('eventDetailOpenStream')} <span aria-hidden="true">↗</span>
             </a>
           )}
-          <span className={`pill ${STATUS_CLASSES[event.status]}`}>{STATUS_LABELS[event.status]}</span>
+          <span className={`pill ${STATUS_CLASSES[event.status]}`}>{t(STATUS_LABEL_KEYS[event.status])}</span>
         </div>
       </header>
 
-      {error && (
-        <div className="notice notice--warning" role="status">
-          Não foi possível atualizar esta página agora. Os últimos dados recebidos continuam visíveis.
-        </div>
-      )}
+      {error && <div className="notice notice--warning" role="status">{t('eventDetailRefreshWarning')}</div>}
 
       {event.status === 'CANCELLED' && (
-        <div className="notice notice-danger" role="status">
-          Este giveaway foi cancelado. Nenhuma entrada será sorteada.
-        </div>
+        <div className="notice notice-danger" role="status">{t('eventDetailCancelledWarning')}</div>
       )}
 
       {event.status === 'FINALIZING' && (
-        <div className="notice notice--warning" role="status">
-          O limite de entrada já foi fixado. O Hub está concluindo a última sincronização antes de registrar o pool final.
-        </div>
+        <div className="notice notice--warning" role="status">{t('eventDetailFinalizingWarning')}</div>
       )}
 
       {statsError && (
         <div className="notice notice-danger" role="status">
-          <strong>{statsError}</strong>. Não foi possível atualizar as métricas deste giveaway agora.
+          <strong>{t('eventDetailStatsUnavailable')}</strong>. {t('eventDetailStatsWarning')}
         </div>
       )}
 
       <div className="event-detail-grid">
         <section className="control-card prize-card" aria-labelledby="prize-title">
-          <span className="section-label">Prêmio</span>
+          <span className="section-label">{t('eventDetailPrizeLabel')}</span>
           <h2 id="prize-title">{event.prize}</h2>
           {event.creatorChannelSlug && (
             <p className="channel-identity">
-              Por <strong>{event.creatorChannelDisplayName || event.creatorChannelSlug}</strong>
+              {t('eventDetailCreatorBy')} <strong>{event.creatorChannelDisplayName || event.creatorChannelSlug}</strong>
               {' '}@{event.creatorChannelSlug}
             </p>
           )}
-          <p>O criador é responsável pela entrega e pelas condições divulgadas durante a transmissão.</p>
+          <p>{t('eventDetailPrizeResponsibility')}</p>
         </section>
 
         <section className="control-card command-card" aria-labelledby="command-title">
-          <span className="section-label">Como entrar</span>
-          <h2 id="command-title">Envie este comando no chat</h2>
+          <span className="section-label">{t('eventDetailHowToEnter')}</span>
+          <h2 id="command-title">{t('eventDetailSendCommand')}</h2>
           <code className={`signal-command${event.status === 'OPEN' ? ' is-live' : ''}`}>
             {event.entryCommand}
           </code>
-          <p>
-            {event.status === 'OPEN'
-              ? stats?.captureHealth === 'HEALTHY'
-                ? 'A captura está sincronizada. Cada usuário Blaze entra uma única vez.'
-                : stats?.captureHealth === 'DEGRADED'
-                  ? 'O evento continua aberto, mas a sincronização está com atenção no momento.'
-                  : 'O evento está aberto e aguarda a próxima sincronização confirmada.'
-              : event.status === 'FINALIZING'
-                ? 'O limite de entrada foi fixado e a última sincronização está em andamento.'
-              : event.status === 'DRAFT'
-                ? 'A captura começará quando o criador abrir o evento.'
-                : 'A captura terminou e o pool de participantes está congelado.'}
-          </p>
+          <p>{t(captureDescriptionKey)}</p>
         </section>
       </div>
 
-      <section className="metrics-row" aria-label="Resumo do giveaway">
+      <section className="metrics-row" aria-label={t('eventDetailSummaryAria')}>
         <div className="metric">
-          <strong className="metric-val">
-            {participantCount === null
-              ? 'Indisponível'
-              : `${numberFormatter.format(participantCount)} ${participantCount === 1 ? 'participante' : 'participantes'}`}
-          </strong>
-          <span className="metric-lbl">no pool atual</span>
+          <strong className="metric-val">{participantLabel}</strong>
+          <span className="metric-lbl">{t('eventDetailCurrentPool')}</span>
         </div>
         <div className="metric">
-          <strong className="metric-val">1</strong>
-          <span className="metric-lbl">chance por usuário</span>
+          <strong className="metric-val">{numberFormatter.format(1)}</strong>
+          <span className="metric-lbl">{t('eventDetailChancePerUser')}</span>
         </div>
         <div className="metric">
           <strong className="metric-val">
-            {event.status === 'OPEN' ? 'Aberto' : event.status === 'FINALIZING' ? 'Fechando' : 'Travado'}
+            {t(event.status === 'OPEN'
+              ? 'eventDetailPoolOpen'
+              : event.status === 'FINALIZING'
+                ? 'eventDetailPoolClosing'
+                : 'eventDetailPoolLocked')}
           </strong>
-          <span className="metric-lbl">estado do pool</span>
+          <span className="metric-lbl">{t('eventDetailPoolState')}</span>
         </div>
       </section>
 
       <section className="control-card lifecycle-card" aria-labelledby="lifecycle-title">
         <div className="section-heading">
           <div>
-            <span className="section-label">Linha do tempo</span>
-            <h2 id="lifecycle-title">Ciclo do giveaway</h2>
+            <span className="section-label">{t('eventDetailTimelineLabel')}</span>
+            <h2 id="lifecycle-title">{t('eventDetailLifecycleTitle')}</h2>
           </div>
         </div>
         <ol className="lifecycle">
@@ -309,22 +311,24 @@ export default function EventDetail() {
       </section>
 
       <section className="control-card event-times" aria-labelledby="times-title">
-        <span className="section-label">Horários</span>
-        <h2 id="times-title">Referências do evento</h2>
+        <span className="section-label">{t('eventDetailTimesLabel')}</span>
+        <h2 id="times-title">{t('eventDetailTimesTitle')}</h2>
         <dl className="proof-grid">
-          <div><dt>Início programado</dt><dd>{formatDate(event.startsAt)}</dd></div>
-          <div><dt>Encerramento programado</dt><dd>{formatDate(event.endsAt)}</dd></div>
-          <div><dt>Captura iniciada</dt><dd>{formatDate(event.openedAt)}</dd></div>
-          <div><dt>Limite de entrada</dt><dd>{formatDate(event.finalizationCutoffAt)}</dd></div>
-          <div><dt>Pool finalizado</dt><dd>{formatDate(event.closedAt)}</dd></div>
+          <div><dt>{t('eventDetailScheduledStart')}</dt><dd>{formatDate(event.startsAt)}</dd></div>
+          <div><dt>{t('eventDetailScheduledEnd')}</dt><dd>{formatDate(event.endsAt)}</dd></div>
+          <div><dt>{t('eventDetailCaptureStarted')}</dt><dd>{formatDate(event.openedAt)}</dd></div>
+          <div><dt>{t('eventDetailEntryCutoff')}</dt><dd>{formatDate(event.finalizationCutoffAt)}</dd></div>
+          <div><dt>{t('eventDetailPoolFinalized')}</dt><dd>{formatDate(event.closedAt)}</dd></div>
         </dl>
       </section>
 
-      {resultNotice && <div className="notice notice-danger" role="status">{resultNotice}</div>}
+      {resultUnavailable && (
+        <div className="notice notice-danger" role="status">{t('eventDetailResultUnavailable')}</div>
+      )}
 
       {result && (
         <section className="winner-card" aria-labelledby="winner-title">
-          <span className="section-label">Resultado oficial</span>
+          <span className="section-label">{t('eventDetailOfficialResult')}</span>
           <div className="winner-avatar" aria-hidden="true">
             {(result.winnerDisplayName || result.winnerUsername || '?').slice(0, 1).toUpperCase()}
           </div>
@@ -332,10 +336,11 @@ export default function EventDetail() {
             {result.winnerDisplayName || result.winnerUsername}
           </h2>
           <p className="winner-meta">
-            {result.winnerUsername ? `@${result.winnerUsername} · ` : ''}sorteado em {formatDate(result.selectedAt)}
+            {result.winnerUsername ? `@${result.winnerUsername} · ` : ''}
+            {t('eventDetailDrawnOn', { date: formatDate(result.selectedAt) })}
           </p>
           <Link className="btn btn-secondary" to={`/events/${event.id}/result`}>
-            Ver registro do sorteio
+            {t('eventDetailViewDrawRecord')}
           </Link>
         </section>
       )}

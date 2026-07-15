@@ -1,6 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
+import { I18nProvider } from '../i18n/I18nContext';
 import EventDetail from '../pages/EventDetail';
 import EventResult from '../pages/EventResult';
 import LiveDraw from '../pages/LiveDraw';
@@ -86,13 +87,19 @@ function mockApi(completed = false) {
 
 function renderAt(path: string, element: React.ReactNode) {
   return render(
-    <MemoryRouter initialEntries={[path]}>
-      <Routes><Route path={path.replace('event-1', ':id')} element={element} /></Routes>
-    </MemoryRouter>,
+    <I18nProvider>
+      <MemoryRouter initialEntries={[path]}>
+        <Routes><Route path={path.replace('event-1', ':id')} element={element} /></Routes>
+      </MemoryRouter>
+    </I18nProvider>,
   );
 }
 
 describe('páginas do giveaway', () => {
+  beforeEach(() => {
+    localStorage.setItem('blaze-event-hub:language', 'pt-BR');
+  });
+
   it('mostra o contrato público sem participação manual no site', async () => {
     mockApi();
     renderAt('/events/event-1', <EventDetail />);

@@ -13,15 +13,18 @@ import {
 import type { EventParticipantResponse, EventResponse, EventStatus } from '../api/types';
 import { Modal } from '../components/Modal';
 import { addToast, usePolling } from '../components/Toast';
+import { getUserFacingErrorMessage } from '../errors/user-facing-error';
+import { useI18n } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/translations';
 
 type PendingAction = 'save' | 'open' | 'finalize' | 'cancel' | null;
 
-const LIFECYCLE: Array<{ status: EventStatus; label: string }> = [
-  { status: 'DRAFT', label: 'Rascunho' },
-  { status: 'OPEN', label: 'Captura ao vivo' },
-  { status: 'CLOSED', label: 'Pool fechado' },
-  { status: 'COMPLETED', label: 'Sorteado' },
-];
+const LIFECYCLE = [
+  { status: 'DRAFT', labelKey: 'editStatusDraft' },
+  { status: 'OPEN', labelKey: 'editStatusOpen' },
+  { status: 'CLOSED', labelKey: 'editStatusClosed' },
+  { status: 'COMPLETED', labelKey: 'editStatusCompleted' },
+] as const satisfies ReadonlyArray<{ status: EventStatus; labelKey: TranslationKey }>;
 
 function toDateTimeInput(value: string | null): string {
   if (!value) return '';
@@ -41,26 +44,28 @@ function toUpdateDate(value: string): string {
   return toIsoDate(value) || '';
 }
 
-function formatDate(value: string | null): string {
-  if (!value) return 'Não informado';
+function formatDate(value: string | null, locale: string, unavailable: string): string {
+  if (!value) return unavailable;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Não informado';
-  return new Intl.DateTimeFormat('pt-BR', {
+  if (Number.isNaN(date.getTime())) return unavailable;
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);
 }
 
-function statusLabel(status: EventStatus): string {
-  if (status === 'FINALIZING') return 'Fechando entradas';
-  return LIFECYCLE.find((item) => item.status === status)?.label || 'Cancelado';
+function statusLabel(status: EventStatus, t: (key: TranslationKey) => string): string {
+  if (status === 'FINALIZING') return t('editStatusFinalizing');
+  const item = LIFECYCLE.find((candidate) => candidate.status === status);
+  return item ? t(item.labelKey) : t('editStatusCancelled');
 }
 
 function Lifecycle({ status }: { status: EventStatus }) {
+  const { t } = useI18n();
   const lifecycleStatus = status === 'FINALIZING' ? 'OPEN' : status;
   const activeIndex = LIFECYCLE.findIndex((item) => item.status === lifecycleStatus);
   return (
-    <ol className="lifecycle" aria-label="Ciclo de vida do giveaway">
+    <ol className="lifecycle" aria-label={t('editLifecycleAria')}>
       {LIFECYCLE.map((item, index) => {
         const stateClass = status === 'CANCELLED'
           ? 'is-muted'
@@ -68,7 +73,7 @@ function Lifecycle({ status }: { status: EventStatus }) {
         return (
           <li key={item.status} className={stateClass} aria-current={index === activeIndex ? 'step' : undefined}>
             <span>{index + 1}</span>
-            <strong>{item.label}</strong>
+            <strong>{t(item.labelKey)}</strong>
           </li>
         );
       })}
@@ -85,14 +90,15 @@ interface OpenEventPanelProps {
 }
 
 const CAPTURE_HEALTH_COPY = {
-  INACTIVE: { label: 'Inativa', description: 'A captura não está ativa para este evento.' },
-  STARTING: { label: 'Iniciando', description: 'Aguardando a primeira sincronização confirmada com o chat.' },
-  HEALTHY: { label: 'Saudável', description: 'A última sincronização com o chat foi concluída sem erro.' },
-  DEGRADED: { label: 'Atenção', description: 'A captura encontrou uma falha e tentará sincronizar novamente.' },
-  FINALIZING: { label: 'Finalizando', description: 'O limite de entrada foi fixado e a última sincronização está em andamento.' },
+  INACTIVE: { labelKey: 'editHealthInactiveLabel', descriptionKey: 'editHealthInactiveDescription' },
+  STARTING: { labelKey: 'editHealthStartingLabel', descriptionKey: 'editHealthStartingDescription' },
+  HEALTHY: { labelKey: 'editHealthHealthyLabel', descriptionKey: 'editHealthHealthyDescription' },
+  DEGRADED: { labelKey: 'editHealthDegradedLabel', descriptionKey: 'editHealthDegradedDescription' },
+  FINALIZING: { labelKey: 'editHealthFinalizingLabel', descriptionKey: 'editHealthFinalizingDescription' },
 } as const;
 
 function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate }: OpenEventPanelProps) {
+  const { lang, t } = useI18n();
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const fetchEvent = useCallback(() => getEvent(event.id), [event.id]);
   const fetchStats = useCallback(() => getEventStats(event.id), [event.id]);
@@ -106,6 +112,11 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
   const captureHealth = stats.data?.captureHealth
     || (event.status === 'FINALIZING' ? 'FINALIZING' : 'STARTING');
   const healthCopy = CAPTURE_HEALTH_COPY[captureHealth];
+  const formattedParticipantCount = useMemo(
+    () => new Intl.NumberFormat(lang).format(participantCount),
+    [lang, participantCount],
+  );
+  const unavailableDate = t('editDateUnavailable');
 
   useEffect(() => {
     if (eventState.data && eventState.data.status !== event.status) onEventUpdate(eventState.data);
@@ -119,26 +130,21 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
   return (
     <div className="control-grid">
       <section className="control-card">
-        <div className="section-label">Estado da captura</div>
+        <div className="section-label">{t('editCaptureState')}</div>
         <div className="signal-command" role="status" aria-live="polite">
           <Radio aria-hidden="true" />
           <code>{event.entryCommand}</code>
         </div>
-        <p><strong>{healthCopy.label}.</strong> {healthCopy.description} Cada conta Blaze entra uma única vez.</p>
+        <p><strong>{t(healthCopy.labelKey)}.</strong> {t(healthCopy.descriptionKey)} {t('editEveryAccountOnce')}</p>
         <dl className="event-stats">
-          <div><dt>Participantes únicos</dt><dd>{participantCount}</dd></div>
-          <div><dt>Aberto em</dt><dd>{formatDate(event.openedAt)}</dd></div>
-          <div><dt>Última sincronização válida</dt><dd>{formatDate(stats.data?.lastSuccessfulPollAt || null)}</dd></div>
-          {event.finalizationCutoffAt && <div><dt>Entradas aceitas até</dt><dd>{formatDate(event.finalizationCutoffAt)}</dd></div>}
+          <div><dt>{t('editUniqueParticipants')}</dt><dd>{formattedParticipantCount}</dd></div>
+          <div><dt>{t('editOpenedAt')}</dt><dd>{formatDate(event.openedAt, lang, unavailableDate)}</dd></div>
+          <div><dt>{t('editLastSuccessfulSync')}</dt><dd>{formatDate(stats.data?.lastSuccessfulPollAt || null, lang, unavailableDate)}</dd></div>
+          {event.finalizationCutoffAt && <div><dt>{t('editEntriesAcceptedUntil')}</dt><dd>{formatDate(event.finalizationCutoffAt, lang, unavailableDate)}</dd></div>}
         </dl>
-        {stats.data?.lastErrorCode && (
-          <div className="notice notice-danger" role="status">
-            A sincronização precisa de atenção. Código: <code>{stats.data.lastErrorCode}</code>
-          </div>
-        )}
-        {(stats.error || participants.error) && (
+        {(stats.data?.lastErrorCode || stats.error || participants.error) && (
           <div className="notice notice-danger" role="alert">
-            {stats.error || participants.error}
+            {t('editSyncAttention')}
           </div>
         )}
         <div className="form-actions">
@@ -149,7 +155,7 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
             disabled={!canFinalize || finalizationInProgress}
           >
             <CircleStop size={17} aria-hidden="true" />
-            {finalizationInProgress ? 'Finalizando...' : 'Finalizar evento'}
+            {finalizationInProgress ? t('editFinalizingAction') : t('editFinalizeEvent')}
           </button>
           <button
             type="button"
@@ -157,23 +163,23 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
             onClick={() => void Promise.all([stats.reload(), participants.reload()])}
             disabled={stats.loading || participants.loading}
           >
-            Atualizar agora
+            {t('editRefreshNow')}
           </button>
           {event.status === 'OPEN' && (
             <button type="button" className="btn btn-danger" onClick={onCancel} disabled={finalizationInProgress}>
-              <Ban size={16} aria-hidden="true" /> Cancelar evento
+              <Ban size={16} aria-hidden="true" /> {t('editCancelEvent')}
             </button>
           )}
         </div>
         {!stats.loading && participantCount === 0 && (
-          <p className="form-helper">Aguarde ao menos uma entrada válida antes de finalizar.</p>
+          <p className="form-helper">{t('editWaitForEntry')}</p>
         )}
       </section>
 
       <section className="control-card">
-        <div className="section-label">Entradas confirmadas</div>
+        <div className="section-label">{t('editConfirmedEntries')}</div>
         {participants.loading && !participants.data ? (
-          <div className="empty" role="status">Sincronizando participantes...</div>
+          <div className="empty" role="status">{t('editSyncingParticipants')}</div>
         ) : participants.data?.length ? (
           <ul className="participant-list" aria-live="polite">
             {participants.data.map((participant: EventParticipantResponse) => (
@@ -183,32 +189,34 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
                   <strong>{participant.displayName || participant.blazeUsername}</strong>
                   {participant.blazeUsername && <small>@{participant.blazeUsername}</small>}
                 </div>
-                <time dateTime={participant.enteredAt}>{formatDate(participant.enteredAt)}</time>
+                <time dateTime={participant.enteredAt}>{formatDate(participant.enteredAt, lang, unavailableDate)}</time>
               </li>
             ))}
           </ul>
         ) : (
-          <div className="empty">Nenhuma entrada válida até agora.</div>
+          <div className="empty">{t('editNoValidEntries')}</div>
         )}
       </section>
 
       <Modal
         open={confirmFinalize}
         onClose={() => setConfirmFinalize(false)}
-        title="Congelar o pool de participantes?"
+        title={t('editFreezePoolTitle')}
         footer={(
           <>
             <button type="button" className="btn btn-secondary" onClick={() => setConfirmFinalize(false)} disabled={finalizationInProgress}>
-              Continuar capturando
+              {t('editContinueCapturing')}
             </button>
             <button type="button" className="btn btn-danger" onClick={() => void confirm()} disabled={finalizationInProgress}>
-              {finalizationInProgress ? 'Congelando...' : `Finalizar com ${participantCount} participantes`}
+              {finalizationInProgress
+                ? t('editFreezing')
+                : t(participantCount === 1 ? 'editFinalizeWithOne' : 'editFinalizeWithMany', { count: formattedParticipantCount })}
             </button>
           </>
         )}
       >
-        <p><strong>Esta ação é irreversível.</strong> O hub fixará o limite de entrada, fará uma última sincronização e registrará o pool final.</p>
-        <p>Depois disso, você poderá revisar o total e seguir para o sorteio.</p>
+        <p><strong>{t('editIrreversible')}</strong> {t('editFreezePoolDescription')}</p>
+        <p>{t('editAfterFinalize')}</p>
       </Modal>
     </div>
   );
@@ -217,6 +225,7 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
 export default function EditEvent() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
+  const { lang, t } = useI18n();
   const [event, setEvent] = useState<EventResponse | null>(null);
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
@@ -243,7 +252,7 @@ export default function EditEvent() {
   useEffect(() => {
     let active = true;
     if (!id) {
-      setError('Identificador de evento inválido.');
+      setError(t('editInvalidId'));
       setIsLoading(false);
       return () => {
         active = false;
@@ -255,7 +264,7 @@ export default function EditEvent() {
         if (active) applyEvent(loaded);
       })
       .catch((loadError) => {
-        if (active) setError(loadError instanceof Error ? loadError.message : 'Não foi possível carregar o giveaway.');
+        if (active) setError(getUserFacingErrorMessage(loadError, t('editLoadFallback')));
       })
       .finally(() => {
         if (active) setIsLoading(false);
@@ -264,20 +273,20 @@ export default function EditEvent() {
     return () => {
       active = false;
     };
-  }, [applyEvent, id]);
+  }, [applyEvent, id, t]);
 
   const dateError = useMemo(() => {
     if (!startsAt || !endsAt) return '';
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime()
-      ? 'O encerramento precisa acontecer depois do início.'
+      ? t('editDateAfterStart')
       : '';
-  }, [endsAt, startsAt]);
+  }, [endsAt, startsAt, t]);
 
   const formError = () => {
-    if (!title.trim()) return 'O título é obrigatório.';
-    if (!prize.trim()) return 'O prêmio é obrigatório.';
+    if (!title.trim()) return t('editTitleRequired');
+    if (!prize.trim()) return t('editPrizeRequired');
     if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
-      return 'Use ! seguido de letras, números, _ ou -.';
+      return t('editCommandInvalid');
     }
     return dateError;
   };
@@ -308,9 +317,9 @@ export default function EditEvent() {
     setError('');
     try {
       const saved = await saveDraft();
-      if (saved) addToast('success', 'Rascunho salvo.');
+      if (saved) addToast('success', t('editDraftSaved'));
     } catch (saveError) {
-      setError(saveError instanceof Error ? saveError.message : 'Não foi possível salvar o rascunho.');
+      setError(getUserFacingErrorMessage(saveError, t('editSaveFallback')));
     } finally {
       setPendingAction(null);
     }
@@ -326,9 +335,9 @@ export default function EditEvent() {
       const opened = await openEvent(id);
       applyEvent(opened);
       setConfirmOpen(false);
-      addToast('success', 'Captura aberta. O hub já está acompanhando o comando no chat.');
+      addToast('success', t('editCaptureOpened'));
     } catch (openError) {
-      setError(openError instanceof Error ? openError.message : 'Não foi possível abrir a captura.');
+      setError(getUserFacingErrorMessage(openError, t('editOpenFallback')));
     } finally {
       setPendingAction(null);
     }
@@ -342,13 +351,13 @@ export default function EditEvent() {
       const finalized = await finalizeEvent(id);
       applyEvent(finalized);
       if (finalized.status === 'FINALIZING') {
-        addToast('warning', 'Finalização iniciada. A última sincronização está em andamento.');
+        addToast('warning', t('editFinalizationStarted'));
       } else {
-        addToast('success', 'Pool registrado. O evento está pronto para o sorteio.');
+        addToast('success', t('editPoolReady'));
       }
       return true;
     } catch (finalizeError) {
-      setError(finalizeError instanceof Error ? finalizeError.message : 'Não foi possível finalizar o evento.');
+      setError(getUserFacingErrorMessage(finalizeError, t('editFinalizeFallback')));
       return false;
     } finally {
       setPendingAction(null);
@@ -363,36 +372,37 @@ export default function EditEvent() {
       const cancelled = await cancelEvent(id);
       applyEvent(cancelled);
       setConfirmCancel(false);
-      addToast('success', event?.status === 'OPEN' ? 'Evento aberto cancelado.' : 'Rascunho cancelado.');
+      addToast('success', t(event?.status === 'OPEN' ? 'editOpenCancelledToast' : 'editDraftCancelledToast'));
     } catch (cancelError) {
-      setError(cancelError instanceof Error ? cancelError.message : 'Não foi possível cancelar o evento.');
+      setError(getUserFacingErrorMessage(cancelError, t('editCancelFallback')));
     } finally {
       setPendingAction(null);
     }
   };
 
-  if (isLoading) return <div className="empty" role="status">Carregando central do giveaway...</div>;
+  if (isLoading) return <div className="empty" role="status">{t('editLoading')}</div>;
 
   if (!event) {
     return (
       <div className="hub-page">
-        <div className="notice notice-danger" role="alert">{error || 'Giveaway não encontrado.'}</div>
-        <button type="button" className="btn btn-secondary" onClick={() => navigate('/my-events')}>Voltar aos meus giveaways</button>
+        <div className="notice notice-danger" role="alert">{error || t('editNotFound')}</div>
+        <button type="button" className="btn btn-secondary" onClick={() => navigate('/my-events')}>{t('editBackToMine')}</button>
       </div>
     );
   }
 
   const busy = pendingAction !== null;
+  const formattedFinalParticipantCount = new Intl.NumberFormat(lang).format(event.finalizedParticipantCount);
 
   return (
     <div className="hub-page">
       <header className="page-hero">
         <div>
-          <span className={`pill pill--${event.status.toLowerCase()}`}>{statusLabel(event.status)}</span>
+          <span className={`pill pill--${event.status.toLowerCase()}`}>{statusLabel(event.status, t)}</span>
           <h1 className="page-title">{event.title}</h1>
-          <p>Central de controle do giveaway</p>
+          <p>{t('editControlCenter')}</p>
         </div>
-        <Link className="btn btn-secondary" to={`/events/${event.id}`}>Ver página pública</Link>
+        <Link className="btn btn-secondary" to={`/events/${event.id}`}>{t('editViewPublic')}</Link>
       </header>
 
       <Lifecycle status={event.status} />
@@ -401,25 +411,25 @@ export default function EditEvent() {
       {event.status === 'DRAFT' && (
         <form className="control-grid" onSubmit={handleSave} noValidate>
           <section className="control-card">
-            <div className="section-label">Rascunho</div>
+            <div className="section-label">{t('editDraftSection')}</div>
             <div className="form-group">
-              <label htmlFor="manage-title">Título</label>
+              <label htmlFor="manage-title">{t('editTitleLabel')}</label>
               <input id="manage-title" value={title} onChange={(change) => setTitle(change.target.value)} maxLength={140} disabled={busy} />
             </div>
             <div className="form-group">
-              <label htmlFor="manage-prize">Prêmio</label>
+              <label htmlFor="manage-prize">{t('editPrizeLabel')}</label>
               <input id="manage-prize" value={prize} onChange={(change) => setPrize(change.target.value)} maxLength={180} disabled={busy} />
             </div>
             <div className="form-group">
-              <label htmlFor="manage-description">Descrição</label>
+              <label htmlFor="manage-description">{t('editDescriptionLabel')}</label>
               <textarea id="manage-description" value={description} onChange={(change) => setDescription(change.target.value)} maxLength={2_000} disabled={busy} />
             </div>
           </section>
 
           <section className="control-card">
-            <div className="section-label">Captura</div>
+            <div className="section-label">{t('editCaptureSection')}</div>
             <div className="form-group">
-              <label htmlFor="manage-command">Comando exato do chat</label>
+              <label htmlFor="manage-command">{t('editExactCommandLabel')}</label>
               <input
                 id="manage-command"
                 className="signal-command"
@@ -432,26 +442,26 @@ export default function EditEvent() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="manage-channel">Canal vinculado</label>
+              <label htmlFor="manage-channel">{t('editLinkedChannelLabel')}</label>
               <input
                 id="manage-channel"
                 value={event.creatorChannelSlug ? `@${event.creatorChannelSlug}` : event.creatorChannelId}
                 readOnly
                 disabled
               />
-              <span className="form-helper">O ID é o canal real resolvido pela Blaze e não pode ser trocado depois da criação.</span>
+              <span className="form-helper">{t('editLinkedChannelHelp')}</span>
             </div>
           </section>
 
           <section className="control-card">
-            <div className="section-label">Agenda opcional</div>
+            <div className="section-label">{t('editOptionalSchedule')}</div>
             <div className="form-row">
               <div className="form-group">
-                <label htmlFor="manage-starts-at">Início previsto</label>
+                <label htmlFor="manage-starts-at">{t('editStartsAtLabel')}</label>
                 <input id="manage-starts-at" type="datetime-local" value={startsAt} onChange={(change) => setStartsAt(change.target.value)} disabled={busy} />
               </div>
               <div className="form-group">
-                <label htmlFor="manage-ends-at">Encerramento previsto</label>
+                <label htmlFor="manage-ends-at">{t('editEndsAtLabel')}</label>
                 <input id="manage-ends-at" type="datetime-local" value={endsAt} onChange={(change) => setEndsAt(change.target.value)} disabled={busy} />
               </div>
             </div>
@@ -459,18 +469,18 @@ export default function EditEvent() {
           </section>
 
           <section className="control-card">
-            <div className="section-label">Próximo passo</div>
-            <p>Ao abrir, o título, o prêmio, o canal e o comando ficam travados para manter a captura consistente.</p>
+            <div className="section-label">{t('editNextStep')}</div>
+            <p>{t('editNextStepDescription')}</p>
             <div className="form-actions">
               <button type="submit" className="btn btn-secondary" disabled={busy}>
                 <Save size={16} aria-hidden="true" />
-                {pendingAction === 'save' ? 'Salvando...' : 'Salvar rascunho'}
+                {pendingAction === 'save' ? t('editSaving') : t('editSaveDraft')}
               </button>
               <button type="button" className="btn btn-primary" onClick={() => setConfirmOpen(true)} disabled={busy || Boolean(formError())}>
-                <Radio size={16} aria-hidden="true" /> Abrir captura
+                <Radio size={16} aria-hidden="true" /> {t('editOpenCapture')}
               </button>
               <button type="button" className="btn btn-danger" onClick={() => setConfirmCancel(true)} disabled={busy}>
-                <Ban size={16} aria-hidden="true" /> Cancelar evento
+                <Ban size={16} aria-hidden="true" /> {t('editCancelEvent')}
               </button>
             </div>
           </section>
@@ -491,16 +501,16 @@ export default function EditEvent() {
         <div className="control-grid">
           <section className="control-card">
             <ShieldCheck size={28} aria-hidden="true" />
-            <div className="section-label">Pool final registrado</div>
-            <h2>{event.finalizedParticipantCount} participantes</h2>
-            <p>Novas mensagens já não alteram o pool. O hash abaixo é o identificador técnico registrado para este conjunto.</p>
-            <code className="signal-command">{event.finalizedPoolHash || 'Hash indisponível'}</code>
+            <div className="section-label">{t('editFinalPoolRecorded')}</div>
+            <h2>{t(event.finalizedParticipantCount === 1 ? 'editParticipantCountOne' : 'editParticipantCountMany', { count: formattedFinalParticipantCount })}</h2>
+            <p>{t('editPoolLockedDescription')}</p>
+            <code className="signal-command">{event.finalizedPoolHash || t('editHashUnavailable')}</code>
           </section>
           <section className="control-card">
-            <div className="section-label">Pronto para sortear</div>
-            <p>O sorteio será executado uma única vez e o resultado persistido ficará público.</p>
+            <div className="section-label">{t('editReadyToDraw')}</div>
+            <p>{t('editDrawOnceDescription')}</p>
             <Link className="btn btn-primary btn-lg" to={`/events/${event.id}/draw`}>
-              Ir para o sorteio <ArrowRight size={17} aria-hidden="true" />
+              {t('editGoToDraw')} <ArrowRight size={17} aria-hidden="true" />
             </Link>
           </section>
         </div>
@@ -509,11 +519,11 @@ export default function EditEvent() {
       {event.status === 'COMPLETED' && (
         <section className="control-card">
           <Trophy size={32} aria-hidden="true" />
-          <div className="section-label">Sorteio concluído</div>
-          <h2>O resultado já está publicado</h2>
-          <p>Consulte o vencedor e os dados técnicos registrados pelo sorteio.</p>
+          <div className="section-label">{t('editDrawCompleted')}</div>
+          <h2>{t('editResultPublished')}</h2>
+          <p>{t('editResultDescription')}</p>
           <Link className="btn btn-primary" to={`/events/${event.id}/result`}>
-            Ver resultado <ArrowRight size={17} aria-hidden="true" />
+            {t('editViewResult')} <ArrowRight size={17} aria-hidden="true" />
           </Link>
         </section>
       )}
@@ -521,48 +531,46 @@ export default function EditEvent() {
       {event.status === 'CANCELLED' && (
         <section className="control-card">
           <Ban size={28} aria-hidden="true" />
-          <div className="section-label">Evento cancelado</div>
-          <h2>Este evento foi encerrado</h2>
-          <p>Ele permanece disponível somente para consulta e não pode ser reaberto.</p>
-          <Link className="btn btn-secondary" to="/my-events">Voltar aos meus giveaways</Link>
+          <div className="section-label">{t('editEventCancelled')}</div>
+          <h2>{t('editEventClosed')}</h2>
+          <p>{t('editEventReadOnly')}</p>
+          <Link className="btn btn-secondary" to="/my-events">{t('editBackToMine')}</Link>
         </section>
       )}
 
       <Modal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Abrir a captura agora?"
+        title={t('editOpenModalTitle')}
         footer={(
           <>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmOpen(false)} disabled={busy}>Ainda não</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmOpen(false)} disabled={busy}>{t('editNotYet')}</button>
             <button type="button" className="btn btn-primary" onClick={() => void handleOpen()} disabled={busy}>
-              <Radio size={16} aria-hidden="true" /> {pendingAction === 'open' ? 'Abrindo...' : 'Abrir captura'}
+              <Radio size={16} aria-hidden="true" /> {pendingAction === 'open' ? t('editOpening') : t('editOpenCapture')}
             </button>
           </>
         )}
       >
-        <p>O hub começará a aceitar <strong>{entryCommand}</strong> no canal vinculado. Os dados do evento ficarão travados durante a captura.</p>
+        <p>{t('editOpenModalPrefix')} <strong>{entryCommand}</strong> {t('editOpenModalSuffix')}</p>
       </Modal>
 
       <Modal
         open={confirmCancel}
         onClose={() => setConfirmCancel(false)}
-        title={event.status === 'OPEN' ? 'Cancelar este evento aberto?' : 'Cancelar este rascunho?'}
+        title={t(event.status === 'OPEN' ? 'editCancelOpenTitle' : 'editCancelDraftTitle')}
         footer={(
           <>
             <button type="button" className="btn btn-secondary" onClick={() => setConfirmCancel(false)} disabled={busy}>
-              {event.status === 'OPEN' ? 'Manter captura' : 'Manter rascunho'}
+              {t(event.status === 'OPEN' ? 'editKeepCapture' : 'editKeepDraft')}
             </button>
             <button type="button" className="btn btn-danger" onClick={() => void handleCancel()} disabled={busy}>
-              <Ban size={16} aria-hidden="true" /> {pendingAction === 'cancel' ? 'Cancelando...' : 'Cancelar evento'}
+              <Ban size={16} aria-hidden="true" /> {pendingAction === 'cancel' ? t('editCancelling') : t('editCancelEvent')}
             </button>
           </>
         )}
       >
         <p>
-          {event.status === 'OPEN'
-            ? 'A captura será interrompida e as entradas deste evento não seguirão para sorteio. Esta ação não pode ser desfeita.'
-            : 'O evento ficará somente para leitura e não poderá ser aberto depois.'}
+          {t(event.status === 'OPEN' ? 'editCancelOpenDescription' : 'editCancelDraftDescription')}
         </p>
       </Modal>
     </div>

@@ -55,6 +55,7 @@ function renderPage(page: ReactNode) {
 
 describe('páginas do hub de giveaways', () => {
   beforeEach(() => {
+    localStorage.setItem('blaze-event-hub:language', 'pt-BR');
     api.getEvents.mockReset();
     api.getEventStats.mockReset();
     api.getOAuthSession.mockReset();
@@ -102,7 +103,7 @@ describe('páginas do hub de giveaways', () => {
     expect(await screen.findByText('Setup completo')).toBeInTheDocument();
     expect(screen.queryByText('Rascunho privado')).not.toBeInTheDocument();
 
-    const filterGroup = screen.getByRole('group', { name: 'Filtrar eventos por status' });
+    const filterGroup = screen.getByRole('group', { name: 'Filtrar giveaways por status' });
     expect(filterGroup).toHaveAttribute('tabindex', '0');
     expect(filterGroup).toHaveAttribute('aria-describedby', 'events-filter-scroll-hint');
     expect(screen.getByText(/Deslize ou use Tab para ver todos os filtros/i)).toBeInTheDocument();

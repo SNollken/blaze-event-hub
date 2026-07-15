@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   getEvent,
@@ -6,37 +6,40 @@ import {
   type EventResponse,
   type EventResultResponse,
 } from '../api/client';
+import { useI18n } from '../i18n/I18nContext';
+import type { Lang } from '../i18n/translations';
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'long',
-  timeStyle: 'medium',
-});
-
-const numberFormatter = new Intl.NumberFormat('pt-BR');
-
-function formatDate(value: string | null | undefined) {
-  if (!value) return 'Não informado';
-  const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Data indisponível' : dateFormatter.format(date);
-}
-
-function getErrorMessage(error: unknown, fallback: string) {
-  return error instanceof Error && error.message ? error.message : fallback;
+function localeFor(lang: Lang) {
+  return lang === 'pt-BR' ? 'pt-BR' : 'en';
 }
 
 export default function EventResult() {
   const { id } = useParams<{ id: string }>();
+  const { lang, t } = useI18n();
   const [event, setEvent] = useState<EventResponse | null>(null);
   const [result, setResult] = useState<EventResultResponse | null>(null);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const [failed, setFailed] = useState(false);
+  const dateFormatter = useMemo(() => new Intl.DateTimeFormat(localeFor(lang), {
+    dateStyle: 'long',
+    timeStyle: 'medium',
+  }), [lang]);
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(localeFor(lang)), [lang]);
+
+  const formatDate = (value: string | null | undefined) => {
+    if (!value) return t('eventResultDateMissing');
+    const date = new Date(value);
+    return Number.isNaN(date.getTime()) ? t('eventResultDateUnavailable') : dateFormatter.format(date);
+  };
 
   useEffect(() => {
     let active = true;
 
     async function loadResult(eventId: string) {
       setLoading(true);
-      setError('');
+      setFailed(false);
+      setEvent(null);
+      setResult(null);
 
       try {
         const [loadedEvent, loadedResult] = await Promise.all([
@@ -46,15 +49,11 @@ export default function EventResult() {
         if (!active) return;
         setEvent(loadedEvent);
         setResult(loadedResult);
-        document.title = `${loadedEvent.title}: resultado | Blaze Event Hub`;
-      } catch (loadError) {
+      } catch {
         if (active) {
           setEvent(null);
           setResult(null);
-          setError(getErrorMessage(
-            loadError,
-            'O resultado ainda não foi publicado ou este giveaway não existe.',
-          ));
+          setFailed(true);
         }
       } finally {
         if (active) setLoading(false);
@@ -64,7 +63,7 @@ export default function EventResult() {
     if (id) {
       void loadResult(id);
     } else {
-      setError('O identificador do giveaway não foi informado.');
+      setFailed(true);
       setLoading(false);
     }
 
@@ -73,93 +72,104 @@ export default function EventResult() {
     };
   }, [id]);
 
+  useEffect(() => {
+    const title = event
+      ? t('eventResultDocumentTitle', { title: event.title })
+      : t('metaResultTitle');
+    const description = event
+      ? t('eventResultMetaDescription', { title: event.title })
+      : t('metaResultDescription');
+    document.title = title;
+    document.querySelector<HTMLMetaElement>('meta[name="description"]')?.setAttribute('content', description);
+    document.querySelector<HTMLMetaElement>('meta[property="og:title"]')?.setAttribute('content', title);
+    document.querySelector<HTMLMetaElement>('meta[property="og:description"]')?.setAttribute('content', description);
+  }, [event, t]);
+
   if (loading) {
-    return <div className="hub-page"><div className="empty" role="status">Carregando resultado…</div></div>;
+    return <div className="hub-page"><div className="empty" role="status">{t('eventResultLoading')}</div></div>;
   }
 
-  if (error || !event || !result) {
+  if (failed || !event || !result) {
     return (
       <div className="hub-page result-page">
         <div className="empty-state" role="alert">
-          <h1 className="empty-state-title">Resultado indisponível</h1>
-          <p className="empty-state-desc">{error || 'Este resultado ainda não foi publicado.'}</p>
+          <h1 className="empty-state-title">{t('eventResultUnavailableTitle')}</h1>
+          <p className="empty-state-desc">{t('eventResultUnavailableDescription')}</p>
           <Link className="btn btn-secondary" to={id ? `/events/${id}` : '/events'}>
-            Voltar ao giveaway
+            {t('eventResultBackToGiveaway')}
           </Link>
         </div>
       </div>
     );
   }
 
-  const winnerName = result.winnerDisplayName || result.winnerUsername || 'Vencedor Blaze';
+  const winnerName = result.winnerDisplayName || result.winnerUsername || t('eventResultWinnerFallback');
+  const winnerReference = result.winnerUsername ? `@${result.winnerUsername}` : winnerName;
 
   return (
     <div className="hub-page result-page">
       <header className="page-hero result-hero">
         <div className="page-hero-copy">
-          <span className="page-eyebrow">Resultado público registrado</span>
+          <span className="page-eyebrow">{t('eventResultEyebrow')}</span>
           <p className="result-event-name">{event.title}</p>
           <h1 className="page-title">{winnerName}</h1>
           <p className="page-subtitle">
-            {result.winnerUsername ? `@${result.winnerUsername}` : winnerName} venceu o prêmio <strong>{event.prize}</strong>.
+            {winnerReference} {t('eventResultWonPrize')} <strong>{event.prize}</strong>.
           </p>
         </div>
-        <span className="pill pill--completed">Sorteio concluído</span>
+        <span className="pill pill--completed">{t('eventResultDrawCompleted')}</span>
       </header>
 
       <section className="winner-card result-winner" aria-labelledby="result-winner-title">
         <div className="winner-avatar" aria-hidden="true">{winnerName.slice(0, 1).toUpperCase()}</div>
-        <h2 id="result-winner-title" className="winner-name">Vencedor confirmado</h2>
+        <h2 id="result-winner-title" className="winner-name">{t('eventResultConfirmedWinner')}</h2>
         {result.winnerUsername && (
-          <p className="winner-meta">Perfil Blaze: @{result.winnerUsername}</p>
+          <p className="winner-meta">{t('eventResultBlazeProfile')} @{result.winnerUsername}</p>
         )}
         <time className="result-timestamp" dateTime={result.selectedAt}>
-          Sorteado em {formatDate(result.selectedAt)}
+          {t('eventResultDrawnOn')} {formatDate(result.selectedAt)}
         </time>
       </section>
 
       <section className="control-card result-proof" aria-labelledby="proof-title">
         <div className="section-heading">
           <div>
-            <span className="section-label">Dados persistidos</span>
-            <h2 id="proof-title">Registro técnico do sorteio</h2>
+            <span className="section-label">{t('eventResultPersistedData')}</span>
+            <h2 id="proof-title">{t('eventResultTechnicalRecord')}</h2>
           </div>
         </div>
-        <p className="proof-intro">
-          O servidor registrou o conjunto de participantes antes de escolher uma pessoa. Os dados abaixo
-          são os identificadores técnicos persistidos com o resultado; sozinhos, eles não reconstituem a lista do pool.
-        </p>
+        <p className="proof-intro">{t('eventResultProofIntro')}</p>
         <dl className="proof-grid">
           <div>
-            <dt>Método</dt>
+            <dt>{t('eventResultMethod')}</dt>
             <dd><code>{result.drawMethod}</code></dd>
           </div>
           <div>
-            <dt>Participantes no pool</dt>
+            <dt>{t('eventResultPoolParticipants')}</dt>
             <dd>{numberFormatter.format(result.participantCount)}</dd>
           </div>
           <div className="proof-wide">
-            <dt>Seed registrada</dt>
+            <dt>{t('eventResultRecordedSeed')}</dt>
             <dd><code>{result.drawSeed}</code></dd>
           </div>
           <div className="proof-wide">
-            <dt>Hash SHA-256 do pool</dt>
+            <dt>{t('eventResultPoolHash')}</dt>
             <dd><code>{result.poolHash}</code></dd>
           </div>
           <div>
-            <dt>Pool finalizado</dt>
+            <dt>{t('eventResultPoolFinalized')}</dt>
             <dd>{formatDate(event.closedAt)}</dd>
           </div>
           <div>
-            <dt>Resultado persistido</dt>
+            <dt>{t('eventResultPersisted')}</dt>
             <dd>{formatDate(result.selectedAt)}</dd>
           </div>
         </dl>
       </section>
 
       <div className="page-actions">
-        <Link className="btn btn-secondary" to={`/events/${event.id}`}>Ver detalhes do giveaway</Link>
-        <Link className="btn btn-primary" to="/events">Explorar outros giveaways</Link>
+        <Link className="btn btn-secondary" to={`/events/${event.id}`}>{t('eventResultViewDetails')}</Link>
+        <Link className="btn btn-primary" to="/events">{t('eventResultExploreOthers')}</Link>
       </div>
     </div>
   );

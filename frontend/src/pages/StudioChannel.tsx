@@ -10,6 +10,8 @@ import type { MemberProfile, OAuthSessionResponse } from '../api/types';
 import { Modal } from '../components/Modal';
 import { addToast, usePolling } from '../components/Toast';
 import { notifyAuthSessionChanged } from '../auth-session';
+import { getUserFacingErrorMessage } from '../errors/user-facing-error';
+import { useI18n } from '../i18n/I18nContext';
 import { toSafeOAuthUrl } from '../oauth-navigation';
 
 interface ConnectionState {
@@ -17,17 +19,18 @@ interface ConnectionState {
   profile: MemberProfile | null;
 }
 
-function formatExpiry(value: string | null | undefined): string {
-  if (!value) return 'Não informada';
+function formatExpiry(value: string | null | undefined, locale: string, unavailable: string): string {
+  if (!value) return unavailable;
   const date = new Date(value);
-  if (Number.isNaN(date.getTime())) return 'Não informada';
-  return new Intl.DateTimeFormat('pt-BR', {
+  if (Number.isNaN(date.getTime())) return unavailable;
+  return new Intl.DateTimeFormat(locale, {
     dateStyle: 'short',
     timeStyle: 'short',
   }).format(date);
 }
 
 export default function StudioChannel() {
+  const { lang, t } = useI18n();
   const fetchConnection = useCallback(async (): Promise<ConnectionState> => {
     const session = await getOAuthSession();
     if (!session.connected) return { session, profile: null };
@@ -47,7 +50,7 @@ export default function StudioChannel() {
       const response = await startOAuth();
       window.location.assign(toSafeOAuthUrl(response.authorizationUrl));
     } catch (connectError) {
-      addToast('error', connectError instanceof Error ? connectError.message : 'Não foi possível iniciar a conexão com a Blaze.');
+      addToast('error', getUserFacingErrorMessage(connectError, t('studioConnectFallback')));
       setAction(null);
     }
   };
@@ -59,9 +62,9 @@ export default function StudioChannel() {
       setConfirmDisconnect(false);
       notifyAuthSessionChanged();
       await connection.reload();
-      addToast('success', 'Conta Blaze desconectada do hub.');
+      addToast('success', t('studioDisconnectSuccess'));
     } catch (disconnectError) {
-      addToast('error', disconnectError instanceof Error ? disconnectError.message : 'Não foi possível desconectar a conta.');
+      addToast('error', getUserFacingErrorMessage(disconnectError, t('studioDisconnectFallback')));
     } finally {
       setAction(null);
     }
@@ -70,7 +73,7 @@ export default function StudioChannel() {
   const connected = connection.data?.session.connected === true;
   const profile = connection.data?.profile;
   const sessionProfile = connection.data?.session.profile;
-  const displayName = profile?.displayName || sessionProfile?.displayName || sessionProfile?.username || 'Criador Blaze';
+  const displayName = profile?.displayName || sessionProfile?.displayName || sessionProfile?.username || t('studioCreatorFallback');
   const username = profile?.blazeUsername || sessionProfile?.username || '';
   const avatarUrl = profile?.avatarUrl || sessionProfile?.avatarUrl || null;
   const connectionUnavailable = Boolean(connection.error && !connection.data);
@@ -79,51 +82,53 @@ export default function StudioChannel() {
     <div className="hub-page">
       <header className="page-hero">
         <div>
-          <span className="section-label">Configuração Blaze</span>
-          <h1 className="page-title">Sua conexão com a transmissão</h1>
-          <p>O hub usa OAuth para ler as mensagens necessárias durante os giveaways que você abrir.</p>
+          <span className="section-label">{t('studioEyebrow')}</span>
+          <h1 className="page-title">{t('studioHeading')}</h1>
+          <p>{t('studioSubtitle')}</p>
         </div>
         <button type="button" className="btn btn-secondary" onClick={() => void connection.reload()} disabled={connection.loading || action !== null}>
-          <RefreshCw size={16} aria-hidden="true" /> Atualizar estado
+          <RefreshCw size={16} aria-hidden="true" /> {t('studioRefresh')}
         </button>
       </header>
 
-      {connection.error && <div className="notice notice-danger" role="alert">{connection.error}</div>}
+      {connection.error && connection.data && (
+        <div className="notice notice-danger" role="alert">{t('studioUnavailable')}</div>
+      )}
 
       <div className="control-grid">
         <section className="control-card">
-          <div className="section-label">Estado da conta</div>
+          <div className="section-label">{t('studioAccountStatus')}</div>
           {connection.loading && !connection.data ? (
-            <div className="empty" role="status">Verificando conexão segura...</div>
+            <div className="empty" role="status">{t('studioChecking')}</div>
           ) : connectionUnavailable ? (
-            <div className="empty" role="status">O estado da conta não está disponível no momento.</div>
+            <div className="empty" role="alert">{t('studioUnavailable')}</div>
           ) : connected ? (
-            <div className="connection-profile" aria-label="Conta Blaze conectada">
+            <div className="connection-profile" aria-label={t('studioConnectedAccountAria')}>
               <div className="profile-avatar">
                 {avatarUrl ? <img src={avatarUrl} alt="" /> : <UserRound aria-hidden="true" />}
               </div>
               <div className="creator-identity">
                 <strong>{displayName}</strong>
                 {username && <span className="creator-handle">@{username}</span>}
-                <span className="pill pill--open">Conectado</span>
+                <span className="pill pill--open">{t('studioConnected')}</span>
               </div>
             </div>
           ) : (
             <div className="empty">
               <Link2 aria-hidden="true" />
-              <strong>Nenhuma conta Blaze conectada</strong>
-              <span>Conecte a conta do criador para abrir capturas de chat.</span>
+              <strong>{t('studioNoAccount')}</strong>
+              <span>{t('studioNoAccountDescription')}</span>
             </div>
           )}
 
           <div className="form-actions">
             <button type="button" className="btn btn-primary" onClick={() => void connect()} disabled={action !== null}>
               <Link2 size={16} aria-hidden="true" />
-              {action === 'connect' ? 'Abrindo Blaze...' : connected ? 'Reconectar conta' : 'Conectar com a Blaze'}
+              {action === 'connect' ? t('studioOpeningBlaze') : connected ? t('studioReconnect') : t('studioConnect')}
             </button>
             {connected && (
               <button type="button" className="btn btn-danger" onClick={() => setConfirmDisconnect(true)} disabled={action !== null}>
-                <LogOut size={16} aria-hidden="true" /> Desconectar
+                <LogOut size={16} aria-hidden="true" /> {t('studioDisconnect')}
               </button>
             )}
           </div>
@@ -131,24 +136,24 @@ export default function StudioChannel() {
 
         <section className="control-card">
           <ShieldCheck size={28} aria-hidden="true" />
-          <div className="section-label">Credenciais protegidas</div>
-          <h2>O segredo não passa pelo navegador</h2>
-          <p>Você nunca precisa informar credenciais sensíveis nesta tela. A autorização acontece diretamente na Blaze e os dados de acesso ficam criptografados no servidor.</p>
+          <div className="section-label">{t('studioProtectedCredentials')}</div>
+          <h2>{t('studioSecretHeading')}</h2>
+          <p>{t('studioSecretDescription')}</p>
           <dl className="event-stats">
             <div>
-              <dt>Sessão</dt>
-              <dd>{connectionUnavailable ? 'Indisponível' : connected ? 'Ativa' : 'Desconectada'}</dd>
+              <dt>{t('studioSession')}</dt>
+              <dd>{connectionUnavailable ? t('studioStateUnavailable') : connected ? t('studioStateActive') : t('studioStateDisconnected')}</dd>
             </div>
             <div>
-              <dt>Validade atual</dt>
-              <dd>{formatExpiry(connection.data?.session.expiresAt)}</dd>
+              <dt>{t('studioCurrentExpiry')}</dt>
+              <dd>{formatExpiry(connection.data?.session.expiresAt, lang, t('studioExpiryUnavailable'))}</dd>
             </div>
           </dl>
         </section>
 
         <section className="control-card">
-          <div className="section-label">Permissões</div>
-          <p>O hub solicita apenas os escopos exibidos abaixo. Eles são usados para identificar sua conta e capturar as entradas no chat dos eventos abertos.</p>
+          <div className="section-label">{t('studioPermissions')}</div>
+          <p>{t('studioPermissionsDescription')}</p>
           {(connection.data?.session.scopes || []).length ? (
             <ul className="participant-list">
               {(connection.data?.session.scopes || []).map((scope) => (
@@ -156,7 +161,7 @@ export default function StudioChannel() {
               ))}
             </ul>
           ) : (
-            <div className="empty">As permissões aparecerão depois da conexão.</div>
+            <div className="empty">{t('studioPermissionsEmpty')}</div>
           )}
         </section>
       </div>
@@ -164,17 +169,17 @@ export default function StudioChannel() {
       <Modal
         open={confirmDisconnect}
         onClose={() => setConfirmDisconnect(false)}
-        title="Desconectar a conta Blaze?"
+        title={t('studioDisconnectTitle')}
         footer={(
           <>
-            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDisconnect(false)} disabled={action !== null}>Manter conectada</button>
+            <button type="button" className="btn btn-secondary" onClick={() => setConfirmDisconnect(false)} disabled={action !== null}>{t('studioKeepConnected')}</button>
             <button type="button" className="btn btn-danger" onClick={() => void disconnect()} disabled={action !== null}>
-              <LogOut size={16} aria-hidden="true" /> {action === 'disconnect' ? 'Desconectando...' : 'Desconectar'}
+              <LogOut size={16} aria-hidden="true" /> {action === 'disconnect' ? t('studioDisconnecting') : t('studioDisconnect')}
             </button>
           </>
         )}
       >
-        <p>Capturas abertas não conseguirão continuar lendo o chat até que uma conta seja conectada novamente.</p>
+        <p>{t('studioDisconnectWarning')}</p>
       </Modal>
     </div>
   );

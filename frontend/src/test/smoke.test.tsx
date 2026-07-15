@@ -1,7 +1,7 @@
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { useState, type ReactNode } from 'react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it, vi } from 'vitest';
+import { beforeEach, describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { Layout } from '../components/Layout';
 import { Modal } from '../components/Modal';
@@ -22,6 +22,10 @@ function renderRoute(path: string) {
 }
 
 describe('frontend smoke', () => {
+  beforeEach(() => {
+    localStorage.setItem('blaze-event-hub:language', 'pt-BR');
+  });
+
   it('renderiza dashboard', async () => {
     renderRoute('/');
     expect(await screen.findByRole('heading', { name: 'Blaze Event Hub' })).toBeInTheDocument();

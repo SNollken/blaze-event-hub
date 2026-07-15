@@ -34,6 +34,7 @@ function renderRoutes(initialEntry: string) {
 
 describe('retorno seguro depois do login', () => {
   beforeEach(() => {
+    localStorage.setItem('blaze-event-hub:language', 'pt-BR');
     sessionStorage.clear();
     vi.mocked(globalThis.fetch).mockReset();
   });

@@ -1,54 +1,31 @@
-export const translations = {
-  'pt-BR': {
-    navDashboard: 'Explorar',
-    navCreate: 'Criar giveaway',
-    navMyEvents: 'Meus giveaways',
-    navStudioChannel: 'Conexão Blaze',
-    dashTitle: 'Blaze Event Hub',
-    sectionOpen: 'Giveaways abertos',
-    eventsTitle: 'Eventos',
-    myEventsTitle: 'Meus eventos',
-    appLoading: 'Carregando...',
-    checkingSession: 'Verificando sessão...',
-    errorBoundaryTitle: 'Algo falhou ao carregar esta tela.',
-    errorBoundaryDescription: 'Recarregue a página ou verifique o backend.',
-    notFoundTitle: 'Página não encontrada',
-    notFoundDescription: 'Este endereço não existe ou foi movido.',
-    notFoundBack: 'Voltar ao início',
-    close: 'Fechar',
-    closeNotification: 'Fechar notificação',
-    unknownError: 'Erro desconhecido.',
-    sbLogout: 'Sair da conta',
-    logoutError: 'Não foi possível desconectar. Tente novamente.',
-  },
-  en: {
-    navDashboard: 'Explore',
-    navCreate: 'Create giveaway',
-    navMyEvents: 'My giveaways',
-    navStudioChannel: 'Blaze connection',
-    dashTitle: 'Blaze Event Hub',
-    sectionOpen: 'Open giveaways',
-    eventsTitle: 'Events',
-    myEventsTitle: 'My events',
-    appLoading: 'Loading...',
-    checkingSession: 'Checking session...',
-    errorBoundaryTitle: 'Something failed while loading this screen.',
-    errorBoundaryDescription: 'Reload the page or check the backend.',
-    notFoundTitle: 'Page not found',
-    notFoundDescription: 'This address does not exist or was moved.',
-    notFoundBack: 'Back to home',
-    close: 'Close',
-    closeNotification: 'Close notification',
-    unknownError: 'Unknown error.',
-    sbLogout: 'Sign out',
-    logoutError: 'Unable to sign out. Try again.',
-  },
+import { commonEn } from './locales/en/common';
+import { creatorGiveawaysEn } from './locales/en/creatorGiveaways';
+import { dashboardEn } from './locales/en/dashboard';
+import { loginEn } from './locales/en/login';
+import { publicGiveawaysEn } from './locales/en/publicGiveaways';
+import { commonPtBR } from './locales/pt-BR/common';
+import { creatorGiveawaysPtBR } from './locales/pt-BR/creatorGiveaways';
+import { dashboardPtBR } from './locales/pt-BR/dashboard';
+import { loginPtBR } from './locales/pt-BR/login';
+import { publicGiveawaysPtBR } from './locales/pt-BR/publicGiveaways';
+
+const en = {
+  ...commonEn,
+  ...creatorGiveawaysEn,
+  ...dashboardEn,
+  ...loginEn,
+  ...publicGiveawaysEn,
 } as const;
 
-export type Lang = keyof typeof translations;
-export type TranslationKey = keyof typeof translations['pt-BR'];
+const ptBR = {
+  ...commonPtBR,
+  ...creatorGiveawaysPtBR,
+  ...dashboardPtBR,
+  ...loginPtBR,
+  ...publicGiveawaysPtBR,
+} as const satisfies Record<keyof typeof en, string>;
 
-type Assert<T extends true> = T;
-export type EnglishCoversPortuguese = Assert<
-  Exclude<TranslationKey, keyof typeof translations.en> extends never ? true : false
->;
+export const translations = { en, 'pt-BR': ptBR } as const;
+
+export type Lang = keyof typeof translations;
+export type TranslationKey = keyof typeof en;

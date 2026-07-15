@@ -17,6 +17,10 @@ function renderRoute(path: string) {
 
 describe('route guard', () => {
   const realFetch = globalThis.fetch;
+  beforeEach(() => {
+    localStorage.setItem('blaze-event-hub:language', 'pt-BR');
+  });
+
   afterEach(() => {
     globalThis.fetch = realFetch;
     vi.restoreAllMocks();

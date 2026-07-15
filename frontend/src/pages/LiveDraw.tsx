@@ -16,32 +16,30 @@ import {
   type MemberProfile,
 } from '../api/client';
 import { Modal } from '../components/Modal';
+import { getUserFacingErrorMessage, UserFacingError } from '../errors/user-facing-error';
+import { useI18n } from '../i18n/I18nContext';
 
 type DrawPhase = 'idle' | 'rolling' | 'done';
 
-const dateFormatter = new Intl.DateTimeFormat('pt-BR', {
-  dateStyle: 'medium',
-  timeStyle: 'short',
-});
-
-const numberFormatter = new Intl.NumberFormat('pt-BR');
 const ROLL_INTERVAL_MS = 80;
 const MINIMUM_ROLL_MS = 1400;
 
-function formatDate(value: string) {
+function formatDate(value: string, locale: string, unavailable: string) {
   const date = new Date(value);
-  return Number.isNaN(date.getTime()) ? 'Data indisponível' : dateFormatter.format(date);
+  return Number.isNaN(date.getTime())
+    ? unavailable
+    : new Intl.DateTimeFormat(locale, { dateStyle: 'medium', timeStyle: 'short' }).format(date);
 }
 
 function participantName(participant: EventParticipantResponse) {
   return participant.displayName || participant.blazeUsername || participant.blazeUserId;
 }
 
-function getErrorMessage(error: unknown, fallback: string) {
+function getErrorMessage(error: unknown, fallback: string, creatorOnly: string) {
   if (error instanceof ApiError && (error.status === 401 || error.status === 403)) {
-    return 'Apenas o criador autenticado deste giveaway pode acessar o sorteio.';
+    return creatorOnly;
   }
-  return error instanceof Error && error.message ? error.message : fallback;
+  return getUserFacingErrorMessage(error, fallback);
 }
 
 function wait(ms: number) {
@@ -57,6 +55,7 @@ function prefersReducedMotion() {
 
 export default function LiveDraw() {
   const { id } = useParams<{ id: string }>();
+  const { lang, t } = useI18n();
   const [event, setEvent] = useState<EventResponse | null>(null);
   const [stats, setStats] = useState<EventLifecycleStats | null>(null);
   const [participants, setParticipants] = useState<EventParticipantResponse[]>([]);
@@ -97,7 +96,7 @@ export default function LiveDraw() {
       try {
         const session = await getOAuthSession();
         if (!session.connected) {
-          throw new Error('Conecte sua conta Blaze para acessar o sorteio.');
+          throw new UserFacingError(t('drawConnectBlaze'));
         }
 
         const [loadedCreator, loadedEvent, loadedStats, loadedParticipants] = await Promise.all([
@@ -117,12 +116,12 @@ export default function LiveDraw() {
           const existingResult = await getEventResult(eventId);
           if (!active) return;
           setResult(existingResult);
-          setDisplayName(existingResult.winnerDisplayName || existingResult.winnerUsername || 'Vencedor Blaze');
+          setDisplayName(existingResult.winnerDisplayName || existingResult.winnerUsername || t('drawWinnerFallback'));
           setPhase('done');
         }
       } catch (loadError) {
         if (active) {
-          setError(getErrorMessage(loadError, 'Não foi possível preparar este sorteio.'));
+          setError(getErrorMessage(loadError, t('drawPrepareFallback'), t('drawCreatorOnly')));
         }
       } finally {
         if (active) setLoading(false);
@@ -132,20 +131,22 @@ export default function LiveDraw() {
     if (id) {
       void loadDraw(id);
     } else {
-      setError('O identificador do giveaway não foi informado.');
+      setError(t('drawMissingId'));
       setLoading(false);
     }
 
     return () => {
       active = false;
     };
-  }, [id]);
+  }, [id, t]);
+
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(lang), [lang]);
 
   const sortedParticipants = useMemo(
     () => [...participants].sort((first, second) => (
-      participantName(first).localeCompare(participantName(second), 'pt-BR', { sensitivity: 'base' })
+      participantName(first).localeCompare(participantName(second), lang, { sensitivity: 'base' })
     )),
-    [participants],
+    [lang, participants],
   );
 
   const expectedPoolCount = stats?.finalizedParticipantCount
@@ -162,15 +163,15 @@ export default function LiveDraw() {
     && !result;
   const poolBlockingMessage = !loading && event?.status === 'CLOSED'
     ? !poolHasParticipants
-      ? 'Não há participantes no pool finalizado.'
+      ? t('drawNoFinalizedParticipants')
       : !poolMatchesSnapshot
-        ? 'A lista recebida não corresponde ao snapshot final. O sorteio foi bloqueado por segurança.'
+        ? t('drawPoolMismatch')
         : null
     : null;
   const drawAvailabilityMessage = loading
-    ? 'Conferindo evento e participantes…'
+    ? t('drawChecking')
     : event && event.status !== 'CLOSED'
-      ? 'Finalize as entradas antes de sortear.'
+      ? t('drawFinalizeFirst')
       : poolBlockingMessage;
   const drawAvailabilityMessageId = poolBlockingMessage
     ? 'draw-pool-blocker'
@@ -185,13 +186,13 @@ export default function LiveDraw() {
     const reduceMotion = prefersReducedMotion();
     setError('');
     setPhase('rolling');
-    setDisplayName(reduceMotion ? 'Validando pool no servidor…' : names[0] || 'Sorteando…');
+    setDisplayName(reduceMotion ? t('drawValidatingPool') : names[0] || t('drawDrawing'));
 
     if (!reduceMotion) {
       let cursor = 0;
       spinRef.current = window.setInterval(() => {
         cursor = (cursor + 1) % names.length;
-        setDisplayName(names[cursor] || 'Sorteando…');
+        setDisplayName(names[cursor] || t('drawDrawing'));
       }, ROLL_INTERVAL_MS);
     }
 
@@ -204,7 +205,7 @@ export default function LiveDraw() {
       if (!mountedRef.current) return;
 
       setResult(drawResult);
-      setDisplayName(drawResult.winnerDisplayName || drawResult.winnerUsername || 'Vencedor Blaze');
+      setDisplayName(drawResult.winnerDisplayName || drawResult.winnerUsername || t('drawWinnerFallback'));
       setEvent((current) => current ? {
         ...current,
         status: 'COMPLETED',
@@ -216,17 +217,17 @@ export default function LiveDraw() {
       if (!mountedRef.current) return;
       setDisplayName('');
       setPhase('idle');
-      setError(getErrorMessage(drawError, 'O servidor não conseguiu concluir o sorteio. Tente novamente.'));
+      setError(getErrorMessage(drawError, t('drawServerFallback'), t('drawCreatorOnly')));
     }
-  }, [canDraw, id, participants, stopRolling]);
+  }, [canDraw, id, participants, stopRolling, t]);
 
   const stageLabel = phase === 'rolling'
-    ? displayName || 'Sorteando…'
+    ? displayName || t('drawDrawing')
     : result
       ? result.winnerDisplayName || result.winnerUsername
       : loading
-        ? 'Preparando pool…'
-        : 'Pronto para sortear';
+        ? t('drawPreparingPool')
+        : t('drawReady');
 
   const winnerName = result?.winnerDisplayName || result?.winnerUsername || '';
 
@@ -234,13 +235,13 @@ export default function LiveDraw() {
     <div className="hub-page draw-page">
       <header className="page-hero">
         <div className="page-hero-copy">
-          <span className="page-eyebrow">Área do criador</span>
-          <h1 className="page-title">Sorteio ao vivo</h1>
+          <span className="page-eyebrow">{t('drawCreatorArea')}</span>
+          <h1 className="page-title">{t('drawHeading')}</h1>
           <p className="page-subtitle">
-            O pool finalizado é uniforme: cada participante Blaze tem exatamente uma chance.
+            {t('drawSubtitle')}
           </p>
         </div>
-        {creator && <span className="creator-badge">Conectado como {creator.displayName}</span>}
+        {creator && <span className="creator-badge">{t('drawConnectedAs', { creator: creator.displayName })}</span>}
       </header>
 
       {error && <div className="notice notice-danger" role="alert">{error}</div>}
@@ -248,19 +249,19 @@ export default function LiveDraw() {
       {event && (
         <section className="control-card draw-summary" aria-labelledby="draw-event-title">
           <div>
-            <span className="section-label">Giveaway finalizado</span>
+            <span className="section-label">{t('drawFinalizedGiveaway')}</span>
             <h2 id="draw-event-title">{event.title}</h2>
             <p>{event.prize}</p>
           </div>
           <div className="draw-pool-count">
             <strong>{numberFormatter.format(expectedPoolCount)}</strong>
-            <span>{expectedPoolCount === 1 ? 'participante' : 'participantes'}</span>
+            <span>{t(expectedPoolCount === 1 ? 'drawParticipantOne' : 'drawParticipantMany')}</span>
           </div>
         </section>
       )}
 
       <section aria-labelledby="draw-stage-title">
-        <h2 id="draw-stage-title" className="sr-only">Palco do sorteio</h2>
+        <h2 id="draw-stage-title" className="sr-only">{t('drawStageTitle')}</h2>
         <div
           className={`draw-stage${phase === 'rolling' ? ' rolling' : ''}${phase === 'done' ? ' done' : ''}`}
           aria-busy={phase === 'rolling'}
@@ -273,9 +274,9 @@ export default function LiveDraw() {
         </div>
         <p className="sr-only" role="status" aria-live="polite" aria-atomic="true">
           {phase === 'rolling'
-            ? 'Sorteio em andamento.'
+            ? t('drawInProgressAnnouncement')
             : phase === 'done'
-              ? `Sorteio concluído. ${winnerName} venceu.`
+              ? t('drawCompletedAnnouncement', { winner: winnerName })
               : ''}
         </p>
       </section>
@@ -289,7 +290,7 @@ export default function LiveDraw() {
             aria-describedby={drawAvailabilityMessageId}
             onClick={() => setConfirmOpen(true)}
           >
-            {phase === 'rolling' ? 'Sorteando no servidor…' : 'Iniciar sorteio'}
+            {phase === 'rolling' ? t('drawDrawingOnServer') : t('drawStart')}
           </button>
           {drawAvailabilityMessage && (
             <span
@@ -308,11 +309,11 @@ export default function LiveDraw() {
       <Modal
         open={confirmOpen}
         onClose={() => setConfirmOpen(false)}
-        title="Confirmar sorteio"
+        title={t('drawConfirmTitle')}
         footer={(
           <>
             <button type="button" className="btn btn-secondary" onClick={() => setConfirmOpen(false)}>
-              Voltar
+              {t('drawBack')}
             </button>
             <button
               type="button"
@@ -322,15 +323,15 @@ export default function LiveDraw() {
                 void runDraw();
               }}
             >
-              Confirmar e sortear
+              {t('drawConfirmAction')}
             </button>
           </>
         )}
       >
-        <p>
-          O servidor escolherá uma pessoa entre {numberFormatter.format(expectedPoolCount)} participantes,
-          todos com a mesma chance. O vencedor será persistido uma única vez e o resultado ficará público.
-        </p>
+        <p>{t(
+          expectedPoolCount === 1 ? 'drawConfirmDescriptionOne' : 'drawConfirmDescription',
+          { count: numberFormatter.format(expectedPoolCount) },
+        )}</p>
       </Modal>
 
       {result && (
@@ -338,14 +339,15 @@ export default function LiveDraw() {
           <div className="winner-avatar" aria-hidden="true">{winnerName.slice(0, 1).toUpperCase()}</div>
           <h2 id="draw-winner-title" className="winner-name">{winnerName}</h2>
           <p className="winner-meta">
-            {result.winnerUsername ? `@${result.winnerUsername} · ` : ''}sorteado em {formatDate(result.selectedAt)}
+            {result.winnerUsername ? `@${result.winnerUsername} · ` : ''}
+            {t('drawSelectedOn', { date: formatDate(result.selectedAt, lang, t('drawDateUnavailable')) })}
           </p>
           <dl className="proof-grid proof-grid-compact">
-            <div><dt>Método</dt><dd>{result.drawMethod}</dd></div>
-            <div><dt>Participantes</dt><dd>{numberFormatter.format(result.participantCount)}</dd></div>
+            <div><dt>{t('drawMethod')}</dt><dd>{result.drawMethod}</dd></div>
+            <div><dt>{t('drawParticipants')}</dt><dd>{numberFormatter.format(result.participantCount)}</dd></div>
           </dl>
           <Link className="btn btn-secondary" to={`/events/${result.eventId}/result`}>
-            Abrir resultado público
+            {t('drawOpenPublicResult')}
           </Link>
         </section>
       )}
@@ -353,13 +355,13 @@ export default function LiveDraw() {
       <section className="control-card participant-pool" aria-labelledby="participant-pool-title">
         <div className="section-heading">
           <div>
-            <span className="section-label">Pool congelado</span>
-            <h2 id="participant-pool-title">Participantes Blaze</h2>
+            <span className="section-label">{t('drawFrozenPool')}</span>
+            <h2 id="participant-pool-title">{t('drawBlazeParticipants')}</h2>
           </div>
-          <span className="uniform-badge">1 pessoa = 1 chance</span>
+          <span className="uniform-badge">{t('drawUniformBadge')}</span>
         </div>
         {sortedParticipants.length === 0 ? (
-          <div className="empty">Nenhum participante disponível.</div>
+          <div className="empty">{t('drawNoParticipants')}</div>
         ) : (
           <ol className="draw-pool">
             {sortedParticipants.map((participant) => {
@@ -371,7 +373,7 @@ export default function LiveDraw() {
                     <strong>{name}</strong>
                     {participant.blazeUsername && <small>@{participant.blazeUsername}</small>}
                   </span>
-                  <span className="dpi-entries" aria-label="Uma chance">1×</span>
+                  <span className="dpi-entries" aria-label={t('drawOneChanceAria')}>1×</span>
                 </li>
               );
             })}

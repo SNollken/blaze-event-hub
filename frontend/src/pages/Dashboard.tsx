@@ -5,27 +5,32 @@ import { getEventStats, getEvents, getOAuthSession } from '../api/client';
 import type { EventLifecycleStats, EventResponse, OAuthSessionResponse } from '../api/client';
 import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
+import type { TranslationKey } from '../i18n/translations';
 
 function commandLabel(command: string) {
   return command.trim() || '!participar';
 }
 
-function captureHealthLabel(stats: EventLifecycleStats | null) {
-  if (!stats) return 'Aguardando dados';
-  if (stats.captureHealth === 'HEALTHY') return 'Saudável';
-  if (stats.captureHealth === 'STARTING') return 'Iniciando';
-  if (stats.captureHealth === 'DEGRADED') return 'Com atenção';
-  if (stats.captureHealth === 'FINALIZING') return 'Finalizando';
-  return 'Inativa';
+type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
+
+function captureHealthLabel(stats: EventLifecycleStats | null, t: Translate) {
+  if (!stats) return t('dashboardCaptureAwaitingData');
+  if (stats.captureHealth === 'HEALTHY') return t('dashboardCaptureHealthy');
+  if (stats.captureHealth === 'STARTING') return t('dashboardCaptureStarting');
+  if (stats.captureHealth === 'DEGRADED') return t('dashboardCaptureAttention');
+  if (stats.captureHealth === 'FINALIZING') return t('dashboardCaptureFinalizing');
+  return t('dashboardCaptureInactive');
 }
 
 function EventCard({ event }: { event: EventResponse }) {
+  const { t } = useI18n();
+
   return (
     <Link to={`/events/${event.id}`} className="event-card event-card--live">
       <div className="event-card__topline">
-        <span className="status-pill status-pill--open">Captando agora</span>
-        <span className="event-card__signal" aria-label="Evento aberto para entradas">
-          <span aria-hidden="true" /> aberto
+        <span className="status-pill status-pill--open">{t('dashboardCapturingNow')}</span>
+        <span className="event-card__signal" aria-label={t('dashboardOpenEntriesAria')}>
+          <span aria-hidden="true" /> {t('dashboardOpenShort')}
         </span>
       </div>
       <div className="event-card__body">
@@ -34,25 +39,26 @@ function EventCard({ event }: { event: EventResponse }) {
             {event.creatorChannelDisplayName || event.creatorChannelSlug} · @{event.creatorChannelSlug}
           </span>
         )}
-        <p className="event-card__prize">{event.prize || 'Prêmio a confirmar'}</p>
+        <p className="event-card__prize">{event.prize || t('dashboardPrizePending')}</p>
         <h3 className="event-card__title">{event.title}</h3>
         <p className="event-card__description">
-          {event.description || 'Entre no chat da transmissão e use o comando indicado pelo criador.'}
+          {event.description || t('dashboardEventFallbackDescription')}
         </p>
       </div>
       <div className="event-card__command">
-        <span>Comando de entrada</span>
+        <span>{t('dashboardEntryCommand')}</span>
         <code>{commandLabel(event.entryCommand)}</code>
       </div>
       <span className="event-card__link">
-        Ver giveaway <ArrowRight size={16} aria-hidden="true" />
+        {t('dashboardViewGiveaway')} <ArrowRight size={16} aria-hidden="true" />
       </span>
     </Link>
   );
 }
 
 export default function Dashboard() {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
+  const numberFormatter = useMemo(() => new Intl.NumberFormat(lang), [lang]);
   const fetchEvents = useCallback(() => getEvents('OPEN'), []);
   const fetchOAuth = useCallback(() => getOAuthSession(), []);
   const eventsState = usePolling(fetchEvents, 10_000);
@@ -79,63 +85,55 @@ export default function Dashboard() {
     <div className="page hub-page hub-page--dashboard">
       <header className="page-hero page-hero--split">
         <div className="page-hero__copy">
-          <p className="page-eyebrow">Giveaways da Blaze.stream, em um só lugar</p>
+          <p className="page-eyebrow">{t('dashboardHeroEyebrow')}</p>
           <h1 className="page-title">{t('dashTitle')}</h1>
-          <p className="page-subtitle">
-            Descubra eventos ao vivo, entre pelo comando no chat e acompanhe resultados registrados pelo Hub.
-          </p>
+          <p className="page-subtitle">{t('dashboardHeroSubtitle')}</p>
           <div className="page-hero__actions">
             <Link to="/events" className="btn btn-primary">
-              Explorar giveaways <ArrowRight size={17} aria-hidden="true" />
+              {t('dashboardExplore')} <ArrowRight size={17} aria-hidden="true" />
             </Link>
             <Link to={connected ? '/events/create' : '/login'} className="btn btn-secondary">
-              {connected ? 'Criar giveaway' : 'Conectar como criador'}
+              {connected ? t('dashboardCreate') : t('dashboardConnectCreator')}
             </Link>
           </div>
-        </div>
-
-        <div className="signal-panel" aria-label="Como funciona">
-          <span className="signal-panel__label"><Radio size={16} aria-hidden="true" /> Fluxo do evento</span>
-          <ol className="lifecycle-mini">
-            <li className="is-current"><span>01</span> Criador abre</li>
-            <li><span>02</span> Chat entra</li>
-            <li><span>03</span> Lista congela</li>
-            <li><span>04</span> Sorteio acontece</li>
-          </ol>
         </div>
       </header>
 
       {eventsState.error && eventsState.data && (
         <div className="notice notice--warning" role="status">
-          A atualização automática falhou. Os últimos eventos recebidos continuam visíveis.
+          {t('dashboardRefreshWarning')}
         </div>
       )}
 
       <section className="hub-section" aria-labelledby="open-events-heading">
         <div className="section-heading">
           <div>
-            <p className="section-heading__eyebrow">Sinal aberto</p>
+            <p className="section-heading__eyebrow">{t('dashboardOpenSignal')}</p>
             <h2 id="open-events-heading">{t('sectionOpen')}</h2>
           </div>
           {!loading && !eventsError && (
-            <span className="section-heading__count">{events.length} {events.length === 1 ? 'evento' : 'eventos'}</span>
+            <span className="section-heading__count">
+              {t(events.length === 1 ? 'dashboardEventCountOne' : 'dashboardEventCountMany', {
+                count: numberFormatter.format(events.length),
+              })}
+            </span>
           )}
         </div>
 
         {loading && (
           <div className="empty-state" role="status" aria-live="polite">
             <span className="empty-state__signal" aria-hidden="true" />
-            <h3>Buscando giveaways ao vivo</h3>
-            <p>Aguarde enquanto sincronizamos os eventos abertos.</p>
+            <h3>{t('dashboardLoadingTitle')}</h3>
+            <p>{t('dashboardLoadingDescription')}</p>
           </div>
         )}
 
         {!loading && eventsError && (
           <div className="empty-state empty-state--error" role="alert">
-            <h3>Não foi possível carregar os eventos</h3>
-            <p>Confira sua conexão e tente novamente.</p>
+            <h3>{t('dashboardLoadErrorTitle')}</h3>
+            <p>{t('dashboardLoadErrorDescription')}</p>
             <button type="button" className="btn btn-secondary" onClick={() => void eventsState.reload()}>
-              Tentar novamente
+              {t('dashboardRetry')}
             </button>
           </div>
         )}
@@ -143,9 +141,9 @@ export default function Dashboard() {
         {!loading && !eventsError && !featuredEvent && (
           <div className="empty-state">
             <Trophy size={30} aria-hidden="true" />
-            <h3>Nenhum giveaway captando agora</h3>
-            <p>Os próximos eventos abertos aparecerão aqui automaticamente.</p>
-            <Link to="/events" className="btn btn-secondary">Ver eventos encerrados</Link>
+            <h3>{t('dashboardEmptyTitle')}</h3>
+            <p>{t('dashboardEmptyDescription')}</p>
+            <Link to="/events" className="btn btn-secondary">{t('dashboardViewClosed')}</Link>
           </div>
         )}
 
@@ -154,38 +152,40 @@ export default function Dashboard() {
             <article className="featured-event">
               <div className="featured-event__content">
                 <div className="featured-event__topline">
-                  <span className="status-pill status-pill--open">Captando agora</span>
-                  <span className="featured-event__live"><span aria-hidden="true" /> evento aberto</span>
+                  <span className="status-pill status-pill--open">{t('dashboardCapturingNow')}</span>
+                  <span className="featured-event__live"><span aria-hidden="true" /> {t('dashboardOpenEntriesAria')}</span>
                 </div>
-                <p className="featured-event__prize">{featuredEvent.prize || 'Prêmio a confirmar'}</p>
+                <p className="featured-event__prize">{featuredEvent.prize || t('dashboardPrizePending')}</p>
                 <h3>{featuredEvent.title}</h3>
-                <p>{featuredEvent.description || 'Use o comando no chat para entrar neste giveaway.'}</p>
+                <p>{featuredEvent.description || t('dashboardFeaturedFallbackDescription')}</p>
                 <div className="featured-event__command">
-                  <span>Digite no chat</span>
+                  <span>{t('dashboardTypeInChat')}</span>
                   <code>{commandLabel(featuredEvent.entryCommand)}</code>
                 </div>
                 <Link to={`/events/${featuredEvent.id}`} className="btn btn-primary">
-                  Abrir evento <ArrowRight size={17} aria-hidden="true" />
+                  {t('dashboardOpenEvent')} <ArrowRight size={17} aria-hidden="true" />
                 </Link>
               </div>
 
-              <div className="featured-event__telemetry" aria-label="Estado do giveaway em destaque">
+              <div className="featured-event__telemetry" aria-label={t('dashboardFeaturedStateAria')}>
                 <div className="telemetry-item">
                   <Users size={18} aria-hidden="true" />
-                  <strong>{featuredStats?.participantCount ?? '—'}</strong>
-                  <span>participantes captados</span>
+                  <strong>
+                    {featuredStats ? numberFormatter.format(featuredStats.participantCount) : '—'}
+                  </strong>
+                  <span>{t('dashboardParticipantsCaptured')}</span>
                 </div>
                 <div className="telemetry-item">
                   <Radio size={18} aria-hidden="true" />
-                  <strong>{captureHealthLabel(featuredStats)}</strong>
-                  <span>saúde da captura</span>
+                  <strong>{captureHealthLabel(featuredStats, t)}</strong>
+                  <span>{t('dashboardCaptureHealth')}</span>
                 </div>
-                {statsError && <p className="telemetry-note" role="status">Métricas temporariamente indisponíveis.</p>}
+                {statsError && <p className="telemetry-note" role="status">{t('dashboardMetricsUnavailable')}</p>}
                 <ol className="lifecycle-mini lifecycle-mini--vertical">
-                  <li className="is-complete"><span>01</span> Configurado</li>
-                  <li className="is-current"><span>02</span> Captando</li>
-                  <li><span>03</span> Finalizar</li>
-                  <li><span>04</span> Sortear</li>
+                  <li className="is-complete"><span>01</span> {t('dashboardLifecycleConfigured')}</li>
+                  <li className="is-current"><span>02</span> {t('dashboardLifecycleCapturing')}</li>
+                  <li><span>03</span> {t('dashboardLifecycleFinalize')}</li>
+                  <li><span>04</span> {t('dashboardLifecycleDraw')}</li>
                 </ol>
               </div>
             </article>
@@ -201,12 +201,12 @@ export default function Dashboard() {
 
       <section className="creator-cta" aria-labelledby="creator-cta-heading">
         <div>
-          <p className="page-eyebrow">Para criadores</p>
-          <h2 id="creator-cta-heading">Você encerra a entrada. O Hub congela a lista.</h2>
-          <p>O sorteio só é liberado depois da finalização, com o pool de participantes registrado.</p>
+          <p className="page-eyebrow">{t('dashboardCreatorEyebrow')}</p>
+          <h2 id="creator-cta-heading">{t('dashboardCreatorTitle')}</h2>
+          <p>{t('dashboardCreatorDescription')}</p>
         </div>
         <Link to={connected ? '/events/create' : '/login'} className="btn btn-secondary">
-          {connected ? 'Configurar novo evento' : 'Conectar conta Blaze'}
+          {connected ? t('dashboardConfigureNew') : t('dashboardConnectBlaze')}
         </Link>
       </section>
     </div>

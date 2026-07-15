@@ -31,7 +31,7 @@ describe('shell acessível', () => {
   it('oferece skip-link para o conteúdo principal', () => {
     renderLayout();
 
-    expect(screen.getByRole('link', { name: 'Pular para o conteúdo' }))
+    expect(screen.getByRole('link', { name: 'Skip to main content' }))
       .toHaveAttribute('href', '#main-content');
     expect(screen.getByRole('main')).toHaveAttribute('id', 'main-content');
   });
@@ -39,7 +39,7 @@ describe('shell acessível', () => {
   it('isola o conteúdo e mantém o foco dentro do drawer móvel', async () => {
     useMobileViewport();
     renderLayout();
-    const trigger = screen.getByRole('button', { name: 'Abrir navegação' });
+    const trigger = screen.getByRole('button', { name: 'Open navigation' });
     const main = screen.getByRole('main');
     const sidebar = document.getElementById('sidebar');
 
@@ -68,7 +68,7 @@ describe('shell acessível', () => {
   it('ignora controles ocultos no trap e restaura foco ao fechar por X ou overlay', async () => {
     useMobileViewport();
     renderLayout();
-    const trigger = screen.getByRole('button', { name: 'Abrir navegação' });
+    const trigger = screen.getByRole('button', { name: 'Open navigation' });
     const overlay = document.getElementById('sidebar-overlay');
 
     fireEvent.click(trigger);
@@ -78,7 +78,7 @@ describe('shell acessível', () => {
     fireEvent.keyDown(window, { key: 'Tab' });
     expect(logo).toHaveFocus();
 
-    fireEvent.click(screen.getByRole('button', { name: 'Fechar navegação' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
     await waitFor(() => expect(trigger).toHaveFocus());
 
     fireEvent.click(trigger);
@@ -89,21 +89,21 @@ describe('shell acessível', () => {
   it('fecha na mudança de rota e move o foco para o conteúdo', async () => {
     useMobileViewport();
     renderLayout();
-    const trigger = screen.getByRole('button', { name: 'Abrir navegação' });
+    const trigger = screen.getByRole('button', { name: 'Open navigation' });
     const main = screen.getByRole('main');
     const sidebar = document.getElementById('sidebar');
     const pageContent = document.querySelector<HTMLElement>('.page-content')!;
     pageContent.scrollTop = 240;
 
     fireEvent.click(trigger);
-    fireEvent.click(screen.getByRole('link', { name: 'Meus giveaways' }));
+    fireEvent.click(screen.getByRole('link', { name: 'My giveaways' }));
 
     await waitFor(() => expect(trigger).toHaveAttribute('aria-expanded', 'false'));
     expect(sidebar).toHaveAttribute('aria-hidden', 'true');
     expect(sidebar).toHaveAttribute('inert');
     await waitFor(() => expect(main).toHaveFocus());
     expect(pageContent.scrollTop).toBe(0);
-    expect(document.title).toBe('Meus giveaways | Blaze Event Hub');
+    expect(document.title).toBe('My giveaways | Blaze Event Hub');
   });
 
   it('mantém a navegação disponível no desktop quando o drawer está fechado', () => {
@@ -118,8 +118,8 @@ describe('shell acessível', () => {
   it('não exibe navegação legada de Studio', () => {
     renderLayout();
 
-    expect(screen.getByRole('link', { name: 'Explorar' })).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: 'Criar giveaway' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Explore' })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: 'Create giveaway' })).toBeInTheDocument();
     expect(screen.queryByText('Studio')).not.toBeInTheDocument();
   });
 });

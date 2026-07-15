@@ -4,6 +4,8 @@ import { useNavigate } from 'react-router-dom';
 import { createEvent, getMe, resolveBlazeChannel } from '../api/client';
 import type { BlazeChannelResponse, MemberProfile } from '../api/types';
 import { addToast } from '../components/Toast';
+import { getUserFacingErrorMessage } from '../errors/user-facing-error';
+import { useI18n } from '../i18n/I18nContext';
 
 type FieldName = 'title' | 'prize' | 'entryCommand' | 'channel';
 type FieldErrors = Partial<Record<FieldName, string>>;
@@ -21,6 +23,7 @@ function normalizeChannelSlug(value: string): string {
 
 export default function CreateEvent() {
   const navigate = useNavigate();
+  const { lang, t } = useI18n();
   const [member, setMember] = useState<MemberProfile | null>(null);
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
@@ -35,6 +38,12 @@ export default function CreateEvent() {
   const [error, setError] = useState('');
   const [channelError, setChannelError] = useState('');
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
+
+  useEffect(() => {
+    setError('');
+    setChannelError('');
+    setFieldErrors({});
+  }, [lang]);
 
   useEffect(() => {
     let active = true;
@@ -53,16 +62,16 @@ export default function CreateEvent() {
   const dateError = useMemo(() => {
     if (!startsAt || !endsAt) return '';
     return new Date(endsAt).getTime() <= new Date(startsAt).getTime()
-      ? 'O encerramento precisa acontecer depois do início.'
+      ? t('createDateAfterStart')
       : '';
-  }, [endsAt, startsAt]);
+  }, [endsAt, startsAt, t]);
 
   const resolveChannel = async () => {
     const slug = normalizeChannelSlug(channelSlug);
     if (!slug) {
       setResolvedChannel(null);
-      setChannelError('Informe o slug do canal na Blaze.');
-      setFieldErrors((current) => ({ ...current, channel: 'Informe e localize o canal da transmissão.' }));
+      setChannelError(t('createChannelSlugRequired'));
+      setFieldErrors((current) => ({ ...current, channel: t('createChannelResolveRequired') }));
       return;
     }
 
@@ -75,9 +84,7 @@ export default function CreateEvent() {
       setResolvedChannel(channel);
       setFieldErrors((current) => ({ ...current, channel: undefined }));
     } catch (resolveError) {
-      setChannelError(resolveError instanceof Error
-        ? resolveError.message
-        : 'Não foi possível localizar esse canal na Blaze.');
+      setChannelError(getUserFacingErrorMessage(resolveError, t('createChannelResolveFallback')));
     } finally {
       setIsResolving(false);
     }
@@ -85,12 +92,12 @@ export default function CreateEvent() {
 
   const validateFields = (): FieldErrors => {
     const next: FieldErrors = {};
-    if (!title.trim()) next.title = 'Dê um título ao giveaway.';
-    if (!prize.trim()) next.prize = 'Descreva o prêmio que será sorteado.';
+    if (!title.trim()) next.title = t('createTitleRequired');
+    if (!prize.trim()) next.prize = t('createPrizeRequired');
     if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
-      next.entryCommand = 'Use ! seguido de letras, números, _ ou -.';
+      next.entryCommand = t('createCommandInvalid');
     }
-    if (!resolvedChannel) next.channel = 'Resolva e confirme o canal da transmissão antes de criar.';
+    if (!resolvedChannel) next.channel = t('createChannelConfirmRequired');
     return next;
   };
 
@@ -103,7 +110,7 @@ export default function CreateEvent() {
     const invalidFields = validateFields();
     setFieldErrors(invalidFields);
     if (Object.keys(invalidFields).length > 0 || dateError) {
-      setError('Revise os campos destacados antes de criar o giveaway.');
+      setError(t('createReviewFields'));
       return;
     }
     if (!resolvedChannel) return;
@@ -120,10 +127,10 @@ export default function CreateEvent() {
         startsAt: toIsoDate(startsAt),
         endsAt: toIsoDate(endsAt),
       });
-      addToast('success', 'Giveaway criado como rascunho.');
+      addToast('success', t('createSuccessToast'));
       navigate(`/events/${created.id}/manage`);
     } catch (submitError) {
-      setError(submitError instanceof Error ? submitError.message : 'Não foi possível criar o giveaway.');
+      setError(getUserFacingErrorMessage(submitError, t('createSubmitFallback')));
     } finally {
       setIsSubmitting(false);
     }
@@ -133,13 +140,13 @@ export default function CreateEvent() {
     <div className="hub-page">
       <header className="page-hero">
         <div>
-          <span className="section-label">Novo giveaway</span>
-          <h1 className="page-title">Prepare a entrada antes de entrar ao vivo</h1>
-          <p>Defina o prêmio, o comando e o canal. A captura só começa quando você abrir o evento.</p>
+          <span className="section-label">{t('createEyebrow')}</span>
+          <h1 className="page-title">{t('createHeading')}</h1>
+          <p>{t('createSubtitle')}</p>
         </div>
         {member && (
-          <div className="control-card creator-card" aria-label="Criador conectado">
-            <span className="section-label">Criador conectado</span>
+          <div className="control-card creator-card" aria-label={t('createConnectedCreatorAria')}>
+            <span className="section-label">{t('createConnectedCreatorLabel')}</span>
             <div className="creator-identity">
               <strong>{member.displayName || member.blazeUsername}</strong>
               <span className="creator-handle">@{member.blazeUsername}</span>
@@ -152,9 +159,9 @@ export default function CreateEvent() {
 
       <form className="control-grid" onSubmit={handleSubmit} noValidate>
         <section className="control-card">
-          <div className="section-label">Informações públicas</div>
+          <div className="section-label">{t('createPublicInfo')}</div>
           <div className="form-group">
-            <label htmlFor="event-title">Título</label>
+            <label htmlFor="event-title">{t('createEventTitleLabel')}</label>
             <input
               id="event-title"
               value={title}
@@ -165,14 +172,14 @@ export default function CreateEvent() {
               aria-invalid={Boolean(fieldErrors.title)}
               aria-describedby={fieldErrors.title ? 'event-title-error' : undefined}
               maxLength={140}
-              placeholder="Ex.: Sorteio de setup para a comunidade"
+              placeholder={t('createTitlePlaceholder')}
               disabled={isSubmitting}
               required
             />
             {fieldErrors.title && <span id="event-title-error" className="form-helper form-helper--err" role="alert">{fieldErrors.title}</span>}
           </div>
           <div className="form-group">
-            <label htmlFor="event-prize">Prêmio</label>
+            <label htmlFor="event-prize">{t('createPrizeLabel')}</label>
             <input
               id="event-prize"
               value={prize}
@@ -183,30 +190,30 @@ export default function CreateEvent() {
               aria-invalid={Boolean(fieldErrors.prize)}
               aria-describedby={fieldErrors.prize ? 'event-prize-error' : undefined}
               maxLength={180}
-              placeholder="Ex.: Gift card de R$ 200"
+              placeholder={t('createPrizePlaceholder')}
               disabled={isSubmitting}
               required
             />
             {fieldErrors.prize && <span id="event-prize-error" className="form-helper form-helper--err" role="alert">{fieldErrors.prize}</span>}
           </div>
           <div className="form-group">
-            <label htmlFor="event-description">Descrição</label>
+            <label htmlFor="event-description">{t('createDescriptionLabel')}</label>
             <textarea
               id="event-description"
               value={description}
               onChange={(event) => setDescription(event.target.value)}
               maxLength={2_000}
-              placeholder="Explique o giveaway e qualquer informação importante para a comunidade."
+              placeholder={t('createDescriptionPlaceholder')}
               disabled={isSubmitting}
             />
           </div>
         </section>
 
         <section className="control-card">
-          <div className="section-label">Sinal de entrada</div>
-          <p>Quando o evento estiver aberto, cada usuário entra uma única vez ao enviar exatamente este comando no chat.</p>
+          <div className="section-label">{t('createEntrySignal')}</div>
+          <p>{t('createEntrySignalDescription')}</p>
           <div className="form-group">
-            <label htmlFor="event-command">Comando do chat</label>
+            <label htmlFor="event-command">{t('createChatCommandLabel')}</label>
             <input
               id="event-command"
               className="signal-command"
@@ -227,7 +234,7 @@ export default function CreateEvent() {
           </div>
 
           <div className="form-group">
-            <label htmlFor="event-channel">Canal na Blaze</label>
+            <label htmlFor="event-channel">{t('createBlazeChannelLabel')}</label>
             <div className="form-row">
               <input
                 id="event-channel"
@@ -240,7 +247,7 @@ export default function CreateEvent() {
                 }}
                 aria-invalid={Boolean(channelError || fieldErrors.channel)}
                 aria-describedby={channelError || fieldErrors.channel ? 'event-channel-error' : undefined}
-                placeholder="slug-do-canal ou URL da Blaze"
+                placeholder={t('createChannelPlaceholder')}
                 maxLength={180}
                 autoComplete="off"
                 disabled={isSubmitting || isResolving}
@@ -252,7 +259,7 @@ export default function CreateEvent() {
                 disabled={isSubmitting || isResolving || !channelSlug.trim()}
               >
                 <Search size={16} aria-hidden="true" />
-                {isResolving ? 'Localizando...' : 'Localizar canal'}
+                {isResolving ? t('createResolvingChannel') : t('createResolveChannel')}
               </button>
             </div>
             {(channelError || fieldErrors.channel) && (
@@ -275,11 +282,11 @@ export default function CreateEvent() {
         </section>
 
         <section className="control-card">
-          <div className="section-label">Agenda opcional</div>
-          <p>Essas datas informam a comunidade. A captura continua sob seu controle manual.</p>
+          <div className="section-label">{t('createOptionalSchedule')}</div>
+          <p>{t('createScheduleDescription')}</p>
           <div className="form-row">
             <div className="form-group">
-              <label htmlFor="event-starts-at">Início previsto</label>
+              <label htmlFor="event-starts-at">{t('createStartsAtLabel')}</label>
               <input
                 id="event-starts-at"
                 type="datetime-local"
@@ -291,7 +298,7 @@ export default function CreateEvent() {
               />
             </div>
             <div className="form-group">
-              <label htmlFor="event-ends-at">Encerramento previsto</label>
+              <label htmlFor="event-ends-at">{t('createEndsAtLabel')}</label>
               <input
                 id="event-ends-at"
                 type="datetime-local"
@@ -307,20 +314,20 @@ export default function CreateEvent() {
         </section>
 
         <section className="control-card">
-          <div className="section-label">Como funciona</div>
+          <div className="section-label">{t('createHowItWorks')}</div>
           <ol className="lifecycle">
-            <li className="is-current"><Radio aria-hidden="true" /><span><strong>Abra a captura</strong> quando a live estiver pronta.</span></li>
-            <li><span><strong>Receba participantes</strong> automaticamente pelo comando.</span></li>
-            <li><span><strong>Finalize o evento</strong> para congelar o pool antes do sorteio.</span></li>
-            <li><span><strong>Sorteie uma pessoa</strong> com chances iguais e publique o resultado.</span></li>
+            <li className="is-current"><Radio aria-hidden="true" /><span><strong>{t('createLifecycleOpenTitle')}</strong> {t('createLifecycleOpenText')}</span></li>
+            <li><span><strong>{t('createLifecycleReceiveTitle')}</strong> {t('createLifecycleReceiveText')}</span></li>
+            <li><span><strong>{t('createLifecycleFinalizeTitle')}</strong> {t('createLifecycleFinalizeText')}</span></li>
+            <li><span><strong>{t('createLifecycleDrawTitle')}</strong> {t('createLifecycleDrawText')}</span></li>
           </ol>
           <div className="form-actions">
             <button type="submit" className="btn btn-primary btn-lg" disabled={isSubmitting}>
-              {isSubmitting ? 'Criando rascunho...' : 'Criar giveaway'}
+              {isSubmitting ? t('createCreatingDraft') : t('createSubmit')}
               {!isSubmitting && <ArrowRight size={17} aria-hidden="true" />}
             </button>
             <button type="button" className="btn btn-secondary btn-lg" onClick={() => navigate(-1)} disabled={isSubmitting}>
-              Voltar
+              {t('createBack')}
             </button>
           </div>
         </section>
