@@ -5,10 +5,11 @@ import { getEventStats, getEvents, getOAuthSession } from '../api/client';
 import type { EventLifecycleStats, EventResponse, OAuthSessionResponse } from '../api/client';
 import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
-import type { TranslationKey } from '../i18n/translations';
+import type { Lang, TranslationKey } from '../i18n/translations';
+import { defaultEntryCommand } from '../utils/giveaway-form';
 
-function commandLabel(command: string) {
-  return command.trim() || '!participar';
+function commandLabel(command: string, lang: Lang) {
+  return command.trim() || defaultEntryCommand(lang);
 }
 
 type Translate = (key: TranslationKey, params?: Record<string, string | number>) => string;
@@ -23,7 +24,7 @@ function captureHealthLabel(stats: EventLifecycleStats | null, t: Translate) {
 }
 
 function EventCard({ event }: { event: EventResponse }) {
-  const { t } = useI18n();
+  const { lang, t } = useI18n();
 
   return (
     <Link to={`/events/${event.id}`} className="event-card event-card--live">
@@ -47,7 +48,7 @@ function EventCard({ event }: { event: EventResponse }) {
       </div>
       <div className="event-card__command">
         <span>{t('dashboardEntryCommand')}</span>
-        <code>{commandLabel(event.entryCommand)}</code>
+        <code>{commandLabel(event.entryCommand, lang)}</code>
       </div>
       <span className="event-card__link">
         {t('dashboardViewGiveaway')} <ArrowRight size={16} aria-hidden="true" />
@@ -160,7 +161,7 @@ export default function Dashboard() {
                 <p>{featuredEvent.description || t('dashboardFeaturedFallbackDescription')}</p>
                 <div className="featured-event__command">
                   <span>{t('dashboardTypeInChat')}</span>
-                  <code>{commandLabel(featuredEvent.entryCommand)}</code>
+                  <code>{commandLabel(featuredEvent.entryCommand, lang)}</code>
                 </div>
                 <Link to={`/events/${featuredEvent.id}`} className="btn btn-primary">
                   {t('dashboardOpenEvent')} <ArrowRight size={17} aria-hidden="true" />

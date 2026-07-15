@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState, type FormEvent } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Ban, CircleStop, Radio, Save, ShieldCheck, Trophy } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
@@ -16,6 +16,7 @@ import { addToast, usePolling } from '../components/Toast';
 import { getUserFacingErrorMessage } from '../errors/user-facing-error';
 import { useI18n } from '../i18n/I18nContext';
 import type { TranslationKey } from '../i18n/translations';
+import { defaultEntryCommand, normalizeXPostUrl } from '../utils/giveaway-form';
 
 type PendingAction = 'save' | 'open' | 'finalize' | 'cancel' | null;
 
@@ -232,7 +233,8 @@ export default function EditEvent() {
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
   const [description, setDescription] = useState('');
-  const [entryCommand, setEntryCommand] = useState('!participar');
+  const [xPostUrl, setXPostUrl] = useState('');
+  const [entryCommand, setEntryCommand] = useState(() => defaultEntryCommand(lang));
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isLoading, setIsLoading] = useState(true);
@@ -240,13 +242,25 @@ export default function EditEvent() {
   const [confirmOpen, setConfirmOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [error, setError] = useState('');
+  const [xPostUrlInvalid, setXPostUrlInvalid] = useState(false);
+  const xPostUrlRef = useRef<HTMLInputElement>(null);
+  const currentLangRef = useRef(lang);
+  const commandIsAutomaticRef = useRef(true);
+
+  useEffect(() => {
+    currentLangRef.current = lang;
+    if (commandIsAutomaticRef.current) setEntryCommand(defaultEntryCommand(lang));
+  }, [lang]);
 
   const applyEvent = useCallback((loaded: EventResponse) => {
     setEvent(loaded);
     setTitle(loaded.title);
     setPrize(loaded.prize);
     setDescription(loaded.description || '');
-    setEntryCommand(loaded.entryCommand || '!participar');
+    setXPostUrl(loaded.xPostUrl || '');
+    setXPostUrlInvalid(false);
+    commandIsAutomaticRef.current = !loaded.entryCommand;
+    setEntryCommand(loaded.entryCommand || defaultEntryCommand(currentLangRef.current));
     setStartsAt(toDateTimeInput(loaded.startsAt));
     setEndsAt(toDateTimeInput(loaded.endsAt));
   }, []);
@@ -287,6 +301,7 @@ export default function EditEvent() {
   const formError = () => {
     if (!title.trim()) return t('editTitleRequired');
     if (!prize.trim()) return t('editPrizeRequired');
+    if (xPostUrl.trim() && !normalizeXPostUrl(xPostUrl)) return t('editXPostInvalid');
     if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
       return t('editCommandInvalid');
     }
@@ -295,9 +310,12 @@ export default function EditEvent() {
 
   const saveDraft = async (): Promise<EventResponse | null> => {
     if (!id || event?.status !== 'DRAFT') return null;
+    const invalidXPostUrl = Boolean(xPostUrl.trim() && !normalizeXPostUrl(xPostUrl));
+    setXPostUrlInvalid(invalidXPostUrl);
     const invalid = formError();
     if (invalid) {
       setError(invalid);
+      if (invalidXPostUrl && title.trim() && prize.trim()) xPostUrlRef.current?.focus();
       return null;
     }
 
@@ -305,6 +323,7 @@ export default function EditEvent() {
       title: title.trim(),
       prize: prize.trim(),
       description: description.trim(),
+      xPostUrl: normalizeXPostUrl(xPostUrl) || '',
       entryCommand: entryCommand.trim(),
       startsAt: toUpdateDate(startsAt),
       endsAt: toUpdateDate(endsAt),
@@ -426,6 +445,31 @@ export default function EditEvent() {
               <label htmlFor="manage-description">{t('editDescriptionLabel')}</label>
               <textarea id="manage-description" value={description} onChange={(change) => setDescription(change.target.value)} maxLength={2_000} disabled={busy} />
             </div>
+            <div className="form-group">
+              <label htmlFor="manage-x-post">{t('editXPostLabel')}</label>
+              <input
+                ref={xPostUrlRef}
+                id="manage-x-post"
+                className={xPostUrlInvalid ? 'is-invalid' : undefined}
+                type="url"
+                inputMode="url"
+                value={xPostUrl}
+                onChange={(change) => {
+                  setXPostUrl(change.target.value);
+                  setXPostUrlInvalid(false);
+                  setError('');
+                }}
+                aria-invalid={xPostUrlInvalid}
+                aria-describedby={xPostUrlInvalid ? 'manage-x-post-error' : 'manage-x-post-help'}
+                maxLength={2_048}
+                placeholder={t('editXPostPlaceholder')}
+                autoComplete="url"
+                disabled={busy}
+              />
+              {xPostUrlInvalid
+                ? <span id="manage-x-post-error" className="form-helper form-helper--err" role="alert">{t('editXPostInvalid')}</span>
+                : <span id="manage-x-post-help" className="form-helper">{t('editXPostHelp')}</span>}
+            </div>
           </section>
 
           <section className="control-card">
@@ -436,7 +480,10 @@ export default function EditEvent() {
                 id="manage-command"
                 className="signal-command"
                 value={entryCommand}
-                onChange={(change) => setEntryCommand(change.target.value)}
+                onChange={(change) => {
+                  commandIsAutomaticRef.current = false;
+                  setEntryCommand(change.target.value);
+                }}
                 maxLength={80}
                 autoComplete="off"
                 spellCheck={false}

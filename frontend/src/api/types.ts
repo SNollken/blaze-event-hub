@@ -48,6 +48,7 @@ export interface EventResponse {
   title: string;
   description: string;
   prize: string;
+  xPostUrl: string | null;
   entryCommand: string;
   status: EventStatus;
   finalizedParticipantCount: number;
@@ -90,6 +91,7 @@ export interface CreateEventRequest {
   title: string;
   description?: string;
   prize: string;
+  xPostUrl?: string;
   entryCommand: string;
   startsAt?: string;
   endsAt?: string;
@@ -99,6 +101,7 @@ export interface UpdateEventRequest {
   title?: string;
   description?: string;
   prize?: string;
+  xPostUrl?: string;
   entryCommand?: string;
   startsAt?: string;
   endsAt?: string;

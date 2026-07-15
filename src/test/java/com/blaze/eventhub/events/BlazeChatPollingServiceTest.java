@@ -404,6 +404,7 @@ class BlazeChatPollingServiceTest {
                 null,
                 "Giveaway",
                 "Description",
+                null,
                 "Prize",
                 command,
                 status,

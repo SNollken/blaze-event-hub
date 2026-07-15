@@ -101,6 +101,20 @@ describe('idioma e simplificacao das telas de entrada', () => {
     expect(screen.getByRole('link', { name: 'Explorar giveaways' })).toHaveAttribute('href', '/events');
   });
 
+  it.each([
+    { language: 'en', expectedCommand: '!giveaway' },
+    { language: 'pt-BR', expectedCommand: '!participar' },
+  ])('usa o comando padrão localizado no dashboard em $language', async ({ language, expectedCommand }) => {
+    localStorage.setItem('blaze-event-hub:language', language);
+    api.getEvents.mockResolvedValue([{ ...dashboardEvent(0), entryCommand: '' }]);
+    api.getEventStats.mockResolvedValue(dashboardStats());
+    api.getOAuthSession.mockResolvedValue({ connected: false });
+
+    renderPage(<Dashboard />);
+
+    expect(await screen.findByText(expectedCommand)).toBeInTheDocument();
+  });
+
   it('formata contadores grandes do dashboard em ingles', async () => {
     api.getEvents.mockResolvedValue(Array.from({ length: 1_234 }, (_, index) => dashboardEvent(index)));
     api.getEventStats.mockResolvedValue(dashboardStats());

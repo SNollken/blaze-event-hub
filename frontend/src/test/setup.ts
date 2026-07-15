@@ -29,6 +29,7 @@ const event = {
   title: 'Giveaway de teste',
   description: 'Evento usado pelos testes do fluxo principal.',
   prize: 'Gift card de R$ 100',
+  xPostUrl: null,
   entryCommand: '!participar',
   status: 'closed',
   finalizedParticipantCount: 1,

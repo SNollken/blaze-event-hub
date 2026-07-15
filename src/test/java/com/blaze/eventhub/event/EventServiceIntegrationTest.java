@@ -72,8 +72,77 @@ class EventServiceIntegrationTest {
         assertEquals("!participar", response.entryCommand());
         assertEquals("draft", response.status());
         assertEquals(CHANNEL_ID, response.creatorChannelId());
+        assertEquals(null, response.xPostUrl());
         assertEquals("Gift card de R$ 100", jdbc.queryForObject(
                 "SELECT prize FROM events WHERE id = ?", String.class, response.id()));
+    }
+
+    @Test
+    void persistsReturnsUpdatesAndClearsTheOptionalXPostUrl() {
+        String xPostUrl = "https://x.com/creator/status/123456789";
+        CreateEventRequest request = new CreateEventRequest(
+                "Giveaway com post",
+                "Confira o anuncio no X.",
+                xPostUrl,
+                "Gift card de R$ 100",
+                "!participar",
+                null,
+                null,
+                CHANNEL_SLUG);
+
+        EventResponse created = eventService.createEvent(
+                request, MEMBER_ID, BLAZE_USER_ID, channel());
+
+        assertEquals(xPostUrl, created.xPostUrl());
+        assertEquals(xPostUrl, jdbc.queryForObject(
+                "SELECT x_post_url FROM events WHERE id = ?", String.class, created.id()));
+        assertEquals(xPostUrl, eventService.getEvent(created.id()).xPostUrl());
+
+        EventResponse preserved = eventService.updateEvent(
+                created.id(),
+                new UpdateEventRequest("Giveaway renomeado", null, null, null, null, null, null),
+                MEMBER_ID);
+
+        assertEquals("Giveaway renomeado", preserved.title());
+        assertEquals(xPostUrl, preserved.xPostUrl());
+
+        EventResponse cleared = eventService.updateEvent(
+                created.id(),
+                new UpdateEventRequest(null, null, "   ", null, null, null, null),
+                MEMBER_ID);
+
+        assertEquals(null, cleared.xPostUrl());
+        assertEquals(null, jdbc.queryForObject(
+                "SELECT x_post_url FROM events WHERE id = ?", String.class, created.id()));
+    }
+
+    @Test
+    void rejectsLinksThatDoNotPointToAnXPost() {
+        CreateEventRequest request = new CreateEventRequest(
+                "Giveaway com link invalido",
+                null,
+                "https://example.com/post/123",
+                "Gift card",
+                "!participar",
+                null,
+                null,
+                CHANNEL_SLUG);
+
+        assertThrows(IllegalArgumentException.class, () -> eventService.createEvent(
+                request, MEMBER_ID, BLAZE_USER_ID, channel()));
+
+        CreateEventRequest profileOnly = new CreateEventRequest(
+                "Giveaway com perfil em vez de post",
+                null,
+                "https://x.com/creator",
+                "Gift card",
+                "!participar",
+                null,
+                null,
+                CHANNEL_SLUG);
+
+        assertThrows(IllegalArgumentException.class, () -> eventService.createEvent(
+                profileOnly, MEMBER_ID, BLAZE_USER_ID, channel()));
     }
 
     @Test

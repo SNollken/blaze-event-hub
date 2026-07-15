@@ -27,6 +27,7 @@ const baseEvent: EventResponse = {
   title: 'Setup completo',
   description: 'Entre pelo comando durante a transmissão.',
   prize: 'Gift card de R$ 100',
+  xPostUrl: null,
   entryCommand: '!participar',
   status: 'OPEN',
   finalizedParticipantCount: 0,

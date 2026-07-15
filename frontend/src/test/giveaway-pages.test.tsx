@@ -15,6 +15,7 @@ const event = {
   title: 'Giveaway de lançamento',
   description: 'Uma celebração com a comunidade.',
   prize: 'Teclado mecânico',
+  xPostUrl: 'https://x.com/sofia/status/123456789',
   entryCommand: '!participar',
   status: 'CLOSED',
   finalizedParticipantCount: 2,
@@ -111,6 +112,8 @@ describe('páginas do giveaway', () => {
     expect(screen.queryByRole('link', { name: /Abrir transmissão/i })).not.toBeInTheDocument();
     expect(screen.getByRole('link', { name: /@sofia/i }))
       .toHaveAttribute('href', 'https://blaze.stream/sofia');
+    expect(screen.getByRole('link', { name: 'Ver o post original no X' }))
+      .toHaveAttribute('href', 'https://x.com/sofia/status/123456789');
     expect(screen.getByRole('heading', { name: 'Comando usado durante a captura' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /participar/i })).not.toBeInTheDocument();
   });

@@ -154,6 +154,7 @@ class DrawServiceTest {
                 null,
                 "Evento",
                 "Descricao",
+                null,
                 "Premio",
                 "!participar",
                 status,

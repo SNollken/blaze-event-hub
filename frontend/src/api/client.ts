@@ -87,6 +87,7 @@ function normalizeEvent(event: ApiEvent): EventResponse {
   return {
     ...event,
     description: event.description || '',
+    xPostUrl: event.xPostUrl || null,
     status: normalizeStatus(event.status),
   };
 }

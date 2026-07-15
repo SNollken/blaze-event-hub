@@ -12,10 +12,10 @@ export function LanguageSwitcher() {
 
   return (
     <div className="language-switcher">
-      <label htmlFor={selectId}>{t('languageLabel')}</label>
+      <label className="sr-only" htmlFor={selectId}>{t('languageLabel')}</label>
       <select id={selectId} value={lang} onChange={handleChange}>
-        <option value="en">{t('languageEnglish')}</option>
-        <option value="pt-BR">{t('languagePortugueseBrazil')}</option>
+        <option value="en" lang="en">EN</option>
+        <option value="pt-BR" lang="pt-BR">PT-BR</option>
       </select>
     </div>
   );

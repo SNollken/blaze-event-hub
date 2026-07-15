@@ -1,8 +1,10 @@
 package com.blaze.eventhub.event;
 
+import java.net.URI;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.regex.Pattern;
@@ -37,6 +39,15 @@ public class EventService {
             EventStatus.COMPLETED);
     private static final Pattern ENTRY_COMMAND = Pattern.compile(
             "^![\\p{L}\\p{N}][\\p{L}\\p{N}_-]{0,78}$");
+    private static final Set<String> X_POST_HOSTS = Set.of(
+            "x.com",
+            "www.x.com",
+            "mobile.x.com",
+            "twitter.com",
+            "www.twitter.com",
+            "mobile.twitter.com");
+    private static final Pattern X_POST_PATH = Pattern.compile(
+            "^/(?:[^/]+/status|i/web/status)/\\d+(?:/.*)?$");
 
     private final EventStore eventStore;
     private final IdGenerator idGenerator;
@@ -70,6 +81,7 @@ public class EventService {
         Instant startsAt = parseInstant(request.startsAt());
         Instant endsAt = parseInstant(request.endsAt());
         validateDateRange(startsAt, endsAt);
+        String xPostUrl = normalizeAndValidateXPostUrl(request.xPostUrl());
 
         Instant now = Instant.now(clock);
         Event event = new Event(
@@ -82,6 +94,7 @@ public class EventService {
                 creatorChannel.avatarUrl(),
                 request.title().trim(),
                 request.description(),
+                xPostUrl,
                 request.prize().trim(),
                 normalizeAndValidateCommand(request.entryCommand()),
                 EventStatus.DRAFT,
@@ -232,6 +245,10 @@ public class EventService {
             throw new IllegalArgumentException("O premio e obrigatorio.");
         }
 
+        String xPostUrl = request.xPostUrl() == null
+                ? event.xPostUrl()
+                : normalizeAndValidateXPostUrl(request.xPostUrl());
+
         Instant startsAt = request.startsAt() == null ? event.startsAt() : parseInstant(request.startsAt());
         Instant endsAt = request.endsAt() == null ? event.endsAt() : parseInstant(request.endsAt());
         validateDateRange(startsAt, endsAt);
@@ -246,6 +263,7 @@ public class EventService {
                 event.creatorChannelAvatarUrl(),
                 title,
                 request.description() == null ? event.description() : request.description(),
+                xPostUrl,
                 prize,
                 command,
                 event.status(),
@@ -444,6 +462,37 @@ public class EventService {
                     "O comando deve comecar com ! e usar apenas letras, numeros, _ ou -." );
         }
         return command;
+    }
+
+    private static String normalizeAndValidateXPostUrl(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+        String normalized = value.trim();
+        if (normalized.length() > 2048) {
+            throw new IllegalArgumentException("O link do post no X deve ter no maximo 2048 caracteres.");
+        }
+        try {
+            URI uri = URI.create(normalized);
+            String host = uri.getHost();
+            boolean validHost = host != null
+                    && X_POST_HOSTS.contains(host.toLowerCase(Locale.ROOT));
+            boolean validPort = uri.getPort() == -1 || uri.getPort() == 443;
+            boolean validPath = uri.getPath() != null && X_POST_PATH.matcher(uri.getPath()).matches();
+            if (!"https".equalsIgnoreCase(uri.getScheme())
+                    || !validHost
+                    || !validPort
+                    || !validPath
+                    || uri.getUserInfo() != null) {
+                throw new IllegalArgumentException("Informe um link HTTPS valido do X.");
+            }
+            return normalized;
+        } catch (IllegalArgumentException invalidUrl) {
+            if ("Informe um link HTTPS valido do X.".equals(invalidUrl.getMessage())) {
+                throw invalidUrl;
+            }
+            throw new IllegalArgumentException("Informe um link HTTPS valido do X.", invalidUrl);
+        }
     }
 
 }

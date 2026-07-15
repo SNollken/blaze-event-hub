@@ -6,6 +6,7 @@ import type { EventResponse, EventStatus } from '../api/types';
 import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
 import type { Lang, TranslationKey } from '../i18n/translations';
+import { defaultEntryCommand } from '../utils/giveaway-form';
 
 type PublicFilter = 'ALL' | Extract<EventStatus, 'OPEN' | 'CLOSED' | 'COMPLETED'>;
 
@@ -78,7 +79,7 @@ function EventCard({ event }: { event: EventResponse }) {
       {event.status === 'OPEN' ? (
         <div className="event-card__command">
           <span>{t('publicChatCommand')}</span>
-          <code>{event.entryCommand || '!participar'}</code>
+          <code>{event.entryCommand || defaultEntryCommand(lang)}</code>
         </div>
       ) : event.status === 'FINALIZING' ? (
         <div className="event-card__meta">

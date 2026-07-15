@@ -12,6 +12,7 @@ public record Event(
         String creatorChannelAvatarUrl,
         String title,
         String description,
+        String xPostUrl,
         String prize,
         String entryCommand,
         EventStatus status,

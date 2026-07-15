@@ -6,6 +6,7 @@ import type { EventHistoryResponse, EventResponse, EventStatus } from '../api/ty
 import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
 import type { Lang, TranslationKey } from '../i18n/translations';
+import { defaultEntryCommand } from '../utils/giveaway-form';
 
 const EMPTY_HISTORY: EventHistoryResponse = { drafts: [], active: [], past: [] };
 
@@ -93,7 +94,7 @@ function EventCard({ event }: { event: EventResponse }) {
 
       <footer className="event-card__footer">
         <span>
-          {event.status === 'OPEN' && <><Radio size={15} aria-hidden="true" /> {event.entryCommand || '!participar'}</>}
+          {event.status === 'OPEN' && <><Radio size={15} aria-hidden="true" /> {event.entryCommand || defaultEntryCommand(lang)}</>}
           {event.status === 'FINALIZING' && <><Radio size={15} aria-hidden="true" /> {t('myEventsFinalSync')}</>}
           {event.status === 'DRAFT' && <><FilePenLine size={15} aria-hidden="true" /> {t('myEventsConfigurationPending')}</>}
           {(event.status === 'CLOSED' || event.status === 'COMPLETED') && (

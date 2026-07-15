@@ -27,11 +27,11 @@ public class JdbcEventStore implements EventStore {
         jdbc.update("""
                 INSERT INTO events (id, creator_member_id, creator_blaze_user_id, creator_channel_id,
                     creator_channel_slug, creator_channel_display_name, creator_channel_avatar_url,
-                    title, description, prize, entry_command, status,
+                    title, description, x_post_url, prize, entry_command, status,
                     finalized_participant_count, finalized_pool_hash,
                     starts_at, ends_at, created_at, updated_at, opened_at,
                     finalization_cutoff_at, finalization_attempt_id, closed_at, completed_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """,
                 event.id(),
                 event.creatorMemberId(),
@@ -42,6 +42,7 @@ public class JdbcEventStore implements EventStore {
                 event.creatorChannelAvatarUrl(),
                 event.title(),
                 event.description(),
+                event.xPostUrl(),
                 event.prize(),
                 event.entryCommand(),
                 event.status().name().toLowerCase(),
@@ -63,12 +64,13 @@ public class JdbcEventStore implements EventStore {
     public int updateDraft(Event event) {
         return jdbc.update("""
                 UPDATE events
-                SET title = ?, description = ?, prize = ?, entry_command = ?,
+                SET title = ?, description = ?, x_post_url = ?, prize = ?, entry_command = ?,
                     starts_at = ?, ends_at = ?, updated_at = ?
                 WHERE id = ? AND status = 'draft'
                 """,
                 event.title(),
                 event.description(),
+                event.xPostUrl(),
                 event.prize(),
                 event.entryCommand(),
                 toTimestamp(event.startsAt()),
@@ -209,6 +211,7 @@ public class JdbcEventStore implements EventStore {
                     rs.getString("creator_channel_avatar_url"),
                     rs.getString("title"),
                     rs.getString("description"),
+                    rs.getString("x_post_url"),
                     rs.getString("prize"),
                     rs.getString("entry_command"),
                     EventStatus.fromDb(rs.getString("status")),

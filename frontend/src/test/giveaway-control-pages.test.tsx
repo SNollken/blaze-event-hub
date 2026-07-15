@@ -4,6 +4,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import CreateEvent from '../pages/CreateEvent';
 import EditEvent from '../pages/EditEvent';
 import StudioChannel from '../pages/StudioChannel';
+import { LanguageSwitcher } from '../components/LanguageSwitcher';
 import { I18nProvider } from '../i18n/I18nContext';
 
 function json(value: unknown, status = 200) {
@@ -22,6 +23,7 @@ const openEvent = {
   title: 'Giveaway da comunidade',
   description: 'Teste do fluxo ao vivo.',
   prize: 'Gift card de R$ 200',
+  xPostUrl: null,
   entryCommand: '!participar',
   status: 'OPEN',
   finalizedParticipantCount: 0,
@@ -91,6 +93,32 @@ describe('páginas de controle do giveaway', () => {
       .not.toBeInTheDocument();
   });
 
+  it('localiza o comando inicial sem sobrescrever um comando personalizado', async () => {
+    localStorage.setItem('blaze-event-hub:language', 'en');
+    render(
+      <I18nProvider>
+        <MemoryRouter>
+          <LanguageSwitcher />
+          <CreateEvent />
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    const command = screen.getByLabelText('Chat command');
+    expect(command).toHaveValue('!giveaway');
+
+    fireEvent.change(screen.getByRole('combobox', { name: 'Language' }), {
+      target: { value: 'pt-BR' },
+    });
+    await waitFor(() => expect(command).toHaveValue('!participar'));
+
+    fireEvent.change(command, { target: { value: '!minharegra' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Idioma' }), {
+      target: { value: 'en' },
+    });
+    await waitFor(() => expect(command).toHaveValue('!minharegra'));
+  });
+
   it('usa automaticamente a conta Blaze conectada sem enviar um canal escolhido pelo navegador', async () => {
     const fetchMock = vi.fn((input: RequestInfo | URL, options?: RequestInit) => {
       const url = typeof input === 'string' ? input : input.toString();
@@ -125,6 +153,9 @@ describe('páginas de controle do giveaway', () => {
 
     fireEvent.change(screen.getByLabelText('Título'), { target: { value: 'Giveaway da comunidade' } });
     fireEvent.change(screen.getByLabelText('Prêmio'), { target: { value: 'Gift card de R$ 200' } });
+    fireEvent.change(screen.getByLabelText(/Link do post no X/), {
+      target: { value: ' https://x.com/sofia/status/123456789 ' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Criar giveaway' }));
 
     await waitFor(() => {
@@ -134,7 +165,73 @@ describe('páginas de controle do giveaway', () => {
       expect(payload.creatorChannelSlug).toBeUndefined();
       expect(payload.creatorChannelId).toBeUndefined();
       expect(payload.entryCommand).toBe('!participar');
+      expect(payload.xPostUrl).toBe('https://x.com/sofia/status/123456789');
     });
+  });
+
+  it('carrega, valida, atualiza e remove o link do X no editor', async () => {
+    const draftEvent = {
+      ...openEvent,
+      status: 'DRAFT',
+      xPostUrl: 'https://x.com/sofia/status/111111111',
+      openedAt: null,
+    };
+    const updatePayloads: Record<string, unknown>[] = [];
+    const fetchMock = vi.fn((input: RequestInfo | URL, options?: RequestInit) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      if (url === '/api/events/event-1' && options?.method === 'PUT') {
+        const payload = JSON.parse(String(options.body)) as Record<string, unknown>;
+        updatePayloads.push(payload);
+        return json({
+          ...draftEvent,
+          ...payload,
+          xPostUrl: payload.xPostUrl || null,
+        });
+      }
+      if (url === '/api/events/event-1') return json(draftEvent);
+      return json({});
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    render(
+      <I18nProvider>
+        <MemoryRouter initialEntries={['/events/event-1/manage']}>
+          <Routes>
+            <Route path="/events/:id/manage" element={<EditEvent />} />
+          </Routes>
+        </MemoryRouter>
+      </I18nProvider>,
+    );
+
+    const xPostInput = await screen.findByLabelText(/Link do post no X/);
+    const saveButton = screen.getByRole('button', { name: 'Salvar rascunho' });
+    expect(xPostInput).toHaveValue('https://x.com/sofia/status/111111111');
+
+    fireEvent.change(xPostInput, { target: { value: 'https://example.com/not-an-x-post' } });
+    fireEvent.click(saveButton);
+
+    expect(xPostInput).toHaveClass('is-invalid');
+    expect(xPostInput).toHaveAttribute('aria-invalid', 'true');
+    expect(xPostInput).toHaveAttribute('aria-describedby', 'manage-x-post-error');
+    expect(xPostInput).toHaveFocus();
+    const inlineError = document.getElementById('manage-x-post-error');
+    expect(inlineError).toHaveTextContent('Informe um link HTTPS válido de um post no x.com.');
+    expect(inlineError).toHaveAttribute('role', 'alert');
+    expect(updatePayloads).toHaveLength(0);
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
+    fireEvent.change(xPostInput, { target: { value: ' https://x.com/sofia/status/222222222 ' } });
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(updatePayloads).toHaveLength(1));
+    expect(updatePayloads[0]?.xPostUrl).toBe('https://x.com/sofia/status/222222222');
+    await waitFor(() => expect(xPostInput).toHaveValue('https://x.com/sofia/status/222222222'));
+    await waitFor(() => expect(saveButton).toBeEnabled());
+
+    fireEvent.change(xPostInput, { target: { value: '' } });
+    fireEvent.click(saveButton);
+    await waitFor(() => expect(updatePayloads).toHaveLength(2));
+    expect(updatePayloads[1]?.xPostUrl).toBe('');
+    await waitFor(() => expect(xPostInput).toHaveValue(''));
   });
 
   it('exige confirmação explícita antes de congelar o pool', async () => {

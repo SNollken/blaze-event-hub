@@ -226,32 +226,47 @@
 }
 
 .language-switcher {
+  position: relative;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 6px 8px 6px 10px;
   border: 1px solid var(--border);
   border-radius: var(--r);
-  background: rgba(13, 14, 15, 0.94);
-  color: var(--muted);
+  background: rgba(13, 19, 34, 0.96);
   box-shadow: var(--shadow-sm);
   backdrop-filter: blur(18px);
+  color-scheme: dark;
 }
 
-.language-switcher label {
-  font-family: var(--font-mono);
-  font-size: 10px;
-  font-weight: 600;
+.language-switcher::after {
+  content: '';
+  position: absolute;
+  right: 13px;
+  width: 6px;
+  height: 6px;
+  border-right: 1.5px solid var(--muted);
+  border-bottom: 1.5px solid var(--muted);
+  transform: translateY(-2px) rotate(45deg);
+  pointer-events: none;
 }
 
 .language-switcher select {
+  width: 88px;
   min-height: 44px;
-  padding: 4px 28px 4px 8px;
-  border: 1px solid var(--border-card);
-  border-radius: var(--r-sm);
-  background: var(--bg-card);
+  padding: 0 30px 0 13px;
+  border: 0;
+  border-radius: inherit;
+  appearance: none;
+  background: transparent;
   color: var(--fg2);
-  font: 600 11px/1 var(--font);
+  color-scheme: dark;
+  cursor: pointer;
+  font: 700 11px/1 var(--font-mono);
+  letter-spacing: 0.04em;
+}
+
+.language-switcher select option {
+  background-color: #101727;
+  color: var(--fg);
 }
 
 .language-switcher select:focus-visible {
@@ -430,18 +445,6 @@
   .app-language-control {
     top: 10px;
     right: 12px;
-  }
-
-  .language-switcher label {
-    position: absolute;
-    width: 1px;
-    height: 1px;
-    padding: 0;
-    margin: -1px;
-    overflow: hidden;
-    clip: rect(0, 0, 0, 0);
-    white-space: nowrap;
-    border: 0;
   }
 
   .login-card {

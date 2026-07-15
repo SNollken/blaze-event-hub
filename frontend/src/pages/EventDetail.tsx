@@ -11,6 +11,7 @@ import {
 import { usePolling } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
 import type { Lang, TranslationKey } from '../i18n/translations';
+import { normalizeXPostUrl } from '../utils/giveaway-form';
 
 const STATUS_LABEL_KEYS: Record<EventResponse['status'], TranslationKey> = {
   DRAFT: 'publicStatusDraft',
@@ -190,6 +191,7 @@ export default function EventDetail() {
     : t(participantCount === 1 ? 'eventDetailParticipantOne' : 'eventDetailParticipantMany', {
         count: numberFormatter.format(participantCount),
       });
+  const safeXPostUrl = event.xPostUrl ? normalizeXPostUrl(event.xPostUrl) : null;
 
   let captureDescriptionKey: TranslationKey;
   if (event.status === 'OPEN') {
@@ -263,6 +265,16 @@ export default function EventDetail() {
             </p>
           )}
           <p>{t('eventDetailPrizeResponsibility')}</p>
+          {safeXPostUrl && (
+            <a
+              className="btn btn-secondary"
+              href={safeXPostUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              {t('eventDetailViewXPost')} <span aria-hidden="true">↗</span>
+            </a>
+          )}
         </section>
 
         <section className="control-card command-card" aria-labelledby="command-title">

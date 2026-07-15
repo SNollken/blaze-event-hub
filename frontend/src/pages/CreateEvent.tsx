@@ -5,8 +5,9 @@ import { ApiError, createEvent, getMe } from '../api/client';
 import type { MemberProfile } from '../api/types';
 import { addToast } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
+import { defaultEntryCommand, normalizeXPostUrl } from '../utils/giveaway-form';
 
-type FieldName = 'title' | 'prize' | 'entryCommand';
+type FieldName = 'title' | 'prize' | 'xPostUrl' | 'entryCommand';
 type FieldErrors = Partial<Record<FieldName, string>>;
 
 function toIsoDate(value: string): string | undefined {
@@ -35,7 +36,8 @@ export default function CreateEvent() {
   const [title, setTitle] = useState('');
   const [prize, setPrize] = useState('');
   const [description, setDescription] = useState('');
-  const [entryCommand, setEntryCommand] = useState('!participar');
+  const [xPostUrl, setXPostUrl] = useState('');
+  const [entryCommand, setEntryCommand] = useState(() => defaultEntryCommand(lang));
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -44,10 +46,17 @@ export default function CreateEvent() {
   const [fieldErrors, setFieldErrors] = useState<FieldErrors>({});
   const titleRef = useRef<HTMLInputElement>(null);
   const prizeRef = useRef<HTMLInputElement>(null);
+  const xPostUrlRef = useRef<HTMLInputElement>(null);
   const commandRef = useRef<HTMLInputElement>(null);
   const endsAtRef = useRef<HTMLInputElement>(null);
+  const commandIsAutomaticRef = useRef(true);
+  const previousLangRef = useRef(lang);
 
   useEffect(() => {
+    if (previousLangRef.current !== lang && commandIsAutomaticRef.current) {
+      setEntryCommand(defaultEntryCommand(lang));
+    }
+    previousLangRef.current = lang;
     setError('');
     setShowReconnectAction(false);
     setFieldErrors({});
@@ -89,6 +98,9 @@ export default function CreateEvent() {
     const next: FieldErrors = {};
     if (!title.trim()) next.title = t('createTitleRequired');
     if (!prize.trim()) next.prize = t('createPrizeRequired');
+    if (xPostUrl.trim() && !normalizeXPostUrl(xPostUrl)) {
+      next.xPostUrl = t('createXPostInvalid');
+    }
     if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
       next.entryCommand = t('createCommandInvalid');
     }
@@ -117,9 +129,11 @@ export default function CreateEvent() {
         ? titleRef.current
         : invalidFields.prize
           ? prizeRef.current
-          : invalidFields.entryCommand
-            ? commandRef.current
-            : endsAtRef.current;
+          : invalidFields.xPostUrl
+            ? xPostUrlRef.current
+            : invalidFields.entryCommand
+              ? commandRef.current
+              : endsAtRef.current;
       firstInvalidField?.focus();
       return;
     }
@@ -142,6 +156,7 @@ export default function CreateEvent() {
         title: title.trim(),
         prize: prize.trim(),
         description: description.trim() || undefined,
+        xPostUrl: normalizeXPostUrl(xPostUrl) || undefined,
         entryCommand: entryCommand.trim(),
         startsAt: toIsoDate(startsAt),
         endsAt: toIsoDate(endsAt),
@@ -244,6 +259,30 @@ export default function CreateEvent() {
               disabled={isSubmitting}
             />
           </div>
+          <div className="form-group">
+            <label htmlFor="event-x-post">{t('createXPostLabel')}</label>
+            <input
+              ref={xPostUrlRef}
+              id="event-x-post"
+              className={fieldErrors.xPostUrl ? 'is-invalid' : undefined}
+              type="url"
+              inputMode="url"
+              value={xPostUrl}
+              onChange={(event) => {
+                setXPostUrl(event.target.value);
+                clearFieldError('xPostUrl');
+              }}
+              aria-invalid={Boolean(fieldErrors.xPostUrl)}
+              aria-describedby={fieldErrors.xPostUrl ? 'event-x-post-error' : 'event-x-post-help'}
+              maxLength={2_048}
+              placeholder={t('createXPostPlaceholder')}
+              autoComplete="url"
+              disabled={isSubmitting}
+            />
+            {fieldErrors.xPostUrl
+              ? <span id="event-x-post-error" className="form-helper form-helper--err" role="alert">{fieldErrors.xPostUrl}</span>
+              : <span id="event-x-post-help" className="form-helper">{t('createXPostHelp')}</span>}
+          </div>
         </section>
 
         <section className="create-sheet create-sheet--signal" data-index="02">
@@ -257,6 +296,7 @@ export default function CreateEvent() {
               className={`signal-command${fieldErrors.entryCommand ? ' is-invalid' : ''}`}
               value={entryCommand}
               onChange={(event) => {
+                commandIsAutomaticRef.current = false;
                 setEntryCommand(event.target.value);
                 clearFieldError('entryCommand');
               }}

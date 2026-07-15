@@ -108,8 +108,9 @@ describe('i18n foundation', () => {
     expect(switcher.closest('aside')).toBeNull();
     expect(switcher.closest('.app-language-control')).not.toBeNull();
     expect(switcher).toHaveValue('en');
-    expect(screen.getByRole('option', { name: 'English' })).toBeInTheDocument();
-    expect(screen.getByRole('option', { name: 'Português (Brasil)' })).toBeInTheDocument();
+    expect(screen.getByText('Language')).toHaveClass('sr-only');
+    expect(screen.getByRole('option', { name: 'EN' })).toBeInTheDocument();
+    expect(screen.getByRole('option', { name: 'PT-BR' })).toBeInTheDocument();
 
     fireEvent.change(switcher, { target: { value: 'pt-BR' } });
 

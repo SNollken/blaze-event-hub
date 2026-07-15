@@ -63,6 +63,7 @@ export const publicGiveawaysPtBR = {
   eventDetailPrizeLabel: 'Prêmio',
   eventDetailCreatorBy: 'Por',
   eventDetailPrizeResponsibility: 'O criador é responsável pela entrega e pelas condições divulgadas durante a transmissão.',
+  eventDetailViewXPost: 'Ver o post original no X',
   eventDetailHowToEnter: 'Como entrar',
   eventDetailEntryCommand: 'Comando de entrada',
   eventDetailSendCommand: 'Envie este comando no chat',

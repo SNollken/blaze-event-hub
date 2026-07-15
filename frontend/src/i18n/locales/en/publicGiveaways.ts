@@ -61,6 +61,7 @@ export const publicGiveawaysEn = {
   eventDetailPrizeLabel: 'Prize',
   eventDetailCreatorBy: 'By',
   eventDetailPrizeResponsibility: 'The creator is responsible for delivery and for the terms announced during the stream.',
+  eventDetailViewXPost: 'View the original post on X',
   eventDetailHowToEnter: 'How to enter',
   eventDetailEntryCommand: 'Entry command',
   eventDetailSendCommand: 'Send this command in chat',
