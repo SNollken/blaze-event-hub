@@ -30,7 +30,7 @@ import com.blaze.eventhub.event.participant.ParticipantPoolHasher;
 public class DrawService {
 
     private static final Logger log = LoggerFactory.getLogger(DrawService.class);
-    private static final String DRAW_METHOD = "uniform_blaze_participants_v1";
+    private static final String DRAW_METHOD = "weighted_blaze_participants_v1";
 
     private final EventWinnerStore winnerStore;
     private final EventStore eventStore;
@@ -101,8 +101,18 @@ public class DrawService {
         }
 
         long seed = seedGenerator.nextLong();
-        int winnerIndex = new SplittableRandom(seed).nextInt(participants.size());
-        EventParticipant winner = participants.get(winnerIndex);
+        SplittableRandom rng = new SplittableRandom(seed);
+        int totalWeight = participants.stream().mapToInt(EventParticipant::entryWeight).sum();
+        int threshold = rng.nextInt(totalWeight);
+        int cumulative = 0;
+        EventParticipant winner = null;
+        for (EventParticipant p : participants) {
+            cumulative += p.entryWeight();
+            if (cumulative > threshold) {
+                winner = p;
+                break;
+            }
+        }
         Instant now = Instant.now(clock);
 
         EventWinner result = new EventWinner(

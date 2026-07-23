@@ -137,7 +137,7 @@ class EventParticipantCaptureServiceIntegrationTest {
         assertEquals(event.id(), first.eventId());
         assertEquals(finalized.finalizedPoolHash(), first.poolHash());
         assertEquals(2, first.participantCount());
-        assertEquals("uniform_blaze_participants_v1", first.drawMethod());
+        assertEquals("weighted_blaze_participants_v1", first.drawMethod());
         assertEquals("completed", eventService.getEvent(event.id()).status());
         assertEquals(1, jdbc.queryForObject(
                 "SELECT COUNT(*) FROM event_draw_results WHERE event_id = ?",

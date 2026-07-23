@@ -75,7 +75,7 @@ class DrawServiceTest {
         assertEquals(ParticipantPoolHasher.sha256(participants), result.poolHash());
         assertEquals(2, result.participantCount());
         assertEquals("1", result.drawSeed());
-        assertEquals("uniform_blaze_participants_v1", result.drawMethod());
+        assertEquals("weighted_blaze_participants_v1", result.drawMethod());
         verify(winnerStore).save(result);
         verify(eventStore).completeEvent("event-1", NOW);
     }
@@ -181,7 +181,7 @@ class DrawServiceTest {
                 blazeUserId,
                 blazeUserId,
                 "1",
-                "uniform_blaze_participants_v1",
+                "weighted_blaze_participants_v1",
                 "hash",
                 1,
                 NOW,
