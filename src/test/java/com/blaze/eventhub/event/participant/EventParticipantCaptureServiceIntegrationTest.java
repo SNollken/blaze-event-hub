@@ -167,9 +167,8 @@ class EventParticipantCaptureServiceIntegrationTest {
     @Test
     void messageWithoutTimestampIsIgnoredToAvoidImportingOldChatHistory() {
         EventResponse event = createOpenEvent();
-        ChatEntryCandidate undatedMessage = new ChatEntryCandidate(,
-                "chat",
-                CHANNEL_ID, "undated-message", "!participar", "viewer", "viewer", "Viewer", null);
+        ChatEntryCandidate undatedMessage = new ChatEntryCandidate(
+                CHANNEL_ID, "undated-message", "!participar", "viewer", "viewer", "Viewer", "chat", null);
 
         CaptureResult result = captureService.capture(undatedMessage);
 
