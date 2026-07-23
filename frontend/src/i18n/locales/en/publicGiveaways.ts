@@ -166,6 +166,13 @@ export const publicGiveawaysEn = {
   myEventsFinalSync: 'final synchronization',
   myEventsPoolCount: '{count} in the pool',
   myEventsCancelled: 'giveaway cancelled',
+  eventDetailActionTypesLabel: 'Entry methods',
+  eventDetailHowToEnterChat: 'Send this command in the live chat',
+  eventDetailHowToEnterVote: 'Cast a vote during the stream',
+  eventDetailHowToEnterSub: 'New channel subscriptions count as entries',
+  eventDetailHowToEnterGiftedSub: 'Gifted subscriptions count as entries',
+  eventDetailHowToEnterFollow: 'New channel follows count as entries',
+  eventDetailHowToEnterDonation: 'Donations during the stream count as entries',
 } as const;
 
 export type PublicGiveawaysTranslationKey = keyof typeof publicGiveawaysEn;

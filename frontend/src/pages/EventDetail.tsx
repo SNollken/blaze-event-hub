@@ -31,6 +31,15 @@ const STATUS_CLASSES: Record<EventResponse['status'], string> = {
   CANCELLED: 'pill--cancelled',
 };
 
+const ACTION_TYPE_CONFIG: Record<string, { label: TranslationKey; howTo: TranslationKey }> = {
+  chat: { label: 'actionTypeChat', howTo: 'eventDetailHowToEnterChat' },
+  vote: { label: 'actionTypeVote', howTo: 'eventDetailHowToEnterVote' },
+  sub: { label: 'actionTypeSub', howTo: 'eventDetailHowToEnterSub' },
+  gifted_sub: { label: 'actionTypeGiftedSub', howTo: 'eventDetailHowToEnterGiftedSub' },
+  follow: { label: 'actionTypeFollow', howTo: 'eventDetailHowToEnterFollow' },
+  donation: { label: 'actionTypeDonation', howTo: 'eventDetailHowToEnterDonation' },
+};
+
 type LifecycleKey = 'created' | 'opened' | 'closed' | 'completed';
 
 interface LifecycleStep {
@@ -278,11 +287,34 @@ export default function EventDetail() {
         </section>
 
         <section className="control-card command-card" aria-labelledby="command-title">
+          {event.enabledActionTypes.length > 1 && (
+            <div className="action-types-chips">
+              <span className="section-label">{t('eventDetailActionTypesLabel')}</span>
+              <div className="chip-row">
+                {event.enabledActionTypes.map((type) => {
+                  const cfg = ACTION_TYPE_CONFIG[type];
+                  return (
+                    <span key={type} className="pill pill--action-type">
+                      {cfg ? t(cfg.label) : type}
+                    </span>
+                  );
+                })}
+              </div>
+            </div>
+          )}
           <span className="section-label">{t(event.status === 'OPEN' ? 'eventDetailHowToEnter' : 'eventDetailEntryCommand')}</span>
           <h2 id="command-title">{t(event.status === 'OPEN' ? 'eventDetailSendCommand' : 'eventDetailCommandUsed')}</h2>
-          <code className={`signal-command${event.status === 'OPEN' ? ' is-live' : ''}`}>
-            {event.entryCommand}
-          </code>
+          {event.enabledActionTypes.includes('chat') && (
+            <code className={`signal-command${event.status === 'OPEN' ? ' is-live' : ''}`}>
+              {event.entryCommand}
+            </code>
+          )}
+          <div className="action-type-instructions">
+            {event.enabledActionTypes.map((type) => {
+              const cfg = ACTION_TYPE_CONFIG[type];
+              return cfg ? <p key={type}>{t(cfg.howTo)}</p> : null;
+            })}
+          </div>
           <p>{t(captureDescriptionKey)}</p>
         </section>
       </div>

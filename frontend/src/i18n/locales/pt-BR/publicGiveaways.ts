@@ -168,4 +168,11 @@ export const publicGiveawaysPtBR = {
   myEventsFinalSync: 'última sincronização',
   myEventsPoolCount: '{count} no pool',
   myEventsCancelled: 'giveaway cancelado',
+  eventDetailActionTypesLabel: 'Métodos de entrada',
+  eventDetailHowToEnterChat: 'Envie este comando no chat ao vivo',
+  eventDetailHowToEnterVote: 'Vote durante a transmissão',
+  eventDetailHowToEnterSub: 'Novas inscrições no canal contam como entrada',
+  eventDetailHowToEnterGiftedSub: 'Inscrições presenteadas contam como entrada',
+  eventDetailHowToEnterFollow: 'Novos follows no canal contam como entrada',
+  eventDetailHowToEnterDonation: 'Doações durante a transmissão contam como entrada',
 } as const satisfies Record<PublicGiveawaysTranslationKey, string>;
