@@ -153,3 +153,25 @@ export interface ActionTierResponse {
   mode: string;
   createdAt: string;
 }
+
+export interface UpdateActionTiersRequest {
+  tiers: Array<{ actionType: string; threshold: number; entries: number; mode?: string }>;
+}
+
+export interface ApiErrorPayload {
+  code?: string;
+  message?: string;
+  detail?: string;
+  error?: string;
+}
+
+export class ApiError extends Error {
+  constructor(
+    public readonly status: number,
+    public readonly code: string,
+    message: string,
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
