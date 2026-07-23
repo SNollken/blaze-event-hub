@@ -10,7 +10,8 @@ public enum ActionType {
     SUB("sub"),
     GIFTED_SUB("gifted_sub"),
     FOLLOW("follow"),
-    DONATION("donation");
+    DONATION("donation"),
+    MANUAL("manual");
 
     private final String value;
 

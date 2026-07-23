@@ -78,6 +78,16 @@ public class EventController {
         return eventService.getParticipants(id, member.id());
     }
 
+    @PostMapping("/{id}/participants/manual")
+    ResponseEntity<EventParticipantResponse> addManualParticipant(
+            @PathVariable String id,
+            @Valid @RequestBody ManualParticipantRequest request) {
+        var member = memberService.getCurrentMember();
+        EventParticipantResponse response = eventService.addManualParticipant(
+                id, member.id(), request.blazeUsername());
+        return ResponseEntity.status(HttpStatus.CREATED).body(response);
+    }
+
     @PutMapping("/{id}")
     EventResponse updateEvent(@PathVariable String id,
             @Valid @RequestBody UpdateEventRequest request) {

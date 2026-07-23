@@ -116,15 +116,17 @@ public class EventService {
         eventStore.insert(event);
         actionRuleService.initializeDefaults(event.id());
         log.info("Giveaway criado: id={}, creator={}", event.id(), creatorMemberId);
-        return EventResponse.from(event);
+        return EventResponse.from(event, enabledActionTypes(event.id()));
     }
 
     public EventResponse getEvent(String eventId) {
-        return EventResponse.from(requireEvent(eventId));
+        Event event = requireEvent(eventId);
+        return EventResponse.from(event, enabledActionTypes(event.id()));
     }
 
     public EventResponse getVisibleEvent(String eventId, String viewerMemberId) {
-        return EventResponse.from(requireVisibleEvent(eventId, viewerMemberId));
+        Event event = requireVisibleEvent(eventId, viewerMemberId);
+        return EventResponse.from(event, enabledActionTypes(event.id()));
     }
 
     public List<EventResponse> listEvents(String statusFilter) {
@@ -135,18 +137,18 @@ public class EventService {
             }
             return eventStore.findByStatus(status).stream()
                     .filter(EventService::isPublicEvent)
-                    .map(EventResponse::from)
+                    .map(e -> EventResponse.from(e, enabledActionTypes(e.id())))
                     .toList();
         }
         return eventStore.findAll().stream()
                 .filter(EventService::isPublicEvent)
-                .map(EventResponse::from)
+                .map(e -> EventResponse.from(e, enabledActionTypes(e.id())))
                 .toList();
     }
 
     public List<EventResponse> findByCreatorMemberId(String memberId) {
         return eventStore.findByCreatorMemberId(memberId).stream()
-                .map(EventResponse::from)
+                .map(e -> EventResponse.from(e, enabledActionTypes(e.id())))
                 .toList();
     }
 
@@ -229,6 +231,28 @@ public class EventService {
     }
 
     @Transactional
+    public EventParticipantResponse addManualParticipant(String eventId, String memberId, String blazeUsername) {
+        requireEventOwnership(eventId, memberId);
+        String username = blazeUsername.trim();
+        Instant now = Instant.now(clock);
+        EventParticipant participant = new EventParticipant(
+                idGenerator.newId(),
+                eventId,
+                username,
+                username,
+                username,
+                null,
+                ActionType.MANUAL.value(),
+                1,
+                now,
+                now);
+        if (!participantStore.saveIfAbsent(participant)) {
+            throw new ConflictException("Participante '" + username + "' ja existe neste evento.");
+        }
+        return EventParticipantResponse.from(participant);
+    }
+
+    @Transactional
     public EventResponse updateEvent(String eventId, UpdateEventRequest request, String memberId) {
         Event event = eventStore.findByIdForUpdate(eventId)
                 .orElseThrow(() -> new NotFoundException("Evento nao encontrado: " + eventId));
@@ -286,7 +310,7 @@ public class EventService {
         if (eventStore.updateDraft(updated) != 1) {
             throw new ConflictException("O evento mudou de estado durante a edicao.");
         }
-        return EventResponse.from(updated);
+        return EventResponse.from(updated, enabledActionTypes(updated.id()));
     }
 
     @Transactional
@@ -317,7 +341,7 @@ public class EventService {
         assertOwner(event, memberId);
 
         if (event.status() == EventStatus.CLOSED || event.status() == EventStatus.COMPLETED) {
-            return new FinalizationStart(EventResponse.from(event), true, null);
+            return new FinalizationStart(EventResponse.from(event, enabledActionTypes(event.id())), true, null);
         }
         if (event.status() == EventStatus.FINALIZING) {
             throw new ConflictException("Este evento ja esta sendo finalizado.");
@@ -342,7 +366,7 @@ public class EventService {
                 .orElseThrow(() -> new NotFoundException("Evento nao encontrado: " + eventId));
         assertOwner(event, memberId);
         if (event.status() == EventStatus.CLOSED || event.status() == EventStatus.COMPLETED) {
-            return EventResponse.from(event);
+            return EventResponse.from(event, enabledActionTypes(event.id()));
         }
         if (event.status() != EventStatus.FINALIZING
                 || event.finalizationCutoffAt() == null
@@ -499,4 +523,9 @@ public class EventService {
         }
     }
 
+    private List<String> enabledActionTypes(String eventId) {
+        return actionRuleService.enabledTypes(eventId).stream()
+                .map(ActionType::value)
+                .toList();
+    }
 }
