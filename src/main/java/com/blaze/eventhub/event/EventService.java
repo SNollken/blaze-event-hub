@@ -231,26 +231,27 @@ public class EventService {
     }
 
     @Transactional
-    public EventParticipantResponse addManualParticipant(String eventId, String memberId, String blazeUsername) {
-        requireEventOwnership(eventId, memberId);
-        String username = blazeUsername.trim();
-        Instant now = Instant.now(clock);
-        EventParticipant participant = new EventParticipant(
-                idGenerator.newId(),
-                eventId,
-                username,
-                username,
-                username,
-                null,
-                ActionType.MANUAL.value(),
-                1,
-                now,
-                now);
-        if (!participantStore.saveIfAbsent(participant)) {
-            throw new ConflictException("Participante '" + username + "' ja existe neste evento.");
+        public EventParticipantResponse addManualParticipant(String eventId, String memberId, String blazeUsername) {
+            requireEventOwnership(eventId, memberId);
+            String username = blazeUsername.trim();
+            Instant now = Instant.now(clock);
+            EventParticipant participant = new EventParticipant(
+                    idGenerator.newId(),
+                    eventId,
+                    username,
+                    username,
+                    username,
+                    null,
+                    ActionType.MANUAL.value(),
+                    1,
+                    0,
+                    now,
+                    now);
+            if (!participantStore.saveIfAbsent(participant)) {
+                throw new ConflictException("Participante '" + username + "' ja existe neste evento.");
+            }
+            return EventParticipantResponse.from(participant);
         }
-        return EventParticipantResponse.from(participant);
-    }
 
     @Transactional
     public EventResponse updateEvent(String eventId, UpdateEventRequest request, String memberId) {

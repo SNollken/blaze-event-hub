@@ -1,4 +1,6 @@
 import type {
+  ActionRuleResponse,
+  ActionTierResponse,
   CreateEventRequest,
   EventHistoryResponse,
   EventLifecycleStats,
@@ -9,10 +11,14 @@ import type {
   OAuthActionResponse,
   OAuthSessionResponse,
   OAuthStartResponse,
+  UpdateActionRulesRequest,
+  UpdateActionTiersRequest,
   UpdateEventRequest,
 } from './types';
 
 export type {
+  ActionRuleResponse,
+  ActionTierResponse,
   CreateEventRequest,
   EventHistoryResponse,
   EventLifecycleStats,
@@ -23,6 +29,8 @@ export type {
   OAuthActionResponse,
   OAuthSessionResponse,
   OAuthStartResponse,
+  UpdateActionRulesRequest,
+  UpdateActionTiersRequest,
   UpdateEventRequest,
 };
 

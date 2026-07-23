@@ -80,6 +80,13 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
                 eventId, blazeUserId, actionType);
     }
 
+    @Override
+    public void updateEntryWeight(String eventId, String blazeUserId, int newWeight) {
+        jdbc.update(
+                "UPDATE event_participants SET entry_weight = ? WHERE event_id = ? AND blaze_user_id = ?",
+                newWeight, eventId, blazeUserId);
+    }
+
     private static final class ParticipantRowMapper implements RowMapper<EventParticipant> {
         @Override
         public EventParticipant mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -97,5 +104,4 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
                     rs.getTimestamp("created_at").toInstant());
         }
     }
-}
 }

@@ -10,13 +10,9 @@ public interface EventParticipantStore {
 
     int countByEventId(String eventId);
 
-    /**
-     * Retorna a contagem bruta de ações de um usuário para um evento e tipo de ação.
-     */
     int getRawActionCount(String eventId, String blazeUserId, String actionType);
 
-    /**
-     * Incrementa a contagem bruta de ações (usado quando usuário já existe como participante).
-     */
     void incrementRawActionCount(String eventId, String blazeUserId, String actionType);
+
+    void updateEntryWeight(String eventId, String blazeUserId, int newWeight);
 }

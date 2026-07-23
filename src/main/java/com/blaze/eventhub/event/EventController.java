@@ -19,6 +19,9 @@ import com.blaze.eventhub.blaze.BlazeChannelService;
 
 import jakarta.validation.Valid;
 
+import java.time.Instant;
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/events")
 public class EventController {
@@ -114,24 +117,56 @@ public class EventController {
     }
 
     @GetMapping("/{id}/action-rules")
-    List<EventActionRuleResponse> getActionRules(@PathVariable String id) {
-        var member = memberService.getCurrentMember();
-        eventService.getParticipants(id, member.id());
-        return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
-    }
+        List<EventActionRuleResponse> getActionRules(@PathVariable String id) {
+            var member = memberService.getCurrentMember();
+            eventService.getParticipants(id, member.id());
+            return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
+        }
 
-    @PutMapping("/{id}/action-rules")
-    List<EventActionRuleResponse> updateActionRules(
-            @PathVariable String id,
-            @RequestBody UpdateActionRulesRequest request) {
-        var member = memberService.getCurrentMember();
-        eventService.getParticipants(id, member.id());
-        List<ActionType> types = request.actionTypes().stream()
-                .map(ActionType::fromString)
-                .toList();
-        actionRuleService.replaceRules(id, types, request.weights());
-        return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
-    }
+        @GetMapping("/{id}/action-tiers")
+        List<EventActionTierResponse> getActionTiers(@PathVariable String id) {
+            var member = memberService.getCurrentMember();
+            eventService.getParticipants(id, member.id());
+            return EventActionTierResponse.fromList(actionRuleService.listTiers(id));
+        }
+
+        @PutMapping("/{id}/action-rules")
+        List<EventActionRuleResponse> updateActionRules(
+                @PathVariable String id,
+                @RequestBody UpdateActionRulesRequest request) {
+            var member = memberService.getCurrentMember();
+            eventService.getParticipants(id, member.id());
+            List<ActionType> types = request.actionTypes().stream()
+                    .map(ActionType::fromString)
+                    .toList();
+            actionRuleService.replaceRules(id, types, request.weights());
+            return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
+        }
+
+        @PutMapping("/{id}/action-tiers")
+        List<EventActionTierResponse> updateActionTiers(
+                @PathVariable String id,
+                @RequestBody UpdateActionTiersRequest request) {
+            var member = memberService.getCurrentMember();
+            eventService.getParticipants(id, member.id());
+        
+            for (ActionTierUpdate tierUpdate : request.tiers()) {
+                ActionType actionType = ActionType.fromString(tierUpdate.actionType());
+                List<EventActionTier> tiers = tierUpdate.tiers().stream()
+                        .map(t -> new EventActionTier(
+                                java.util.UUID.randomUUID().toString(),
+                                id,
+                                actionType,
+                                t.threshold(),
+                                t.entries(),
+                                t.tierOrder(),
+                                java.time.Instant.now()))
+                        .toList();
+                actionRuleService.replaceTiers(id, actionType, tiers);
+            }
+        
+            return EventActionTierResponse.fromList(actionRuleService.listTiers(id));
+        }
 
     private String currentMemberIdOrNull() {
         return memberService.findCurrentMember()

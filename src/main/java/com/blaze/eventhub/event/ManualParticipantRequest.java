@@ -4,5 +4,5 @@ import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Size;
 
 public record ManualParticipantRequest(
-        @NotBlank @Size(max = 200) String blazeUsername) {
+        @NotBlank @Size(max = 50) String blazeUsername) {
 }

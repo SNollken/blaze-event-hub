@@ -127,3 +127,29 @@ export interface EventResultResponse {
   participantCount: number;
   selectedAt: string;
 }
+
+export interface ActionRuleResponse {
+  id: string;
+  eventId: string;
+  actionType: string;
+  enabled: boolean;
+  weight: number;
+  mode: string;
+  createdAt: string;
+}
+
+export interface UpdateActionRulesRequest {
+  actionTypes: string[];
+  weights?: Record<string, number>;
+  mode?: string;
+}
+
+export interface ActionTierResponse {
+  id: string;
+  eventId: string;
+  actionType: string;
+  threshold: number;
+  entries: number;
+  mode: string;
+  createdAt: string;
+}

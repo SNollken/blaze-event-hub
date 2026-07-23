@@ -9,6 +9,7 @@ public record EventActionRuleResponse(
         String actionType,
         boolean enabled,
         int weight,
+        String mode,
         Instant createdAt) {
 
     public static EventActionRuleResponse from(EventActionRule rule) {
@@ -18,6 +19,7 @@ public record EventActionRuleResponse(
                 rule.actionType().value(),
                 rule.enabled(),
                 rule.weight(),
+                rule.mode().value(),
                 rule.createdAt());
     }
 
