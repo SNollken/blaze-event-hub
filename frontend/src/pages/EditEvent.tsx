@@ -3,12 +3,14 @@ import { ArrowRight, Ban, CircleStop, Radio, Save, ShieldCheck, Trophy } from 'l
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   cancelEvent,
+  getActionRules,
   finalizeEvent,
   getEvent,
   getEventParticipants,
   getEventStats,
   openEvent,
   updateEvent,
+  updateActionRules,
 } from '../api/client';
 import type { EventParticipantResponse, EventResponse, EventStatus } from '../api/types';
 import { Modal } from '../components/Modal';
@@ -17,6 +19,17 @@ import { getUserFacingErrorMessage } from '../errors/user-facing-error';
 import { useI18n } from '../i18n/I18nContext';
 import type { TranslationKey } from '../i18n/translations';
 import { defaultEntryCommand, normalizeXPostUrl } from '../utils/giveaway-form';
+
+const ACTION_TYPES = ['chat', 'vote', 'sub', 'gifted_sub', 'follow', 'donation'] as const;
+type ActionTypeValue = typeof ACTION_TYPES[number];
+const ACTION_LABELS: Record<ActionTypeValue, { label: string; desc: string }> = {
+  chat: { label: 'actionTypeChat', desc: 'actionTypeChatDescription' },
+  vote: { label: 'actionTypeVote', desc: 'actionTypeVoteDescription' },
+  sub: { label: 'actionTypeSub', desc: 'actionTypeSubDescription' },
+  gifted_sub: { label: 'actionTypeGiftedSub', desc: 'actionTypeGiftedSubDescription' },
+  follow: { label: 'actionTypeFollow', desc: 'actionTypeFollowDescription' },
+  donation: { label: 'actionTypeDonation', desc: 'actionTypeDonationDescription' },
+};
 
 type PendingAction = 'save' | 'open' | 'finalize' | 'cancel' | null;
 
@@ -238,6 +251,7 @@ export default function EditEvent() {
   const [entryCommand, setEntryCommand] = useState(() => defaultEntryCommand(lang));
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
+  const [enabledActionTypes, setEnabledActionTypes] = useState<ActionTypeValue[]>(['chat']);
   const [isLoading, setIsLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -279,6 +293,12 @@ export default function EditEvent() {
     getEvent(id)
       .then((loaded) => {
         if (active) applyEvent(loaded);
+        if (active) {
+          getActionRules(id).then((rules) => {
+            const enabled = rules.filter((r) => r.enabled).map((r) => r.actionType as ActionTypeValue);
+            setEnabledActionTypes(enabled.length > 0 ? enabled : ['chat']);
+          }).catch(() => {});
+        }
       })
       .catch((loadError) => {
         if (active) setError(getUserFacingErrorMessage(loadError, t('editLoadFallback')));
@@ -330,6 +350,9 @@ export default function EditEvent() {
       endsAt: toUpdateDate(endsAt),
     });
     applyEvent(updated);
+    if (id) {
+      await updateActionRules(id, enabledActionTypes).catch(() => {});
+    }
     return updated;
   };
 
@@ -516,6 +539,32 @@ export default function EditEvent() {
               </div>
             </div>
             {dateError && <span className="form-helper form-helper--err" role="alert">{dateError}</span>}
+          </section>
+
+          <section className="control-card">
+            <div className="section-label">{t('actionTypeLabel')}</div>
+            <p>{t('actionTypeDescription')}</p>
+            <div className="action-type-grid">
+              {ACTION_TYPES.map((type) => {
+                const keys = ACTION_LABELS[type];
+                return (
+                  <label key={type} className={`action-type-chip${enabledActionTypes.includes(type) ? ' is-active' : ''}`}>
+                    <input
+                      type="checkbox"
+                      checked={enabledActionTypes.includes(type)}
+                      onChange={() => {
+                        setEnabledActionTypes((prev) =>
+                          prev.includes(type) ? prev.filter((a) => a !== type) : [...prev, type]
+                        );
+                      }}
+                      disabled={busy}
+                    />
+                    <span className="action-type-chip__label">{t(keys.label as any)}</span>
+                    <span className="action-type-chip__desc">{t(keys.desc as any)}</span>
+                  </label>
+                );
+              })}
+            </div>
           </section>
 
           <section className="control-card manage-action-card">
