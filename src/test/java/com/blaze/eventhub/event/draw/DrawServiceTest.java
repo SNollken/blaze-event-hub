@@ -131,6 +131,8 @@ class DrawServiceTest {
                 blazeUserId,
                 displayName,
                 "message-" + blazeUserId,
+                "chat",
+                1,
                 NOW,
                 NOW);
     }
