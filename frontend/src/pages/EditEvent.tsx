@@ -23,12 +23,12 @@ import { defaultEntryCommand, normalizeXPostUrl } from '../utils/giveaway-form';
 const ACTION_TYPES = ['chat', 'vote', 'sub', 'gifted_sub', 'follow', 'donation'] as const;
 type ActionTypeValue = typeof ACTION_TYPES[number];
 const ACTION_LABELS: Record<ActionTypeValue, { label: string; desc: string }> = {
-  chat: { label: 'actionTypeChat', desc: 'actionTypeChatDescription' },
-  vote: { label: 'actionTypeVote', desc: 'actionTypeVoteDescription' },
-  sub: { label: 'actionTypeSub', desc: 'actionTypeSubDescription' },
-  gifted_sub: { label: 'actionTypeGiftedSub', desc: 'actionTypeGiftedSubDescription' },
-  follow: { label: 'actionTypeFollow', desc: 'actionTypeFollowDescription' },
-  donation: { label: 'actionTypeDonation', desc: 'actionTypeDonationDescription' },
+  chat: { label: 'participantActionChat', desc: 'actionTypeChatDescription' },
+  vote: { label: 'participantActionVote', desc: 'actionTypeVoteDescription' },
+  sub: { label: 'participantActionSub', desc: 'actionTypeSubDescription' },
+  gifted_sub: { label: 'participantActionGiftedSub', desc: 'actionTypeGiftedSubDescription' },
+  follow: { label: 'participantActionFollow', desc: 'actionTypeFollowDescription' },
+  donation: { label: 'participantActionDonation', desc: 'actionTypeDonationDescription' },
 };
 
 type PendingAction = 'save' | 'open' | 'finalize' | 'cancel' | null;
@@ -355,12 +355,7 @@ export default function EditEvent() {
     });
     applyEvent(updated);
     if (id) {
-      const actionTypes = enabledActionTypes.map((type) => ({
-        actionType: type,
-        enabled: true,
-        weight: actionWeights[type] ?? 1,
-      }));
-      await updateActionRules(id, actionTypes).catch(() => {});
+      await updateActionRules(id, enabledActionTypes, actionWeights).catch(() => {});
     }
     return updated;
   };
