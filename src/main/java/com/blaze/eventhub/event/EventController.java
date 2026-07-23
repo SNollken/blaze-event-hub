@@ -33,7 +33,8 @@ public class EventController {
             EventService eventService,
             EventFinalizationService finalizationService,
             MemberService memberService,
-            BlazeChannelService channelService) {
+            BlazeChannelService channelService,
+            EventActionRuleService actionRuleService) {
         this.eventService = eventService;
         this.finalizationService = finalizationService;
         this.memberService = memberService;
