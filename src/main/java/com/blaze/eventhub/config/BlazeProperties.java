@@ -28,6 +28,39 @@ public class BlazeProperties {
 	@Min(60_000)
 	private long chatHistoryCoverageMaxAgeMs = 25_200_000;
 
+	// Socket.IO configuration
+	@Min(1)
+	@Max(60)
+	private int socketReconnectIntervalSec = 10;
+	@Min(1)
+	@Max(300)
+	private int socketReconnectAttempts = 5;
+	private String socketUrl = "https://blaze.stream";
+
+	public String getSocketUrl() {
+		return socketUrl;
+	}
+
+	public void setSocketUrl(String socketUrl) {
+		this.socketUrl = clean(socketUrl);
+	}
+
+	public int getSocketReconnectIntervalSec() {
+		return socketReconnectIntervalSec;
+	}
+
+	public void setSocketReconnectIntervalSec(int socketReconnectIntervalSec) {
+		this.socketReconnectIntervalSec = socketReconnectIntervalSec;
+	}
+
+	public int getSocketReconnectAttempts() {
+		return socketReconnectAttempts;
+	}
+
+	public void setSocketReconnectAttempts(int socketReconnectAttempts) {
+		this.socketReconnectAttempts = socketReconnectAttempts;
+	}
+
 	public String getClientId() {
 		return clientId;
 	}
@@ -110,17 +143,20 @@ public class BlazeProperties {
 
 	@Override
 	public String toString() {
-		return "BlazeProperties{" +
-				"clientId='" + mask(clientId) + '\'' +
-				", clientSecret='[REDACTED]'" +
-				", redirectUri='" + redirectUri + '\'' +
-				", authBaseUrl='" + authBaseUrl + '\'' +
-				", apiBaseUrl='" + apiBaseUrl + '\'' +
-				", scopes=" + scopes +
-				", chatMessageLimit=" + chatMessageLimit +
-				", chatMaxPagesPerPoll=" + chatMaxPagesPerPoll +
-				", chatHistoryCoverageMaxAgeMs=" + chatHistoryCoverageMaxAgeMs +
-				'}';
+		return "BlazeProperties{"
+				+ "clientId='" + mask(clientId) + '\''
+				+ ", clientSecret='[REDACTED]'"
+				+ ", redirectUri='" + redirectUri + '\''
+				+ ", authBaseUrl='" + authBaseUrl + '\''
+				+ ", apiBaseUrl='" + apiBaseUrl + '\''
+				+ ", scopes=" + scopes
+				+ ", chatMessageLimit=" + chatMessageLimit
+				+ ", chatMaxPagesPerPoll=" + chatMaxPagesPerPoll
+				+ ", chatHistoryCoverageMaxAgeMs=" + chatHistoryCoverageMaxAgeMs
+				+ ", socketUrl='" + socketUrl + '\''
+				+ ", socketReconnectIntervalSec=" + socketReconnectIntervalSec
+				+ ", socketReconnectAttempts=" + socketReconnectAttempts
+				+ '}';
 	}
 
 	private static String clean(String value) {
