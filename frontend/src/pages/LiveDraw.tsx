@@ -373,7 +373,7 @@ export default function LiveDraw() {
                     <strong>{name}</strong>
                     {participant.blazeUsername && <small>@{participant.blazeUsername}</small>}
                   </span>
-                  <span className="dpi-entries" aria-label={t('drawOneChanceAria')}>1×</span>
+                  <span className="dpi-entries" aria-label={t('drawOneChanceAria')}>{participant.entryWeight}×</span>
                 </li>
               );
             })}
