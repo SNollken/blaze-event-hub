@@ -621,6 +621,7 @@ a.card {
 .pill--drawing { color: var(--accent-light); background: var(--accent-bg); }
 .pill--completed { color: var(--accent-light); background: var(--accent-bg); }
 .pill--cancelled { color: var(--danger); background: var(--danger-bg); }
+.pill--action-type { color: var(--accent-light); background: var(--accent-bg); }
 
 /* Buttons (OD style) */
 .btn {

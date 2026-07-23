@@ -32,12 +32,12 @@ const STATUS_CLASSES: Record<EventResponse['status'], string> = {
 };
 
 const ACTION_TYPE_CONFIG: Record<string, { label: TranslationKey; howTo: TranslationKey }> = {
-  chat: { label: 'actionTypeChat', howTo: 'eventDetailHowToEnterChat' },
-  vote: { label: 'actionTypeVote', howTo: 'eventDetailHowToEnterVote' },
-  sub: { label: 'actionTypeSub', howTo: 'eventDetailHowToEnterSub' },
-  gifted_sub: { label: 'actionTypeGiftedSub', howTo: 'eventDetailHowToEnterGiftedSub' },
-  follow: { label: 'actionTypeFollow', howTo: 'eventDetailHowToEnterFollow' },
-  donation: { label: 'actionTypeDonation', howTo: 'eventDetailHowToEnterDonation' },
+  chat: { label: 'eventDetailChatEnabled', howTo: 'eventDetailHowToEnterChat' },
+  vote: { label: 'eventDetailVoteEnabled', howTo: 'eventDetailHowToEnterVote' },
+  sub: { label: 'eventDetailSubEnabled', howTo: 'eventDetailHowToEnterSub' },
+  gifted_sub: { label: 'eventDetailGiftedSubEnabled', howTo: 'eventDetailHowToEnterGiftedSub' },
+  follow: { label: 'eventDetailFollowEnabled', howTo: 'eventDetailHowToEnterFollow' },
+  donation: { label: 'eventDetailDonationEnabled', howTo: 'eventDetailHowToEnterDonation' },
 };
 
 type LifecycleKey = 'created' | 'opened' | 'closed' | 'completed';
