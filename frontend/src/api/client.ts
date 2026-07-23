@@ -13,7 +13,6 @@ import type {
 } from './types';
 
 export type {
-  ActionTierResponse,
   CreateEventRequest,
   EventHistoryResponse,
   EventLifecycleStats,

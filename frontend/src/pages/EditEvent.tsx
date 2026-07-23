@@ -252,6 +252,7 @@ export default function EditEvent() {
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [enabledActionTypes, setEnabledActionTypes] = useState<ActionTypeValue[]>(['chat']);
+  const [actionWeights, setActionWeights] = useState<Record<string, number>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [pendingAction, setPendingAction] = useState<PendingAction>(null);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -297,6 +298,9 @@ export default function EditEvent() {
           getActionRules(id).then((rules) => {
             const enabled = rules.filter((r) => r.enabled).map((r) => r.actionType as ActionTypeValue);
             setEnabledActionTypes(enabled.length > 0 ? enabled : ['chat']);
+            const weights: Record<string, number> = {};
+            rules.forEach((r) => { weights[r.actionType] = r.weight ?? 1; });
+            setActionWeights(weights);
           }).catch(() => {});
         }
       })
@@ -351,7 +355,12 @@ export default function EditEvent() {
     });
     applyEvent(updated);
     if (id) {
-      await updateActionRules(id, enabledActionTypes).catch(() => {});
+      const actionTypes = enabledActionTypes.map((type) => ({
+        actionType: type,
+        enabled: true,
+        weight: actionWeights[type] ?? 1,
+      }));
+      await updateActionRules(id, actionTypes).catch(() => {});
     }
     return updated;
   };
@@ -547,11 +556,12 @@ export default function EditEvent() {
             <div className="action-type-grid">
               {ACTION_TYPES.map((type) => {
                 const keys = ACTION_LABELS[type];
+                const isEnabled = enabledActionTypes.includes(type);
                 return (
-                  <label key={type} className={`action-type-chip${enabledActionTypes.includes(type) ? ' is-active' : ''}`}>
+                  <label key={type} className={`action-type-chip${isEnabled ? ' is-active' : ''}`}>
                     <input
                       type="checkbox"
-                      checked={enabledActionTypes.includes(type)}
+                      checked={isEnabled}
                       onChange={() => {
                         setEnabledActionTypes((prev) =>
                           prev.includes(type) ? prev.filter((a) => a !== type) : [...prev, type]
@@ -561,6 +571,26 @@ export default function EditEvent() {
                     />
                     <span className="action-type-chip__label">{t(keys.label as any)}</span>
                     <span className="action-type-chip__desc">{t(keys.desc as any)}</span>
+                    {isEnabled && (
+                      <div className="action-type-chip__weight">
+                        <label htmlFor={`weight-${type}`}>{t('actionTypeWeightLabel')}</label>
+                        <input
+                          id={`weight-${type}`}
+                          type="number"
+                          min="1"
+                          max="100"
+                          value={actionWeights[type] ?? 1}
+                          onChange={(e) => {
+                            const val = parseInt(e.target.value, 10);
+                            if (!Number.isNaN(val)) {
+                              setActionWeights((prev) => ({ ...prev, [type]: val }));
+                            }
+                          }}
+                          disabled={busy}
+                          aria-label={t('actionTypeWeightAria', { type: t(keys.label as any) })}
+                        />
+                      </div>
+                    )}
                   </label>
                 );
               })}

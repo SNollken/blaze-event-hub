@@ -272,7 +272,14 @@ export const creatorGiveawaysEn = {
   actionTypeDonationDescription: 'Donations count as entries (manual)',
   actionTypeWeight: 'Weight',
 
-  tierThreshold: 'Threshold',
+    participantActionChat: 'Chat command',
+    participantActionVote: 'Vote',
+    participantActionSub: 'Subscription',
+    participantActionGiftedSub: 'Gifted subscription',
+    participantActionFollow: 'Follow',
+    participantActionDonation: 'Donation',
+
+    tierThreshold: 'Threshold',
   tierEntries: 'Entries',
   tierMode: 'Tier mode',
   tierModeReplace: 'Replace',

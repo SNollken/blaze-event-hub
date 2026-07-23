@@ -274,6 +274,13 @@ export const creatorGiveawaysPtBR = {
   actionTypeDonationDescription: 'Doações contam como entradas (manual)',
   actionTypeWeight: 'Peso',
 
+  participantActionChat: 'Comando no chat',
+  participantActionVote: 'Voto',
+  participantActionSub: 'Assinatura',
+  participantActionGiftedSub: 'Assinatura presente',
+  participantActionFollow: 'Seguir',
+  participantActionDonation: 'Doação',
+
   tierThreshold: 'Limite',
   tierEntries: 'Entradas',
   tierMode: 'Modo do tier',
