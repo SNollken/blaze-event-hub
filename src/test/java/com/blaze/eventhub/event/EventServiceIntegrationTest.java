@@ -274,6 +274,7 @@ class EventServiceIntegrationTest {
                 "viewer-001",
                 "viewer",
                 "Viewer",
+                "chat",
                 opened.openedAt().plusMillis(1)));
 
         EventLifecycleStats open = eventService.getEventStats(event.id());
@@ -340,6 +341,7 @@ class EventServiceIntegrationTest {
                 "viewer-001",
                 "viewer",
                 "Viewer One",
+                "chat",
                 opened.openedAt().plusMillis(1)));
 
         List<EventParticipantResponse> participants = eventService.getParticipants(event.id(), MEMBER_ID);
@@ -363,6 +365,7 @@ class EventServiceIntegrationTest {
                 "viewer-finalize-001",
                 "viewer",
                 "Viewer",
+                "chat",
                 opened.openedAt().plusMillis(1)));
 
         FinalizationStart start = eventService.beginFinalization(event.id(), MEMBER_ID);
@@ -391,6 +394,7 @@ class EventServiceIntegrationTest {
                 "viewer-fence-001",
                 "viewer-fence",
                 "Viewer Fence",
+                "chat",
                 opened.openedAt().plusMillis(1)));
 
         FinalizationStart staleAttempt = eventService.beginFinalization(event.id(), MEMBER_ID);

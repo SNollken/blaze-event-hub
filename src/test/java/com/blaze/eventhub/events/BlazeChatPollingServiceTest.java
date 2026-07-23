@@ -382,7 +382,7 @@ class BlazeChatPollingServiceTest {
             String message,
             Instant sentAt) {
         return new ChatEntryCandidate(
-                "channel-1", messageId, message, userId, userId, userId, sentAt);
+                "channel-1", messageId, message, userId, userId, userId, "chat", sentAt);
     }
 
     private static Event openEvent(String eventId, String command) {

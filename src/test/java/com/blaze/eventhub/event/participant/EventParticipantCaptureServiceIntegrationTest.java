@@ -67,6 +67,7 @@ class EventParticipantCaptureServiceIntegrationTest {
                 "viewer-blaze-001",
                 "viewer",
                 "Viewer One",
+                "chat",
                 event.openedAt().plusMillis(1));
 
         CaptureResult first = captureService.capture(candidate);
@@ -154,6 +155,7 @@ class EventParticipantCaptureServiceIntegrationTest {
                 "historical-viewer",
                 "historical-viewer",
                 "Historical Viewer",
+                "chat",
                 Instant.parse("2020-01-01T00:00:00Z"));
 
         CaptureResult result = captureService.capture(historicalMessage);
@@ -165,7 +167,8 @@ class EventParticipantCaptureServiceIntegrationTest {
     @Test
     void messageWithoutTimestampIsIgnoredToAvoidImportingOldChatHistory() {
         EventResponse event = createOpenEvent();
-        ChatEntryCandidate undatedMessage = new ChatEntryCandidate(
+        ChatEntryCandidate undatedMessage = new ChatEntryCandidate(,
+                "chat",
                 CHANNEL_ID, "undated-message", "!participar", "viewer", "viewer", "Viewer", null);
 
         CaptureResult result = captureService.capture(undatedMessage);
@@ -186,6 +189,7 @@ class EventParticipantCaptureServiceIntegrationTest {
                 blazeUserId,
                 blazeUserId,
                 blazeUserId,
+                "chat",
                 sentAt);
     }
 
