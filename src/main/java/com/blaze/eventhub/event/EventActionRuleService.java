@@ -3,6 +3,7 @@ package com.blaze.eventhub.event;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
@@ -10,18 +11,23 @@ import java.util.UUID;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.blaze.eventhub.event.participant.EventParticipant;
+
 /**
  * Serviço de regras de ação por evento.
  * Gerencia quais tipos de ação contam como entrada e com que peso.
+ * Suporta sistema de tiers/bônus com modos REPLACE ou ACCUMULATE.
  */
 @Service
 public class EventActionRuleService {
 
     private final EventActionRuleStore ruleStore;
+    private final EventActionTierStore tierStore;
     private final Clock clock;
 
-    public EventActionRuleService(EventActionRuleStore ruleStore, Clock clock) {
+    public EventActionRuleService(EventActionRuleStore ruleStore, EventActionTierStore tierStore, Clock clock) {
         this.ruleStore = ruleStore;
+        this.tierStore = tierStore;
         this.clock = clock;
     }
 
@@ -58,6 +64,78 @@ public class EventActionRuleService {
         return ruleStore.findByEventIdAndType(eventId, actionType)
                 .map(EventActionRule::weight)
                 .orElse(1);
+    }
+
+    /**
+     * Retorna o modo de acumulação de tiers para um tipo de ação.
+     */
+    public TierMode mode(String eventId, ActionType actionType) {
+        return ruleStore.findByEventIdAndType(eventId, actionType)
+                .map(EventActionRule::mode)
+                .orElse(TierMode.REPLACE);
+    }
+
+    // ========== TIER CRUD ==========
+
+    /**
+     * Lista todos os tiers de um evento.
+     */
+    public List<EventActionTier> listTiers(String eventId) {
+        return tierStore.findByEventId(eventId);
+    }
+
+    /**
+     * Lista os tiers de um evento para um tipo de ação específico.
+     */
+    public List<EventActionTier> listTiers(String eventId, ActionType actionType) {
+        return tierStore.findByEventIdAndType(eventId, actionType).stream()
+                .sorted(Comparator.comparingInt(EventActionTier::tierOrder))
+                .toList();
+    }
+
+    /**
+     * Salva os tiers para um evento e tipo de ação.
+     */
+    @Transactional
+    public void replaceTiers(String eventId, ActionType actionType, List<EventActionTier> tiers) {
+        tierStore.deleteByEventIdAndType(eventId, actionType);
+        if (!tiers.isEmpty()) {
+            tierStore.saveAll(tiers);
+        }
+    }
+
+    /**
+     * Calcula os entries baseados no tier applicable para a contagem de ações brutas.
+     * @param actionType tipo de ação
+     * @param rawCount contagem bruta de ações do usuário
+     * @param tiers tiers configurados (já ordenados por tierOrder)
+     * @param mode modo de acumulação (REPLACE ou ACCUMULATE)
+     * @return entries calculados
+     */
+    public int calculateEntries(ActionType actionType, int rawCount, List<EventActionTier> tiers, TierMode mode) {
+        if (tiers.isEmpty() || rawCount <= 0) {
+            return 1; // padrão: 1 entry se não há tiers
+        }
+
+        if (mode == TierMode.ACCUMULATE) {
+            // ACCUMULATE: soma todos os tiers atingidos
+            int total = 0;
+            for (EventActionTier tier : tiers) {
+                if (rawCount >= tier.threshold()) {
+                    total += tier.entries();
+                }
+            }
+            return total > 0 ? total : 1;
+        } else {
+            // REPLACE: maior tier substitui os menores
+            int highestEntries = 1;
+            for (EventActionTier tier : tiers) {
+                if (rawCount >= tier.threshold()) {
+                    highestEntries = tier.entries();
+                }
+            }
+            return highestEntries;
+        }
     }
 
     /**

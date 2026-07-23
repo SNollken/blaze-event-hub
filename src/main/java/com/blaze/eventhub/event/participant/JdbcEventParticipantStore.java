@@ -27,8 +27,8 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
             return jdbc.update("""
                     INSERT INTO event_participants (
                         id, event_id, blaze_user_id, blaze_username, display_name,
-                        source_message_id, action_type, entry_weight, entered_at, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+                        source_message_id, action_type, entry_weight, raw_action_count, entered_at, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     participant.id(),
                     participant.eventId(),
@@ -38,6 +38,7 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
                     participant.sourceMessageId(),
                     participant.actionType() != null ? participant.actionType() : "chat",
                     participant.entryWeight() > 0 ? participant.entryWeight() : 1,
+                    participant.rawActionCount(),
                     Timestamp.from(participant.enteredAt()),
                     Timestamp.from(participant.createdAt())) == 1;
         } catch (DuplicateKeyException duplicate) {
@@ -63,6 +64,22 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
         return count != null ? count : 0;
     }
 
+    @Override
+    public int getRawActionCount(String eventId, String blazeUserId, String actionType) {
+        Integer count = jdbc.queryForObject(
+                "SELECT raw_action_count FROM event_participants WHERE event_id = ? AND blaze_user_id = ? AND action_type = ?",
+                Integer.class,
+                eventId, blazeUserId, actionType);
+        return count != null ? count : 0;
+    }
+
+    @Override
+    public void incrementRawActionCount(String eventId, String blazeUserId, String actionType) {
+        jdbc.update(
+                "UPDATE event_participants SET raw_action_count = raw_action_count + 1 WHERE event_id = ? AND blaze_user_id = ? AND action_type = ?",
+                eventId, blazeUserId, actionType);
+    }
+
     private static final class ParticipantRowMapper implements RowMapper<EventParticipant> {
         @Override
         public EventParticipant mapRow(ResultSet rs, int rowNum) throws SQLException {
@@ -75,8 +92,10 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
                     rs.getString("source_message_id"),
                     rs.getString("action_type") != null ? rs.getString("action_type") : "chat",
                     rs.getInt("entry_weight"),
+                    rs.getInt("raw_action_count"),
                     rs.getTimestamp("entered_at").toInstant(),
                     rs.getTimestamp("created_at").toInstant());
         }
     }
+}
 }

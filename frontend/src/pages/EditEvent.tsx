@@ -204,7 +204,7 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
                 <div>
                   <strong>{participant.displayName || participant.blazeUsername}</strong>
                   {participant.blazeUsername && <small>@{participant.blazeUsername}</small>}
-                  <span className="participant-action-badge">{t((ACTION_LABELS[participant.actionType as ActionTypeValue]?.label ?? 'actionTypeChat') as TranslationKey)}</span>
+                  <span className="participant-action-badge">{t((ACTION_LABELS[participant.actionType as ActionTypeValue]?.label ?? 'participantActionChat') as TranslationKey)}</span>
                 </div>
                 <time dateTime={participant.enteredAt}>{formatDate(participant.enteredAt, lang, unavailableDate)}</time>
               </li>

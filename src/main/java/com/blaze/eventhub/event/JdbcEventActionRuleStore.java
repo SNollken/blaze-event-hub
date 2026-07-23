@@ -25,6 +25,7 @@ public class JdbcEventActionRuleStore implements EventActionRuleStore {
                     ActionType.fromString(rs.getString("action_type")),
                     rs.getBoolean("enabled"),
                     rs.getInt("weight"),
+                    TierMode.fromString(rs.getString("mode")),
                     rs.getTimestamp("created_at").toInstant()
             );
 
@@ -50,13 +51,13 @@ public class JdbcEventActionRuleStore implements EventActionRuleStore {
     @Override
     public void save(EventActionRule rule) {
         jdbc.update("""
-                INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, mode, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (event_id, action_type)
-                DO UPDATE SET enabled = EXCLUDED.enabled, weight = EXCLUDED.weight
+                DO UPDATE SET enabled = EXCLUDED.enabled, weight = EXCLUDED.weight, mode = EXCLUDED.mode
                 """,
                 rule.id(), rule.eventId(), rule.actionType().value(),
-                rule.enabled(), rule.weight(),
+                rule.enabled(), rule.weight(), rule.mode().value(),
                 Timestamp.from(rule.createdAt()));
     }
 
@@ -66,10 +67,10 @@ public class JdbcEventActionRuleStore implements EventActionRuleStore {
             return;
         }
         String sql = """
-                INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, created_at)
-                VALUES (?, ?, ?, ?, ?, ?)
+                INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, mode, created_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
                 ON CONFLICT (event_id, action_type)
-                DO UPDATE SET enabled = EXCLUDED.enabled, weight = EXCLUDED.weight
+                DO UPDATE SET enabled = EXCLUDED.enabled, weight = EXCLUDED.weight, mode = EXCLUDED.mode
                 """;
         jdbc.batchUpdate(sql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
             @Override
@@ -80,7 +81,8 @@ public class JdbcEventActionRuleStore implements EventActionRuleStore {
                 ps.setString(3, rule.actionType().value());
                 ps.setBoolean(4, rule.enabled());
                 ps.setInt(5, rule.weight());
-                ps.setTimestamp(6, Timestamp.from(rule.createdAt()));
+                ps.setString(6, rule.mode().value());
+                ps.setTimestamp(7, Timestamp.from(rule.createdAt()));
             }
 
             @Override

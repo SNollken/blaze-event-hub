@@ -1,9 +1,9 @@
 package com.blaze.eventhub.event;
 
 /**
- * Modo de acumulação de tiers para um tipo de ação.
- * REPLACE: tier mais alto substitui o anterior (ex: 10 votos=1e, 30 votos=5e -> 30 votos = 5 entradas total)
- * ACCUMULATE: tiers se acumulam (ex: 10 votos=1e, 30 votos=5e -> 30 votos = 6 entradas total)
+ * Modo de acumulação de tiers (níveis de bônus) para um tipo de ação.
+ * REPLACE: atingir um tier maior substitui o menor (ex: 10 votos=1e, 30 votos=5e -> 30 votos = 5 entradas total)
+ * ACCUMULATE: tiers se somam (ex: 10 votos=1e, 30 votos=5e -> 30 votos = 1+5 = 6 entradas total)
  */
 public enum TierMode {
     REPLACE("replace"),

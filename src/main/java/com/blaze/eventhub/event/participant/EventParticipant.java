@@ -11,6 +11,7 @@ public record EventParticipant(
         String sourceMessageId,
         String actionType,
         int entryWeight,
+        int rawActionCount,
         Instant enteredAt,
         Instant createdAt) {
 }
