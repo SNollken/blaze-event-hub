@@ -3,6 +3,9 @@ package com.blaze.eventhub.event;
 import java.time.Instant;
 import java.util.List;
 
+/**
+ * Response DTO para tier de ação.
+ */
 public record EventActionTierResponse(
         String id,
         String eventId,
@@ -10,20 +13,13 @@ public record EventActionTierResponse(
         int threshold,
         int entries,
         int tierOrder,
-        Instant createdAt) {
-
-    public static EventActionTierResponse from(EventActionTier tier) {
-        return new EventActionTierResponse(
-                tier.id(),
-                tier.eventId(),
-                tier.actionType().value(),
-                tier.threshold(),
-                tier.entries(),
-                tier.tierOrder(),
-                tier.createdAt());
-    }
-
+        Instant createdAt
+) {
     public static List<EventActionTierResponse> fromList(List<EventActionTier> tiers) {
-        return tiers.stream().map(EventActionTierResponse::from).toList();
+        return tiers.stream()
+                .map(t -> new EventActionTierResponse(
+                        t.id(), t.eventId(), t.actionType().value(),
+                        t.threshold(), t.entries(), t.tierOrder(), t.createdAt()))
+                .toList();
     }
 }

@@ -8,9 +8,11 @@ import java.util.Map;
  */
 public record UpdateActionRulesRequest(
         List<String> actionTypes,
-        Map<String, Integer> weights
+        Map<String, Integer> weights,
+        Map<String, String> modes
 ) {
     public UpdateActionRulesRequest {
         if (weights == null) weights = Map.of();
+        if (modes == null) modes = Map.of();
     }
 }

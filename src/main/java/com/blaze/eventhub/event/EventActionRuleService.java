@@ -143,7 +143,7 @@ public class EventActionRuleService {
      * Substitui todas as regras existentes.
      */
     @Transactional
-    public void replaceRules(String eventId, List<ActionType> enabledTypes, Map<String, Integer> weights) {
+    public void replaceRules(String eventId, List<ActionType> enabledTypes, Map<String, Integer> weights, Map<String, String> modes) {
         ruleStore.deleteByEventId(eventId);
 
         Instant now = Instant.now(clock);
@@ -151,15 +151,26 @@ public class EventActionRuleService {
         for (ActionType type : ActionType.values()) {
             boolean enabled = enabledTypes.contains(type);
             int w = weights.getOrDefault(type.name(), 1);
+            TierMode mode = TierMode.fromString(modes.getOrDefault(type.name(), "REPLACE"));
             rules.add(new EventActionRule(
                     UUID.randomUUID().toString(),
                     eventId,
                     type,
                     enabled,
                     w,
+                    mode,
                     now));
         }
         ruleStore.saveAll(rules);
+    }
+
+    /**
+     * Salva as regras de ação para um evento.
+     * Substitui todas as regras existentes (compatibilidade com versão anterior).
+     */
+    @Transactional
+    public void replaceRules(String eventId, List<ActionType> enabledTypes, Map<String, Integer> weights) {
+        replaceRules(eventId, enabledTypes, weights, Map.of());
     }
 
     /**
