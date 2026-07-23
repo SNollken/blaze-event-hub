@@ -49,6 +49,9 @@ export default function CreateEvent() {
   const [xPostUrl, setXPostUrl] = useState('');
   const [entryCommand, setEntryCommand] = useState(() => defaultEntryCommand(lang));
   const [enabledActionTypes, setEnabledActionTypes] = useState<ActionTypeValue[]>(['chat']);
+  const [actionWeights, setActionWeights] = useState<Record<ActionTypeValue, number>>({
+    chat: 1, vote: 1, sub: 1, gifted_sub: 1, follow: 1, donation: 1,
+  });
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -112,7 +115,7 @@ export default function CreateEvent() {
     if (xPostUrl.trim() && !normalizeXPostUrl(xPostUrl)) {
       next.xPostUrl = t('createXPostInvalid');
     }
-    if (!/^![\p{L}\p{N}][\p{L}\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
+    if (enabledActionTypes.includes('chat') && !/^![\\p{L}\\p{N}][\\p{L}\\p{N}_-]{0,78}$/u.test(entryCommand.trim())) {
       next.entryCommand = t('createCommandInvalid');
     }
     return next;
@@ -173,7 +176,9 @@ export default function CreateEvent() {
         endsAt: toIsoDate(endsAt),
       });
       if (enabledActionTypes.length > 0) {
-        await updateActionRules(created.id, enabledActionTypes);
+        const weights: Record<string, number> = {};
+        enabledActionTypes.forEach((type) => { weights[type] = actionWeights[type]; });
+        await updateActionRules(created.id, enabledActionTypes, weights);
       }
       addToast('success', t('createSuccessToast'));
       navigate(`/events/${created.id}/manage`);
@@ -299,6 +304,7 @@ export default function CreateEvent() {
           </div>
         </section>
 
+        {enabledActionTypes.includes('chat') && (
         <section className="create-sheet create-sheet--signal" data-index="02">
           <div className="section-label">{t('createEntrySignal')}</div>
           <p>{t('createEntrySignalDescription')}</p>
@@ -320,11 +326,10 @@ export default function CreateEvent() {
               autoComplete="off"
               spellCheck={false}
               disabled={isSubmitting}
-              required
+              required={enabledActionTypes.includes('chat')}
             />
             {fieldErrors.entryCommand && <span id="event-command-error" className="form-helper form-helper--err" role="alert">{fieldErrors.entryCommand}</span>}
           </div>
-
           <div className="connected-channel-card" role="group" aria-label={t('createConnectedChannelAria')}>
             <span className="connected-channel-card__avatar" aria-hidden="true">
               {member?.avatarUrl
@@ -340,6 +345,7 @@ export default function CreateEvent() {
             </div>
           </div>
         </section>
+        )}
 
         <section className="create-sheet create-sheet--actions" data-index="03">
           <div className="section-label">{t('actionTypeLabel')}</div>
@@ -361,6 +367,21 @@ export default function CreateEvent() {
                   />
                   <span className="action-type-chip__label">{t(keys.label as any)}</span>
                   <span className="action-type-chip__desc">{t(keys.desc as any)}</span>
+                  {enabledActionTypes.includes(type) && (
+                    <input
+                      type="number"
+                      className="action-type-chip__weight"
+                      value={actionWeights[type]}
+                      min={1}
+                      max={100}
+                      onChange={(e) => {
+                        const v = Math.max(1, Math.min(100, Number(e.target.value) || 1));
+                        setActionWeights((prev) => ({ ...prev, [type]: v }));
+                      }}
+                      disabled={isSubmitting}
+                      aria-label={`${t(keys.label as any)} ${t('actionTypeWeight')}`}
+                    />
+                  )}
                 </label>
               );
             })}

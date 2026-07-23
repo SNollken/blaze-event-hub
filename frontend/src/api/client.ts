@@ -184,7 +184,7 @@ export const getActionRules = (id: string) => request<ActionRuleResponse[]>(
   `/api/events/${encodeURIComponent(id)}/action-rules`,
 );
 
-export const updateActionRules = (id: string, actionTypes: string[]) => request<ActionRuleResponse[]>(
+export const updateActionRules = (id: string, actionTypes: string[], weights?: Record<string, number>) => request<ActionRuleResponse[]>(
   `/api/events/${encodeURIComponent(id)}/action-rules`,
-  { method: 'PUT', body: JSON.stringify({ actionTypes }) },
+  { method: 'PUT', body: JSON.stringify({ actionTypes, ...weights && { weights } }) },
 );

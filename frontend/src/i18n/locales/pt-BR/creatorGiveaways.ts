@@ -272,4 +272,5 @@ export const creatorGiveawaysPtBR = {
   actionTypeFollowDescription: 'Novos follows contam como entradas',
   actionTypeDonation: 'Doação',
   actionTypeDonationDescription: 'Doações contam como entradas (manual)',
+  actionTypeWeight: 'Peso',
 } as const satisfies Record<CreatorGiveawaysTranslationKey, string>;

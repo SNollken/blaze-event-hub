@@ -270,6 +270,7 @@ export const creatorGiveawaysEn = {
   actionTypeFollowDescription: 'New follows count as entries',
   actionTypeDonation: 'Donation',
   actionTypeDonationDescription: 'Donations count as entries (manual)',
+  actionTypeWeight: 'Weight',
 } as const;
 
 export type CreatorGiveawaysTranslationKey = keyof typeof creatorGiveawaysEn;
