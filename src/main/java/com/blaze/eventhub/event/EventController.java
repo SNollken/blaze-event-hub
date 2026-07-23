@@ -131,17 +131,17 @@ public class EventController {
         }
 
         @PutMapping("/{id}/action-rules")
-        List<EventActionRuleResponse> updateActionRules(
-                @PathVariable String id,
-                @RequestBody UpdateActionRulesRequest request) {
-            var member = memberService.getCurrentMember();
-            eventService.getParticipants(id, member.id());
-            List<ActionType> types = request.actionTypes().stream()
-                    .map(ActionType::fromString)
-                    .toList();
-            actionRuleService.replaceRules(id, types, request.weights());
-            return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
-        }
+            List<EventActionRuleResponse> updateActionRules(
+                    @PathVariable String id,
+                    @RequestBody UpdateActionRulesRequest request) {
+                var member = memberService.getCurrentMember();
+                eventService.getParticipants(id, member.id());
+                List<ActionType> types = request.actionTypes().stream()
+                        .map(ActionType::fromString)
+                        .toList();
+                actionRuleService.replaceRules(id, types, request.weights(), request.modes());
+                return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
+            }
 
         @PutMapping("/{id}/action-tiers")
         List<EventActionTierResponse> updateActionTiers(
