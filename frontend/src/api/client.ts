@@ -15,6 +15,7 @@ import type {
   UpdateActionTiersRequest,
   UpdateEventRequest,
 } from './types';
+import { ApiError } from './types';
 
 export type {
   ActionRuleResponse,
@@ -33,6 +34,7 @@ export type {
   UpdateActionTiersRequest,
   UpdateEventRequest,
 };
+export { ApiError };
 
 interface ApiErrorPayload {
   code?: string;
@@ -43,17 +45,6 @@ interface ApiErrorPayload {
 
 type ApiEvent = Omit<EventResponse, 'status'> & { status: string };
 type ApiStats = Omit<EventLifecycleStats, 'status'> & { status: string };
-
-export class ApiError extends Error {
-  constructor(
-    public readonly status: number,
-    public readonly code: string,
-    message: string,
-  ) {
-    super(message);
-    this.name = 'ApiError';
-  }
-}
 
 async function request<T>(url: string, options: RequestInit = {}): Promise<T> {
   const headers = new Headers(options.headers);
@@ -179,16 +170,6 @@ export const getEventResult = (id: string) => request<EventResultResponse>(
   `/api/events/${encodeURIComponent(id)}/winner`,
 );
 
-export interface ActionRuleResponse {
-  id: string;
-  eventId: string;
-  actionType: string;
-  enabled: boolean;
-  weight: number;
-  mode: string;
-  createdAt: string;
-}
-
 export const getActionRules = (id: string) => request<ActionRuleResponse[]>(
   `/api/events/${encodeURIComponent(id)}/action-rules`,
 );
@@ -197,16 +178,6 @@ export const updateActionRules = (id: string, actionTypes: string[], weights?: R
   `/api/events/${encodeURIComponent(id)}/action-rules`,
   { method: 'PUT', body: JSON.stringify({ actionTypes, ...weights && { weights }, ...(mode && { mode }) }) },
 );
-
-export interface ActionTierResponse {
-  id: string;
-  eventId: string;
-  actionType: string;
-  threshold: number;
-  entries: number;
-  mode: string;
-  createdAt: string;
-}
 
 export const getActionTiers = (id: string) => request<ActionTierResponse[]>(
   `/api/events/${encodeURIComponent(id)}/action-tiers`,
