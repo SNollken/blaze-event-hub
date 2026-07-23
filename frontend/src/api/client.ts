@@ -13,6 +13,7 @@ import type {
 } from './types';
 
 export type {
+  ActionTierResponse,
   CreateEventRequest,
   EventHistoryResponse,
   EventLifecycleStats,
@@ -177,6 +178,7 @@ export interface ActionRuleResponse {
   actionType: string;
   enabled: boolean;
   weight: number;
+  mode: string;
   createdAt: string;
 }
 
@@ -184,7 +186,29 @@ export const getActionRules = (id: string) => request<ActionRuleResponse[]>(
   `/api/events/${encodeURIComponent(id)}/action-rules`,
 );
 
-export const updateActionRules = (id: string, actionTypes: string[], weights?: Record<string, number>) => request<ActionRuleResponse[]>(
+export const updateActionRules = (id: string, actionTypes: string[], weights?: Record<string, number>, mode?: string) => request<ActionRuleResponse[]>(
   `/api/events/${encodeURIComponent(id)}/action-rules`,
-  { method: 'PUT', body: JSON.stringify({ actionTypes, ...weights && { weights } }) },
+  { method: 'PUT', body: JSON.stringify({ actionTypes, ...weights && { weights }, ...(mode && { mode }) }) },
+);
+
+export interface ActionTierResponse {
+  id: string;
+  eventId: string;
+  actionType: string;
+  threshold: number;
+  entries: number;
+  mode: string;
+  createdAt: string;
+}
+
+export const getActionTiers = (id: string) => request<ActionTierResponse[]>(
+  `/api/events/${encodeURIComponent(id)}/action-tiers`,
+);
+
+export const updateActionTiers = (
+  id: string,
+  tiers: Array<{ actionType: string; threshold: number; entries: number; mode?: string }>,
+) => request<ActionTierResponse[]>(
+  `/api/events/${encodeURIComponent(id)}/action-tiers`,
+  { method: 'PUT', body: JSON.stringify({ tiers }) },
 );

@@ -273,4 +273,11 @@ export const creatorGiveawaysPtBR = {
   actionTypeDonation: 'Doação',
   actionTypeDonationDescription: 'Doações contam como entradas (manual)',
   actionTypeWeight: 'Peso',
+
+  tierThreshold: 'Limite',
+  tierEntries: 'Entradas',
+  tierMode: 'Modo do tier',
+  tierModeReplace: 'Substituir',
+  tierModeAccumulate: 'Acumular',
+  tierExample: 'Exemplo: 10 subs = 20 entradas',
 } as const satisfies Record<CreatorGiveawaysTranslationKey, string>;

@@ -271,6 +271,13 @@ export const creatorGiveawaysEn = {
   actionTypeDonation: 'Donation',
   actionTypeDonationDescription: 'Donations count as entries (manual)',
   actionTypeWeight: 'Weight',
+
+  tierThreshold: 'Threshold',
+  tierEntries: 'Entries',
+  tierMode: 'Tier mode',
+  tierModeReplace: 'Replace',
+  tierModeAccumulate: 'Accumulate',
+  tierExample: 'Example: 10 subs = 20 entries',
 } as const;
 
 export type CreatorGiveawaysTranslationKey = keyof typeof creatorGiveawaysEn;
