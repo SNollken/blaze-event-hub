@@ -4,6 +4,7 @@ import java.time.Clock;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -64,19 +65,20 @@ public class EventActionRuleService {
      * Substitui todas as regras existentes.
      */
     @Transactional
-    public void replaceRules(String eventId, List<ActionType> enabledTypes) {
+    public void replaceRules(String eventId, List<ActionType> enabledTypes, Map<String, Integer> weights) {
         ruleStore.deleteByEventId(eventId);
 
         Instant now = Instant.now(clock);
         List<EventActionRule> rules = new ArrayList<>();
         for (ActionType type : ActionType.values()) {
             boolean enabled = enabledTypes.contains(type);
+            int w = weights.getOrDefault(type.name(), 1);
             rules.add(new EventActionRule(
                     UUID.randomUUID().toString(),
                     eventId,
                     type,
                     enabled,
-                    1,
+                    w,
                     now));
         }
         ruleStore.saveAll(rules);
@@ -87,6 +89,6 @@ public class EventActionRuleService {
      * Por padrão, apenas CHAT está habilitado.
      */
     public void initializeDefaults(String eventId) {
-        replaceRules(eventId, List.of(ActionType.CHAT));
+        replaceRules(eventId, List.of(ActionType.CHAT), Map.of());
     }
 }

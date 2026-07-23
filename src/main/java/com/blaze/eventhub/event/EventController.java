@@ -119,7 +119,7 @@ public class EventController {
         List<ActionType> types = request.actionTypes().stream()
                 .map(ActionType::fromString)
                 .toList();
-        actionRuleService.replaceRules(id, types);
+        actionRuleService.replaceRules(id, types, request.weights());
         return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
     }
 
