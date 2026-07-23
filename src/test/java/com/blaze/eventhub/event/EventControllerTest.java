@@ -23,8 +23,9 @@ class EventControllerTest {
         EventFinalizationService finalizationService = mock(EventFinalizationService.class);
         MemberService memberService = mock(MemberService.class);
         BlazeChannelService channelService = mock(BlazeChannelService.class);
+        EventActionRuleService actionRuleService = mock(EventActionRuleService.class);
         EventController controller = new EventController(
-                eventService, finalizationService, memberService, channelService);
+                eventService, finalizationService, memberService, channelService, actionRuleService);
         Member member = new Member(
                 "member-1", "user-1", "creator", "Creator", null, "active",
                 Instant.EPOCH, Instant.EPOCH);
