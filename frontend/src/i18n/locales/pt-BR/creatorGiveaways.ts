@@ -273,6 +273,8 @@ export const creatorGiveawaysPtBR = {
   actionTypeDonation: 'Doação',
   actionTypeDonationDescription: 'Doações contam como entradas (manual)',
   actionTypeWeight: 'Peso',
+  actionTypeWeightLabel: 'Peso',
+  actionTypeWeightAria: 'Peso para {type}',
 
   participantActionChat: 'Comando no chat',
   participantActionVote: 'Voto',
