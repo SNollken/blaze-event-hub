@@ -255,6 +255,21 @@ export const creatorGiveawaysEn = {
   studioKeepConnected: 'Keep connected',
   studioDisconnecting: 'Disconnecting...',
   studioDisconnectWarning: 'Open captures will be unable to continue reading chat until an account is connected again.',
+
+  actionTypeLabel: 'Entry actions',
+  actionTypeDescription: 'Choose which actions count as entries in this giveaway. Each action type is captured automatically when the event is open.',
+  actionTypeChat: 'Chat command',
+  actionTypeChatDescription: 'Users type a command in chat to enter',
+  actionTypeVote: 'Vote',
+  actionTypeVoteDescription: 'Each vote counts as an entry',
+  actionTypeSub: 'Subscription',
+  actionTypeSubDescription: 'New subscriptions count as entries',
+  actionTypeGiftedSub: 'Gifted subscription',
+  actionTypeGiftedSubDescription: 'Gifted subs count as entries',
+  actionTypeFollow: 'Follow',
+  actionTypeFollowDescription: 'New follows count as entries',
+  actionTypeDonation: 'Donation',
+  actionTypeDonationDescription: 'Donations count as entries (manual)',
 } as const;
 
 export type CreatorGiveawaysTranslationKey = keyof typeof creatorGiveawaysEn;

@@ -53,6 +53,7 @@ export interface EventResponse {
   status: EventStatus;
   finalizedParticipantCount: number;
   finalizedPoolHash: string | null;
+  enabledActionTypes: string[];
   startsAt: string | null;
   endsAt: string | null;
   createdAt: string;
@@ -111,6 +112,8 @@ export interface EventParticipantResponse {
   blazeUserId: string;
   blazeUsername: string | null;
   displayName: string;
+  actionType: string;
+  entryWeight: number;
   enteredAt: string;
 }
 

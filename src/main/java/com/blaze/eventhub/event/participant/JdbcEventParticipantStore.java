@@ -27,8 +27,8 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
             return jdbc.update("""
                     INSERT INTO event_participants (
                         id, event_id, blaze_user_id, blaze_username, display_name,
-                        source_message_id, entered_at, created_at)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+                        source_message_id, action_type, entry_weight, entered_at, created_at)
+                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """,
                     participant.id(),
                     participant.eventId(),
@@ -36,6 +36,8 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
                     participant.blazeUsername(),
                     participant.displayName(),
                     participant.sourceMessageId(),
+                    participant.actionType() != null ? participant.actionType() : "chat",
+                    participant.entryWeight() > 0 ? participant.entryWeight() : 1,
                     Timestamp.from(participant.enteredAt()),
                     Timestamp.from(participant.createdAt())) == 1;
         } catch (DuplicateKeyException duplicate) {
@@ -71,6 +73,8 @@ public class JdbcEventParticipantStore implements EventParticipantStore {
                     rs.getString("blaze_username"),
                     rs.getString("display_name"),
                     rs.getString("source_message_id"),
+                    rs.getString("action_type") != null ? rs.getString("action_type") : "chat",
+                    rs.getInt("entry_weight"),
                     rs.getTimestamp("entered_at").toInstant(),
                     rs.getTimestamp("created_at").toInstant());
         }

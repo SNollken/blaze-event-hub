@@ -817,3 +817,63 @@ a.card {
     min-height: 44px;
   }
 }
+
+/* Action type selector */
+.action-type-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 10px;
+  margin-top: 8px;
+}
+
+.action-type-chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 12px;
+  border: 1px solid var(--border, rgba(255,255,255,0.08));
+  border-radius: var(--r-md, 8px);
+  cursor: pointer;
+  transition: border-color 0.15s, background 0.15s;
+  background: var(--surface, rgba(255,255,255,0.03));
+}
+
+.action-type-chip:hover {
+  border-color: var(--accent, #5e6ad2);
+}
+
+.action-type-chip.is-active {
+  border-color: var(--accent, #5e6ad2);
+  background: rgba(94, 106, 210, 0.08);
+}
+
+.action-type-chip input[type="checkbox"] {
+  display: none;
+}
+
+.action-type-chip__label {
+  font-weight: 600;
+  font-size: 0.875rem;
+  color: var(--text, #e4e4e7);
+}
+
+.action-type-chip__desc {
+  font-size: 0.75rem;
+  color: var(--text-muted, #71717a);
+  line-height: 1.3;
+}
+
+/* Participant action type badge */
+.participant-action-badge {
+  display: inline-block;
+  font-size: 0.65rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  padding: 2px 6px;
+  border-radius: 4px;
+  background: rgba(94, 106, 210, 0.12);
+  color: var(--accent, #5e6ad2);
+  margin-left: 6px;
+  vertical-align: middle;
+}

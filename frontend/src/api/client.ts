@@ -170,3 +170,21 @@ export const executeDraw = (id: string) => request<EventResultResponse>(
 export const getEventResult = (id: string) => request<EventResultResponse>(
   `/api/events/${encodeURIComponent(id)}/winner`,
 );
+
+export interface ActionRuleResponse {
+  id: string;
+  eventId: string;
+  actionType: string;
+  enabled: boolean;
+  weight: number;
+  createdAt: string;
+}
+
+export const getActionRules = (id: string) => request<ActionRuleResponse[]>(
+  `/api/events/${encodeURIComponent(id)}/action-rules`,
+);
+
+export const updateActionRules = (id: string, actionTypes: string[]) => request<ActionRuleResponse[]>(
+  `/api/events/${encodeURIComponent(id)}/action-rules`,
+  { method: 'PUT', body: JSON.stringify({ actionTypes }) },
+);

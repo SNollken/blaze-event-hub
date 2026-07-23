@@ -1,13 +1,23 @@
 import { useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
 import { ArrowRight, Radio } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
-import { ApiError, createEvent, getMe } from '../api/client';
+import { ApiError, createEvent, getMe, updateActionRules } from '../api/client';
 import type { MemberProfile } from '../api/types';
 import { addToast } from '../components/Toast';
 import { useI18n } from '../i18n/I18nContext';
 import { defaultEntryCommand, normalizeXPostUrl } from '../utils/giveaway-form';
 
 type FieldName = 'title' | 'prize' | 'xPostUrl' | 'entryCommand';
+const ACTION_TYPES = ['chat', 'vote', 'sub', 'gifted_sub', 'follow', 'donation'] as const;
+type ActionTypeValue = typeof ACTION_TYPES[number];
+const ACTION_LABELS: Record<ActionTypeValue, { label: string; desc: string }> = {
+  chat: { label: 'actionTypeChat', desc: 'actionTypeChatDescription' },
+  vote: { label: 'actionTypeVote', desc: 'actionTypeVoteDescription' },
+  sub: { label: 'actionTypeSub', desc: 'actionTypeSubDescription' },
+  gifted_sub: { label: 'actionTypeGiftedSub', desc: 'actionTypeGiftedSubDescription' },
+  follow: { label: 'actionTypeFollow', desc: 'actionTypeFollowDescription' },
+  donation: { label: 'actionTypeDonation', desc: 'actionTypeDonationDescription' },
+};
 type FieldErrors = Partial<Record<FieldName, string>>;
 
 function toIsoDate(value: string): string | undefined {
@@ -38,6 +48,7 @@ export default function CreateEvent() {
   const [description, setDescription] = useState('');
   const [xPostUrl, setXPostUrl] = useState('');
   const [entryCommand, setEntryCommand] = useState(() => defaultEntryCommand(lang));
+  const [enabledActionTypes, setEnabledActionTypes] = useState<ActionTypeValue[]>(['chat']);
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -161,6 +172,9 @@ export default function CreateEvent() {
         startsAt: toIsoDate(startsAt),
         endsAt: toIsoDate(endsAt),
       });
+      if (enabledActionTypes.length > 0) {
+        await updateActionRules(created.id, enabledActionTypes);
+      }
       addToast('success', t('createSuccessToast'));
       navigate(`/events/${created.id}/manage`);
     } catch (submitError) {
@@ -327,7 +341,33 @@ export default function CreateEvent() {
           </div>
         </section>
 
-        <section className="create-sheet create-sheet--schedule" data-index="03">
+        <section className="create-sheet create-sheet--actions" data-index="03">
+          <div className="section-label">{t('actionTypeLabel')}</div>
+          <p>{t('actionTypeDescription')}</p>
+          <div className="action-type-grid">
+            {ACTION_TYPES.map((type) => {
+              const keys = ACTION_LABELS[type];
+              return (
+                <label key={type} className={`action-type-chip${enabledActionTypes.includes(type) ? ' is-active' : ''}`}>
+                  <input
+                    type="checkbox"
+                    checked={enabledActionTypes.includes(type)}
+                    onChange={() => {
+                      setEnabledActionTypes((prev) =>
+                        prev.includes(type) ? prev.filter((a) => a !== type) : [...prev, type]
+                      );
+                    }}
+                    disabled={isSubmitting}
+                  />
+                  <span className="action-type-chip__label">{t(keys.label as any)}</span>
+                  <span className="action-type-chip__desc">{t(keys.desc as any)}</span>
+                </label>
+              );
+            })}
+          </div>
+        </section>
+
+        <section className="create-sheet create-sheet--schedule" data-index="04">
           <div className="section-label">{t('createOptionalSchedule')}</div>
           <p>{t('createScheduleDescription')}</p>
           <div className="form-row">

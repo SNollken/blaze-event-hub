@@ -40,6 +40,7 @@ const baseEvent: EventResponse = {
   finalizationCutoffAt: null,
   closedAt: null,
   completedAt: null,
+  enabledActionTypes: ['chat'],
 };
 
 function event(overrides: Partial<EventResponse>): EventResponse {

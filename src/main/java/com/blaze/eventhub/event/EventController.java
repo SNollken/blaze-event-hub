@@ -27,6 +27,7 @@ public class EventController {
     private final EventFinalizationService finalizationService;
     private final MemberService memberService;
     private final BlazeChannelService channelService;
+    private final EventActionRuleService actionRuleService;
 
     public EventController(
             EventService eventService,
@@ -37,6 +38,7 @@ public class EventController {
         this.finalizationService = finalizationService;
         this.memberService = memberService;
         this.channelService = channelService;
+        this.actionRuleService = actionRuleService;
     }
 
     @GetMapping
@@ -98,6 +100,26 @@ public class EventController {
     EventResponse cancelEvent(@PathVariable String id) {
         var member = memberService.getCurrentMember();
         return eventService.cancelEvent(id, member.id());
+    }
+
+    @GetMapping("/{id}/action-rules")
+    List<EventActionRuleResponse> getActionRules(@PathVariable String id) {
+        var member = memberService.getCurrentMember();
+        eventService.getParticipants(id, member.id());
+        return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
+    }
+
+    @PutMapping("/{id}/action-rules")
+    List<EventActionRuleResponse> updateActionRules(
+            @PathVariable String id,
+            @RequestBody UpdateActionRulesRequest request) {
+        var member = memberService.getCurrentMember();
+        eventService.getParticipants(id, member.id());
+        List<ActionType> types = request.actionTypes().stream()
+                .map(ActionType::fromString)
+                .toList();
+        actionRuleService.replaceRules(id, types);
+        return EventActionRuleResponse.fromList(actionRuleService.listByEventId(id));
     }
 
     private String currentMemberIdOrNull() {

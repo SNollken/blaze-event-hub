@@ -191,6 +191,7 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
                 <div>
                   <strong>{participant.displayName || participant.blazeUsername}</strong>
                   {participant.blazeUsername && <small>@{participant.blazeUsername}</small>}
+                  <span className="participant-action-badge">{participant.actionType}</span>
                 </div>
                 <time dateTime={participant.enteredAt}>{formatDate(participant.enteredAt, lang, unavailableDate)}</time>
               </li>

@@ -54,6 +54,7 @@ public class EventService {
     private final Clock clock;
     private final EventParticipantStore participantStore;
     private final ChatPollingCursorStore cursorStore;
+    private final EventActionRuleService actionRuleService;
     private final long pollingIntervalMillis;
 
     public EventService(
@@ -62,12 +63,14 @@ public class EventService {
             Clock clock,
             EventParticipantStore participantStore,
             ChatPollingCursorStore cursorStore,
+            EventActionRuleService actionRuleService,
             @Value("${eventhub.blaze.chat-poll-interval-ms:2000}") long pollingIntervalMillis) {
         this.eventStore = eventStore;
         this.idGenerator = idGenerator;
         this.clock = clock;
         this.participantStore = participantStore;
         this.cursorStore = cursorStore;
+        this.actionRuleService = actionRuleService;
         this.pollingIntervalMillis = pollingIntervalMillis;
     }
 
@@ -111,6 +114,7 @@ public class EventService {
                 null);
 
         eventStore.insert(event);
+        actionRuleService.initializeDefaults(event.id());
         log.info("Giveaway criado: id={}, creator={}", event.id(), creatorMemberId);
         return EventResponse.from(event);
     }

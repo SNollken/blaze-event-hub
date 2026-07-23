@@ -9,5 +9,6 @@ public record ChatEntryCandidate(
         String blazeUserId,
         String blazeUsername,
         String displayName,
+        String actionType,
         Instant sentAt) {
 }

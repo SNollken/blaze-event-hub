@@ -77,6 +77,7 @@ public class BlazeChatMessageParser {
                 blazeUserId,
                 username,
                 displayName,
+                "chat",
                 sentAt);
     }
 

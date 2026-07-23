@@ -9,6 +9,8 @@ public record EventParticipant(
         String blazeUsername,
         String displayName,
         String sourceMessageId,
+        String actionType,
+        int entryWeight,
         Instant enteredAt,
         Instant createdAt) {
 }

@@ -7,7 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import com.blaze.eventhub.common.IdGenerator;
+import com.blaze.eventhub.event.ActionType;
 import com.blaze.eventhub.event.Event;
+import com.blaze.eventhub.event.EventActionRuleService;
 import com.blaze.eventhub.event.EventStatus;
 import com.blaze.eventhub.event.EventStore;
 
@@ -16,16 +18,19 @@ public class EventParticipantCaptureService {
 
     private final EventStore eventStore;
     private final EventParticipantStore participantStore;
+    private final EventActionRuleService actionRuleService;
     private final IdGenerator idGenerator;
     private final Clock clock;
 
     public EventParticipantCaptureService(
             EventStore eventStore,
             EventParticipantStore participantStore,
+            EventActionRuleService actionRuleService,
             IdGenerator idGenerator,
             Clock clock) {
         this.eventStore = eventStore;
         this.participantStore = participantStore;
+        this.actionRuleService = actionRuleService;
         this.idGenerator = idGenerator;
         this.clock = clock;
     }
@@ -36,8 +41,12 @@ public class EventParticipantCaptureService {
             return CaptureResult.ignored("invalid_chat_message");
         }
 
+        String actionTypeStr = candidate.actionType() != null ? candidate.actionType() : "chat";
+        ActionType actionType = ActionType.fromString(actionTypeStr);
+
         Event matchingEvent = eventStore.findCapturingByChannelId(candidate.channelId().trim()).stream()
-                .filter(event -> ChatEntryMatcher.matches(event.entryCommand(), candidate.message()))
+                .filter(event -> isActionEnabledForEvent(event, actionType)
+                        && ChatEntryMatcher.matches(event.entryCommand(), candidate.message()))
                 .findFirst()
                 .orElse(null);
         if (matchingEvent == null) {
@@ -65,6 +74,8 @@ public class EventParticipantCaptureService {
             return CaptureResult.ignored("message_after_finalization_cutoff");
         }
 
+        int weight = actionRuleService.weight(lockedEvent.id(), actionType);
+
         Instant now = Instant.now(clock);
         EventParticipant participant = new EventParticipant(
                 idGenerator.newId(),
@@ -73,12 +84,18 @@ public class EventParticipantCaptureService {
                 trimmedOrNull(candidate.blazeUsername()),
                 displayName(candidate),
                 candidate.messageId().trim(),
+                actionType.value(),
+                weight,
                 candidate.sentAt() != null ? candidate.sentAt() : now,
                 now);
 
         return participantStore.saveIfAbsent(participant)
                 ? CaptureResult.accepted(lockedEvent.id())
                 : CaptureResult.duplicate(lockedEvent.id());
+    }
+
+    private boolean isActionEnabledForEvent(Event event, ActionType actionType) {
+        return actionRuleService.isEnabled(event.id(), actionType);
     }
 
     private static boolean hasRequiredIdentity(ChatEntryCandidate candidate) {

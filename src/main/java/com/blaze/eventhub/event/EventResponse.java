@@ -1,6 +1,7 @@
 package com.blaze.eventhub.event;
 
 import java.time.Instant;
+import java.util.List;
 
 public record EventResponse(
         String id,
@@ -23,9 +24,14 @@ public record EventResponse(
         Instant openedAt,
         Instant finalizationCutoffAt,
         Instant closedAt,
-        Instant completedAt) {
+        Instant completedAt,
+        List<String> enabledActionTypes) {
 
     public static EventResponse from(Event event) {
+        return from(event, List.of("chat"));
+    }
+
+    public static EventResponse from(Event event, List<String> actionTypes) {
         return new EventResponse(
                 event.id(),
                 event.creatorChannelId(),
@@ -47,6 +53,7 @@ public record EventResponse(
                 event.openedAt(),
                 event.finalizationCutoffAt(),
                 event.closedAt(),
-                event.completedAt());
+                event.completedAt(),
+                actionTypes);
     }
 }
