@@ -56,4 +56,4 @@ build/
 src/main/resources/static/assets/
 apache-maven-3.9.16/
 maven.zip
-.mvn/
+.mvn/wrapper/maven-wrapper.jar
