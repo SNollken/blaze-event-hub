@@ -76,23 +76,33 @@ public class BlazeSocketIOClient implements DisposableBean {
 
             socket.on(Socket.EVENT_CONNECT, args -> {
                 log.info("Socket.IO connected for member {}", memberId);
+                
+                // Clear old subscriptions to avoid duplicating state
+                socket.off("channel.vote");
+                socket.off("channel.subscribe");
+                socket.off("channel.subscription.gift");
+                socket.off("channel.follow");
+                socket.off("channel.tip");
+                socket.off("channel.chat.message");
+
+                socket.on("channel.vote", createEventHandler("vote"));
+                socket.on("channel.subscribe", createEventHandler("sub"));
+                socket.on("channel.subscription.gift", createEventHandler("gifted_sub"));
+                socket.on("channel.follow", createEventHandler("follow"));
+                socket.on("channel.tip", createEventHandler("donation"));
+                socket.on("channel.chat.message", createEventHandler("chat"));
+
                 subscribeToChannels(socket, memberId);
             });
 
             socket.on(Socket.EVENT_DISCONNECT, args -> {
                 log.warn("Socket.IO disconnected for member {}: {}", memberId, args.length > 0 ? args[0] : "unknown");
+                sockets.remove(memberId);
             });
 
             socket.on(Socket.EVENT_CONNECT_ERROR, args -> {
                 log.error("Socket.IO connection error for member {}: {}", memberId, args.length > 0 ? args[0] : "unknown");
             });
-
-            socket.on("channel.vote", createEventHandler("vote"));
-            socket.on("channel.subscribe", createEventHandler("sub"));
-            socket.on("channel.subscription.gift", createEventHandler("gifted_sub"));
-            socket.on("channel.follow", createEventHandler("follow"));
-            socket.on("channel.tip", createEventHandler("donation"));
-            socket.on("channel.chat.message", createEventHandler("chat"));
 
             socket.connect();
             sockets.put(memberId, socket);
@@ -112,6 +122,7 @@ public class BlazeSocketIOClient implements DisposableBean {
         }
 
         for (String channelId : channelIds) {
+            socket.emit("unsubscribe", channelId);
             log.debug("Subscribing to channel {} for member {}", channelId, memberId);
             socket.emit("subscribe", channelId, new io.socket.client.Ack() {
                 @Override

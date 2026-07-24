@@ -34,6 +34,7 @@ export default function EventResult() {
 
   useEffect(() => {
     let active = true;
+    const abortController = new AbortController();
 
     async function loadResult(eventId: string) {
       setLoading(true);
@@ -43,13 +44,14 @@ export default function EventResult() {
 
       try {
         const [loadedEvent, loadedResult] = await Promise.all([
-          getEvent(eventId),
-          getEventResult(eventId),
+          getEvent(eventId, abortController.signal),
+          getEventResult(eventId, abortController.signal),
         ]);
         if (!active) return;
         setEvent(loadedEvent);
         setResult(loadedResult);
-      } catch {
+      } catch (err) {
+        if (active && err instanceof DOMException && err.name === 'AbortError') return;
         if (active) {
           setEvent(null);
           setResult(null);
@@ -69,6 +71,7 @@ export default function EventResult() {
 
     return () => {
       active = false;
+      abortController.abort();
     };
   }, [id]);
 

@@ -231,10 +231,12 @@ public class EventService {
     }
 
     @Transactional
-        public EventParticipantResponse addManualParticipant(String eventId, String memberId, String blazeUsername) {
+        public EventParticipantResponse addManualParticipant(String eventId, String memberId, String blazeUsername, String actionType, Integer amount) {
             requireEventOwnership(eventId, memberId);
             String username = blazeUsername.trim();
             Instant now = Instant.now(clock);
+            String action = actionType != null ? actionType : ActionType.MANUAL.value();
+            int entryWeight = (amount != null && amount > 0) ? amount : 1;
             EventParticipant participant = new EventParticipant(
                     idGenerator.newId(),
                     eventId,
@@ -242,8 +244,8 @@ public class EventService {
                     username,
                     username,
                     null,
-                    ActionType.MANUAL.value(),
-                    1,
+                    action,
+                    entryWeight,
                     0,
                     now,
                     now);

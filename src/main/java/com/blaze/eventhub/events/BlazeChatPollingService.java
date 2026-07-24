@@ -147,6 +147,11 @@ public class BlazeChatPollingService {
             } finally {
                 targetLock.unlock();
             }
+            try {
+                Thread.sleep(100); // Prevent hammering the external API sequentially in a tight loop
+            } catch (InterruptedException e) {
+                Thread.currentThread().interrupt();
+            }
         }
         return total;
     }

@@ -2,6 +2,11 @@ export type EventStatus = 'DRAFT' | 'OPEN' | 'FINALIZING' | 'CLOSED' | 'COMPLETE
 
 export type CaptureHealth = 'INACTIVE' | 'STARTING' | 'HEALTHY' | 'DEGRADED' | 'FINALIZING';
 
+export interface SocketStatus {
+  connected: boolean;
+  memberId: string;
+}
+
 export interface OAuthSessionResponse {
   connected: boolean;
   tokenPresent: boolean;

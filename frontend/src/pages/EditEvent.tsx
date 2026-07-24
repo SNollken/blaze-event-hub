@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState, type FormEvent } from 'react';
-import { ArrowRight, Ban, CircleStop, Radio, Save, ShieldCheck, Trophy } from 'lucide-react';
+import { ArrowRight, Ban, CircleStop, Radio, Save, ShieldCheck, Trophy, Wifi, WifiOff } from 'lucide-react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import {
   cancelEvent,
@@ -8,11 +8,13 @@ import {
   getEvent,
   getEventParticipants,
   getEventStats,
+  getMe,
   openEvent,
   updateEvent,
   updateActionRules,
+  getSocketStatus,
 } from '../api/client';
-import type { EventParticipantResponse, EventResponse, EventStatus } from '../api/types';
+import type { EventParticipantResponse, EventResponse, EventStatus, SocketStatus } from '../api/types';
 import { Modal } from '../components/Modal';
 import { addToast, usePolling } from '../components/Toast';
 import { getUserFacingErrorMessage } from '../errors/user-facing-error';
@@ -95,9 +97,76 @@ function Lifecycle({ status }: { status: EventStatus }) {
   );
 }
 
+function SocketStatusIndicator({ memberId }: { memberId: string }) {
+  const { t } = useI18n();
+  const [socketStatus, setSocketStatus] = useState<SocketStatus | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    let active = true;
+    const abortController = new AbortController();
+
+    const fetchStatus = async () => {
+      try {
+        const status = await getSocketStatus(memberId, abortController.signal);
+        if (active) {
+          setSocketStatus(status);
+          setLoading(false);
+          setError('');
+        }
+      } catch (err) {
+        if (active && err instanceof DOMException && err.name === 'AbortError') return;
+        if (active) {
+          setError(t('editSocketStatusError'));
+          setLoading(false);
+        }
+      }
+    };
+
+    fetchStatus();
+    const interval = setInterval(fetchStatus, 5000);
+
+    return () => {
+      active = false;
+      abortController.abort();
+      clearInterval(interval);
+    };
+  }, [memberId, t]);
+
+  if (loading && !socketStatus) {
+    return <span className="socket-status socket-status--loading">{t('editSocketStatusLoading')}</span>;
+  }
+
+  if (error && !socketStatus) {
+    return <span className="socket-status socket-status--error">{error}</span>;
+  }
+
+  if (!socketStatus) return null;
+
+  const connected = socketStatus.connected;
+
+  return (
+    <span className={`socket-status ${connected ? 'socket-status--connected' : 'socket-status--disconnected'}`} role="status" aria-live="polite">
+      {connected ? (
+        <>
+          <Wifi size={14} aria-hidden="true" />
+          {t('editSocketConnected')}
+        </>
+      ) : (
+        <>
+          <WifiOff size={14} aria-hidden="true" />
+          {t('editSocketDisconnected')}
+        </>
+      )}
+    </span>
+  );
+}
+
 interface OpenEventPanelProps {
   event: EventResponse;
   finalizing: boolean;
+  memberId: string | null;
   onFinalize: () => Promise<boolean>;
   onCancel: () => void;
   onEventUpdate: (event: EventResponse) => void;
@@ -111,7 +180,7 @@ const CAPTURE_HEALTH_COPY = {
   FINALIZING: { labelKey: 'editHealthFinalizingLabel', descriptionKey: 'editHealthFinalizingDescription' },
 } as const;
 
-function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate }: OpenEventPanelProps) {
+function OpenEventPanel({ event, finalizing, memberId, onFinalize, onCancel, onEventUpdate }: OpenEventPanelProps) {
   const { lang, t } = useI18n();
   const [confirmFinalize, setConfirmFinalize] = useState(false);
   const fetchEvent = useCallback(() => getEvent(event.id), [event.id]);
@@ -148,6 +217,7 @@ function OpenEventPanel({ event, finalizing, onFinalize, onCancel, onEventUpdate
         <div className="signal-command" role="status" aria-live="polite">
           <Radio aria-hidden="true" />
           <code>{event.entryCommand}</code>
+          {memberId && <SocketStatusIndicator memberId={memberId} />}
         </div>
         <p><strong>{t(healthCopy.labelKey)}.</strong> {t(healthCopy.descriptionKey)} {t('editEveryAccountOnce')}</p>
         <dl className="event-stats">
@@ -259,6 +329,7 @@ export default function EditEvent() {
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [error, setError] = useState('');
   const [xPostUrlInvalid, setXPostUrlInvalid] = useState(false);
+  const [memberId, setMemberId] = useState<string | null>(null);
   const xPostUrlRef = useRef<HTMLInputElement>(null);
   const currentLangRef = useRef(lang);
   const commandIsAutomaticRef = useRef(true);
@@ -267,6 +338,22 @@ export default function EditEvent() {
     currentLangRef.current = lang;
     if (commandIsAutomaticRef.current) setEntryCommand(defaultEntryCommand(lang));
   }, [lang]);
+
+  useEffect(() => {
+    let active = true;
+    const abortController = new AbortController();
+
+    getMe(abortController.signal).then((me) => {
+      if (active) setMemberId(me.id);
+    }).catch((err) => {
+      if (active && err instanceof DOMException && err.name === 'AbortError') return;
+    });
+
+    return () => {
+      active = false;
+      abortController.abort();
+    };
+  }, []);
 
   const applyEvent = useCallback((loaded: EventResponse) => {
     setEvent(loaded);
@@ -283,28 +370,34 @@ export default function EditEvent() {
 
   useEffect(() => {
     let active = true;
+    const abortController = new AbortController();
+
     if (!id) {
       setError(t('editInvalidId'));
       setIsLoading(false);
       return () => {
         active = false;
+        abortController.abort();
       };
     }
 
-    getEvent(id)
+    getEvent(id, abortController.signal)
       .then((loaded) => {
         if (active) applyEvent(loaded);
         if (active) {
-          getActionRules(id).then((rules) => {
+          getActionRules(id, abortController.signal).then((rules) => {
             const enabled = rules.filter((r) => r.enabled).map((r) => r.actionType as ActionTypeValue);
             setEnabledActionTypes(enabled.length > 0 ? enabled : ['chat']);
             const weights: Record<string, number> = {};
             rules.forEach((r) => { weights[r.actionType] = r.weight ?? 1; });
             setActionWeights(weights);
-          }).catch(() => {});
+          }).catch((err) => {
+            if (active && err instanceof DOMException && err.name === 'AbortError') return;
+          });
         }
       })
       .catch((loadError) => {
+        if (active && loadError instanceof DOMException && loadError.name === 'AbortError') return;
         if (active) setError(getUserFacingErrorMessage(loadError, t('editLoadFallback')));
       })
       .finally(() => {
@@ -313,6 +406,7 @@ export default function EditEvent() {
 
     return () => {
       active = false;
+      abortController.abort();
     };
   }, [applyEvent, id, t]);
 
@@ -617,6 +711,7 @@ export default function EditEvent() {
         <OpenEventPanel
           event={event}
           finalizing={pendingAction === 'finalize'}
+          memberId={memberId}
           onFinalize={handleFinalize}
           onCancel={() => setConfirmCancel(true)}
           onEventUpdate={applyEvent}

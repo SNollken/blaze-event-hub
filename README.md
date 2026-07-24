@@ -1,43 +1,43 @@
 # Blaze Event Hub
 
-Hub de giveaways para criadores da [Blaze.stream](https://blaze.stream). O criador conecta sua conta, configura um evento e um comando; o backend acompanha o chat e monta automaticamente o pool usado no sorteio.
+A giveaway hub for [Blaze.stream](https://blaze.stream) creators. Creators connect their accounts, configure an event with a keyword, and the backend automatically monitors the chat to build a participant pool for drawing winners.
 
-## Fluxo do MVP
+## Core Flow (MVP)
 
-`Criar rascunho -> Abrir captura -> Capturar participantes -> Finalizar e sincronizar -> Sortear`
+`Create draft -> Open capture -> Capture participants -> Finalize & Sync -> Draw`
 
-1. O criador entra com OAuth da Blaze e registra título, prêmio, canal e comando de entrada.
-2. Ao abrir o evento, o polling do backend passa a observar o canal do próprio criador.
-3. Cada usuário Blaze que envia exatamente o comando entra uma única vez no pool.
-4. Ao finalizar, o backend registra um cutoff, faz a última sincronização até esse instante e congela quantidade e hash do pool.
-5. O sorteio uniforme é persistido; repetir a chamada devolve o mesmo resultado.
+1. Creator signs in via Blaze OAuth and sets up the event (title, prize, channel, keyword).
+2. Once opened, the backend starts polling the creator's channel.
+3. Every Blaze user who types the exact keyword is entered into the pool exactly once.
+4. When finalizing, the backend registers a cutoff timestamp, performs a final sync up to that exact moment, and freezes the pool.
+5. A uniform draw is executed and persisted; subsequent requests for the winner will return the same result.
 
-Não fazem parte deste produto: respostas de bot, votos, inscrições, pesos por ação, entrada manual ou overlays para OBS.
+Out of scope for this MVP: bot replies, voting systems, subscriptions, weighted actions, manual entries, or OBS overlays.
 
 ## Stack
 
-- Java 21, Spring Boot e Maven Wrapper
-- React 18, TypeScript e Vite
-- JDBC e Flyway
-- H2 em desenvolvimento/testes
-- PostgreSQL em produção, preparado para Supabase
-- Docker multi-stage
+- Java 21, Spring Boot, and Maven Wrapper
+- React 18, TypeScript, and Vite
+- JDBC and Flyway
+- H2 for development/testing
+- PostgreSQL for production (Supabase-ready)
+- Multi-stage Docker build
 
-## Rodar localmente
+## Running Locally
 
-Requisitos: Java 21 e Node.js 20. Não instale Maven globalmente; o projeto fixa sua versão pelo wrapper.
+Requirements: Java 21 and Node.js 20. Do not install Maven globally; the project uses the included wrapper to pin the version.
 
-1. Crie um `.env` local a partir de `.env.example` e preencha somente valores da sua aplicação Blaze. Nunca versione esse arquivo.
-2. Valide a configuração e inicie o backend na porta `9090`:
+1. Create a local `.env` file based on `.env.example` and fill in your Blaze application credentials. Never commit this file.
+2. Validate the configuration and start the backend on port `9090`:
 
 ```powershell
 .\scripts\check-env.ps1
 .\scripts\run-local.ps1
 ```
 
-O script exige Java 21, usa o perfil `local` e deixa o Spring carregar o `.env` sem colocar segredos na linha de comando.
+The script requires Java 21, activates the `local` profile, and allows Spring to load the `.env` without exposing secrets via the command line.
 
-3. Em outro terminal, inicie o frontend:
+3. In another terminal, start the frontend:
 
 ```powershell
 cd frontend
@@ -45,9 +45,9 @@ npm ci
 npm run dev
 ```
 
-O Vite abre `http://localhost:5173` e encaminha `/api` para `http://localhost:9090`. O backend usa H2 local e aplica as migrations comuns do Flyway automaticamente.
+Vite will start on `http://localhost:5173` and proxy `/api` requests to `http://localhost:9090`. The backend uses an in-memory H2 database and applies Flyway migrations automatically.
 
-## Testes
+## Testing
 
 ```powershell
 .\mvnw.cmd clean test
@@ -57,70 +57,70 @@ npm test
 npm run build
 ```
 
-## Produção com PostgreSQL/Supabase
+## Production with PostgreSQL/Supabase
 
-O perfil `prod` exige PostgreSQL. A imagem Docker já define `SPRING_PROFILES_ACTIVE=prod` e executa como usuário sem privilégios.
+The `prod` profile requires PostgreSQL. The provided Docker image sets `SPRING_PROFILES_ACTIVE=prod` by default and runs as an unprivileged user.
 
-Variáveis que devem ser configuradas no provedor, nunca no repositório:
+Variables that must be configured in your hosting provider (never in the repository):
 
-| Variável | Finalidade |
+| Variable | Purpose |
 |---|---|
-| `BLAZE_CLIENT_ID` | Identifica a aplicação OAuth Blaze |
-| `BLAZE_CLIENT_SECRET` | Segredo OAuth usado somente pelo backend |
-| `BLAZE_REDIRECT_URI` | Callback HTTPS cadastrado exatamente na Blaze |
-| `BLAZE_CHAT_MESSAGE_LIMIT` | Mensagens por página, entre 10 e 100; padrão 100 |
-| `BLAZE_CHAT_MAX_PAGES_PER_POLL` | Teto de páginas por ciclo; backfills maiores continuam do checkpoint; padrão 20 |
-| `BLAZE_CHAT_HISTORY_COVERAGE_MAX_AGE_MS` | Janela conservadora para comprovar o início do histórico sem cursor anterior; padrão 7 h |
-| `BLAZE_CHAT_POLL_INTERVAL_MS` | Intervalo entre ciclos de captura; padrão 2000 ms |
-| `EVENTHUB_CREDENTIAL_ENCRYPTION_KEY` | Chave Base64 de 32 bytes para cifrar tokens persistidos |
-| `EVENTHUB_DB_URL` | URL JDBC PostgreSQL |
-| `EVENTHUB_DB_USER` | Usuário do banco |
-| `EVENTHUB_DB_PASSWORD` | Senha do banco |
-| `EVENTHUB_API_KEY` | Chave opcional para integração interna server-to-server |
+| `BLAZE_CLIENT_ID` | Identifies the Blaze OAuth application |
+| `BLAZE_CLIENT_SECRET` | OAuth secret (backend only) |
+| `BLAZE_REDIRECT_URI` | HTTPS callback registered exactly on Blaze |
+| `BLAZE_CHAT_MESSAGE_LIMIT` | Messages per page, between 10 and 100; default 100 |
+| `BLAZE_CHAT_MAX_PAGES_PER_POLL` | Max pages per cycle; large backfills resume from checkpoints; default 20 |
+| `BLAZE_CHAT_HISTORY_COVERAGE_MAX_AGE_MS` | Conservative window to prove history start without a previous cursor; default 7 h |
+| `BLAZE_CHAT_POLL_INTERVAL_MS` | Delay between capture cycles; default 2000 ms |
+| `EVENTHUB_CREDENTIAL_ENCRYPTION_KEY` | 32-byte Base64 key to encrypt persisted tokens |
+| `EVENTHUB_DB_URL` | JDBC PostgreSQL URL |
+| `EVENTHUB_DB_USER` | Database user |
+| `EVENTHUB_DB_PASSWORD` | Database password |
+| `EVENTHUB_API_KEY` | Optional key for internal server-to-server integration |
 
-Em Render + Supabase, use a conexão IPv4/session pooler indicada pelo Supabase e TLS. O banco deve começar vazio: deixe o Flyway criar `flyway_schema_history` e aplicar, em ordem, as migrations de `db/migration/common` e `db/migration/postgresql`. Não aplique as mesmas migrations manualmente antes do primeiro start sem uma estratégia explícita de baseline. Como o produto acessa o PostgreSQL somente pelo Spring/JDBC, mantenha a Data API desativada no painel do Supabase; a migration PostgreSQL também ativa RLS e revoga os papéis da Data API como defesa em profundidade.
+For Render + Supabase, use the IPv4 connection / session pooler provided by Supabase over TLS. The database must start empty: let Flyway create `flyway_schema_history` and apply the migrations from `db/migration/common` and `db/migration/postgresql` in order. Do not apply these migrations manually prior to the first startup without an explicit baseline strategy. Since the application accesses PostgreSQL solely through Spring/JDBC, keep the Supabase Data API disabled in the dashboard; the PostgreSQL migration also enables RLS and revokes Data API roles as defense-in-depth.
 
-Build e execução local da imagem:
+Local build and smoke test of the image:
 
 ```powershell
 docker build -t blaze-event-hub .
 docker run --rm -p 10000:10000 --env-file .env.docker blaze-event-hub
 ```
 
-Use nesse smoke um arquivo `.env.docker` não versionado com PostgreSQL e callback de produção; não reutilize a configuração H2 local. O container falha no início quando a conexão PostgreSQL de produção está ausente e não cai silenciosamente para H2. Credenciais Blaze ausentes aparecem como integração não configurada até serem fornecidas com segurança.
+For this smoke test, use an unversioned `.env.docker` file configured with PostgreSQL and a production callback; do not reuse the local H2 configuration. The container will fail to start if the production PostgreSQL connection is unavailable and will not silently fall back to H2. Missing Blaze credentials will manifest as an unconfigured integration until safely provided.
 
-## API principal
+## Main API
 
-| Área | Rotas |
+| Scope | Routes |
 |---|---|
-| Operação | `GET /api/health`, `GET /api/status` |
+| Operation | `GET /api/health`, `GET /api/status` |
 | OAuth | `GET /api/blaze/oauth/start`, `GET /api/blaze/oauth/callback`, `GET /api/blaze/oauth/session`, `POST /api/blaze/oauth/refresh`, `POST /api/blaze/oauth/disconnect` |
-| Canal | `GET /api/blaze/channels/resolve?slug=...` |
-| Eventos públicos | `GET /api/events`, `GET /api/events/{id}`, `GET /api/events/{id}/stats`, `GET /api/events/{id}/winner` |
-| Gestão autenticada | `POST /api/events`, `PUT /api/events/{id}`, `POST /api/events/{id}/open`, `POST /api/events/{id}/finalize`, `POST /api/events/{id}/cancel`, `POST /api/events/{id}/draw` |
-| Área do criador | `GET /api/events/my/history`, `GET /api/events/{id}/participants`, `GET /api/members/me` |
+| Channel | `GET /api/blaze/channels/resolve?slug=...` |
+| Public Events | `GET /api/events`, `GET /api/events/{id}`, `GET /api/events/{id}/stats`, `GET /api/events/{id}/winner` |
+| Auth Management | `POST /api/events`, `PUT /api/events/{id}`, `POST /api/events/{id}/open`, `POST /api/events/{id}/finalize`, `POST /api/events/{id}/cancel`, `POST /api/events/{id}/draw` |
+| Creator Area | `GET /api/events/my/history`, `GET /api/events/{id}/participants`, `GET /api/members/me` |
 
-Rascunhos e participantes não são expostos a outros usuários. O header histórico `X-Nollen-Api-Key` existe apenas para compatibilidade de integrações internas e nunca deve ser enviado pelo frontend.
+Drafts and participants are never exposed to other users. The legacy `X-Nollen-Api-Key` header exists solely for internal integration compatibility and should never be sent by the frontend.
 
-## Segurança
+## Security
 
-- OAuth e refresh acontecem no backend; tokens nunca fazem parte dos DTOs públicos.
-- Access e refresh tokens persistidos usam AES-256-GCM com chave externa ao banco.
-- A sessão do navegador usa cookie `HttpOnly`, `Secure` em produção e `SameSite=Lax`.
-- Mutações de navegador exigem prova de mesma origem; respostas recebem CSP e headers defensivos.
-- `.env`, bancos locais, builds, logs, cookies e estados de navegador são ignorados pelo Git e pelo contexto Docker.
-- Qualquer secret exibido em commit, print, chat ou log deve ser rotacionado antes da publicação.
+- OAuth flows and token refreshes happen entirely in the backend; tokens are never included in public DTOs.
+- Persisted access and refresh tokens are encrypted using AES-256-GCM with a key external to the database.
+- Browser sessions rely on `HttpOnly` cookies, flagged `Secure` in production with `SameSite=Lax`.
+- Browser mutations require same-origin proof; responses include CSP and defensive headers.
+- `.env`, local databases, builds, logs, cookies, and browser states are ignored by Git and the Docker context.
+- Any secret leaked in a commit, print, chat, or log must be rotated before publication.
 
 ## Branches
 
-As branches permanentes são:
+Permanent branches:
 
-- `dev`: integração e validação do próximo conjunto de mudanças;
-- `main`: versão publicada e pronta para produção.
+- `dev`: integration and validation of the upcoming set of changes;
+- `main`: published version ready for production.
 
-O fluxo é `dev -> main` depois de testes backend, frontend e smoke de produção. Não envie credenciais, `.env`, `target`, `frontend/dist` ou dados locais para nenhuma branch.
+The flow is `dev -> main` following backend, frontend, and production smoke tests. Never push credentials, `.env`, `target`, `frontend/dist`, or local data to any branch.
 
-## Documentação
+## Documentation
 
-- [Arquitetura](docs/ARCHITECTURE.md)
+- [Architecture](docs/ARCHITECTURE.md)
 - [Roadmap](docs/ROADMAP.md)

@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -80,17 +81,26 @@ public class BlazeSocketController {
     }
 
     /**
-     * Get connection status.
+     * Get connection status for the current user, or for a specific member if memberId is provided.
      */
     @GetMapping("/status")
-    public ResponseEntity<Map<String, Object>> status() {
-        var member = memberService.getCurrentMember();
+    public ResponseEntity<Map<String, Object>> status(@RequestParam(required = false) String memberId) {
+        String targetMemberId;
+        
+        if (memberId != null && !memberId.isBlank()) {
+            // Allow checking status for any member (event creator checking their members)
+            targetMemberId = memberId;
+        } else {
+            // Default: check current user's connection
+            var member = memberService.getCurrentMember();
+            targetMemberId = member.id();
+        }
 
-        boolean connected = socketClient.isConnected(member.id());
+        boolean connected = socketClient.isConnected(targetMemberId);
 
         return ResponseEntity.ok(Map.of(
                 "connected", connected,
-                "memberId", member.id()
+                "memberId", targetMemberId
         ));
     }
 

@@ -13,7 +13,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 @SpringBootTest(properties = {
         "eventhub.blaze.client-id=test-client",
         "eventhub.blaze.client-secret=super-secret",
-        "eventhub.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+        "eventhub.blaze.redirect-uri=http://localhost:9090/api/blaze/oauth/callback",
         "eventhub.blaze.scopes=users.read,offline.access"
 })
 class BlazePropertiesTests {

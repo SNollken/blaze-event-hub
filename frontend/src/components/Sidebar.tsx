@@ -51,7 +51,9 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
 
   useEffect(() => {
     let active = true;
-    const loadAccount = () => getOAuthSession()
+    const abortController = new AbortController();
+
+    const loadAccount = () => getOAuthSession(abortController.signal)
       .then(async (session) => {
         if (!active) return;
         setOAuth(session);
@@ -60,19 +62,23 @@ export function Sidebar({ open, mobile = false, onClose }: SidebarProps) {
           return;
         }
         try {
-          const profile = await getMe();
+          const profile = await getMe(abortController.signal);
           if (active) setMember(profile);
-        } catch {
+        } catch (err) {
+          if (active && err instanceof DOMException && err.name === 'AbortError') return;
           // O resumo OAuth ainda permite renderizar a conta conectada.
         }
       })
-      .catch(() => undefined);
+      .catch((err) => {
+        if (active && err instanceof DOMException && err.name === 'AbortError') return;
+      });
     const handleSessionChanged = () => void loadAccount();
 
     void loadAccount();
     window.addEventListener(AUTH_SESSION_CHANGED_EVENT, handleSessionChanged);
     return () => {
       active = false;
+      abortController.abort();
       window.removeEventListener(AUTH_SESSION_CHANGED_EVENT, handleSessionChanged);
     };
   }, []);

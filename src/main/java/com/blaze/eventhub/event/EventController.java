@@ -155,9 +155,19 @@ public class EventController {
         return EventActionTierResponse.fromList(actionRuleService.listTiers(id));
     }
 
+    @PostMapping("/{id}/participants")
+    EventParticipantResponse addManualParticipant(
+            @PathVariable String id,
+            @RequestBody @Valid AddParticipantRequest request) {
+        var member = memberService.getCurrentMember();
+        return eventService.addManualParticipant(id, member.id(), request.blazeUsername(), request.actionType(), request.amount());
+    }
+
     private String currentMemberIdOrNull() {
         return memberService.findCurrentMember()
                 .map(member -> member.id())
                 .orElse(null);
     }
+
+    public record AddParticipantRequest(String blazeUsername, String actionType, Integer amount) {}
 }

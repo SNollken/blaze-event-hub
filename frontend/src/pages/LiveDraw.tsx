@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import {
   ApiError,
+  addManualParticipant,
   executeDraw,
   getEvent,
   getEventParticipants,
@@ -16,6 +17,7 @@ import {
   type MemberProfile,
 } from '../api/client';
 import { Modal } from '../components/Modal';
+import { addToast } from '../components/Toast';
 import { getUserFacingErrorMessage, UserFacingError } from '../errors/user-facing-error';
 import { useI18n } from '../i18n/I18nContext';
 
@@ -66,6 +68,11 @@ export default function LiveDraw() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [confirmOpen, setConfirmOpen] = useState(false);
+  const [manualDonationOpen, setManualDonationOpen] = useState(false);
+  const [manualUsername, setManualUsername] = useState('');
+  const [manualAmount, setManualAmount] = useState(1);
+  const [manualActionType, setManualActionType] = useState('donation');
+  const [manualSubmitting, setManualSubmitting] = useState(false);
   const spinRef = useRef<ReturnType<typeof window.setInterval> | null>(null);
   const mountedRef = useRef(true);
 
@@ -86,6 +93,7 @@ export default function LiveDraw() {
 
   useEffect(() => {
     let active = true;
+    const abortController = new AbortController();
 
     async function loadDraw(eventId: string) {
       setLoading(true);
@@ -94,16 +102,16 @@ export default function LiveDraw() {
       setPhase('idle');
 
       try {
-        const session = await getOAuthSession();
+        const session = await getOAuthSession(abortController.signal);
         if (!session.connected) {
           throw new UserFacingError(t('drawConnectBlaze'));
         }
 
         const [loadedCreator, loadedEvent, loadedStats, loadedParticipants] = await Promise.all([
-          getMe(),
-          getEvent(eventId),
-          getEventStats(eventId),
-          getEventParticipants(eventId),
+          getMe(abortController.signal),
+          getEvent(eventId, abortController.signal),
+          getEventStats(eventId, abortController.signal),
+          getEventParticipants(eventId, abortController.signal),
         ]);
         if (!active) return;
 
@@ -113,13 +121,14 @@ export default function LiveDraw() {
         setParticipants(loadedParticipants);
 
         if (loadedEvent.status === 'COMPLETED') {
-          const existingResult = await getEventResult(eventId);
+          const existingResult = await getEventResult(eventId, abortController.signal);
           if (!active) return;
           setResult(existingResult);
           setDisplayName(existingResult.winnerDisplayName || existingResult.winnerUsername || t('drawWinnerFallback'));
           setPhase('done');
         }
       } catch (loadError) {
+        if (active && loadError instanceof DOMException && loadError.name === 'AbortError') return;
         if (active) {
           setError(getErrorMessage(loadError, t('drawPrepareFallback'), t('drawCreatorOnly')));
         }
@@ -137,6 +146,7 @@ export default function LiveDraw() {
 
     return () => {
       active = false;
+      abortController.abort();
     };
   }, [id, t]);
 
@@ -285,6 +295,13 @@ export default function LiveDraw() {
         <div className="draw-controls">
           <button
             type="button"
+            className="btn btn-secondary"
+            onClick={() => setManualDonationOpen(true)}
+          >
+            {t('drawRegisterManual')}
+          </button>
+          <button
+            type="button"
             className="btn btn-primary btn-lg"
             disabled={!canDraw}
             aria-describedby={drawAvailabilityMessageId}
@@ -333,7 +350,92 @@ export default function LiveDraw() {
           { count: numberFormatter.format(expectedPoolCount) },
         )}</p>
       </Modal>
-
+      {manualDonationOpen && (
+            <Modal
+              open={manualDonationOpen}
+              onClose={() => setManualDonationOpen(false)}
+              title={t('registerDonationTitle')}
+              footer={(
+                <>
+                  <button type="button" className="btn btn-secondary" onClick={() => setManualDonationOpen(false)}>
+                    {t('registerDonationCancel')}
+                  </button>
+                  <button
+                    type="button"
+                    className="btn btn-primary"
+                    disabled={!manualUsername.trim() || manualSubmitting}
+                    onClick={async () => {
+                      if (!id || !manualUsername.trim()) return;
+                      setManualSubmitting(true);
+                      try {
+                        await addManualParticipant(id, manualUsername.trim(), manualActionType, manualAmount);
+                        setManualUsername('');
+                        setManualAmount(1);
+                        setManualDonationOpen(false);
+                        addToast('success', t('registerDonationSuccess'));
+                        // Refresh participants
+                        const updated = await getEventParticipants(id);
+                        setParticipants(updated);
+                      } catch (e) {
+                        setError(getErrorMessage(e, t('registerDonationError'), t('drawCreatorOnly')));
+                      } finally {
+                        setManualSubmitting(false);
+                      }
+                    }}
+                  >
+                    {manualSubmitting ? t('registerDonationSubmitting') : t('registerDonationSubmit')}
+                  </button>
+                </>
+              )}
+            >
+              <p>{t('registerDonationDescription')}</p>
+              <div className="form-group">
+                <label htmlFor="donation-username" className="form-label">
+                  {t('donationUsernameLabel')}
+                </label>
+                <input
+                  id="donation-username"
+                  type="text"
+                  className="form-control"
+                  placeholder={t('donationUsernamePlaceholder')}
+                  value={manualUsername}
+                  onChange={(e) => setManualUsername(e.target.value)}
+                  disabled={manualSubmitting}
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="donation-amount" className="form-label">
+                  {t('donationAmountLabel')}
+                </label>
+                <input
+                  id="donation-amount"
+                  type="number"
+                  className="form-control"
+                  placeholder={t('donationAmountPlaceholder')}
+                  value={manualAmount}
+                  onChange={(e) => setManualAmount(Math.max(1, parseInt(e.target.value) || 1))}
+                  disabled={manualSubmitting}
+                  min="1"
+                />
+              </div>
+              <div className="form-group">
+                <label htmlFor="donation-action-type" className="form-label">
+                  {t('donationActionTypeLabel')}
+                </label>
+                <select
+                  id="donation-action-type"
+                  className="form-control"
+                  value={manualActionType}
+                  onChange={(e) => setManualActionType(e.target.value)}
+                  disabled={manualSubmitting}
+                >
+                  <option value="donation">{t('donationActionTypeDonation')}</option>
+                  <option value="manual">{t('donationActionTypeManual')}</option>
+                </select>
+              </div>
+              {error && <span className="form-helper form-helper--err" role="alert">{error}</span>}
+            </Modal>
+          )}
       {result && (
         <section className="winner-card" aria-labelledby="draw-winner-title">
           <div className="winner-avatar" aria-hidden="true">{winnerName.slice(0, 1).toUpperCase()}</div>
@@ -358,6 +460,14 @@ export default function LiveDraw() {
             <span className="section-label">{t('drawFrozenPool')}</span>
             <h2 id="participant-pool-title">{t('drawBlazeParticipants')}</h2>
           </div>
+          <button
+            type="button"
+            className="btn btn-secondary btn-sm"
+            onClick={() => setManualDonationOpen(true)}
+            aria-label={t('registerDonation')}
+          >
+            {t('registerDonation')}
+          </button>
           <span className="uniform-badge">{t('drawUniformBadge')}</span>
         </div>
         {sortedParticipants.length === 0 ? (

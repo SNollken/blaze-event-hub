@@ -35,7 +35,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest(properties = {
 		"eventhub.blaze.client-id=client-id",
 		"eventhub.blaze.client-secret=client-secret",
-		"eventhub.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"eventhub.blaze.redirect-uri=http://localhost:9090/api/blaze/oauth/callback",
 		"eventhub.blaze.scopes=users.read,offline.access",
 		"eventhub.security.api-key=dev-local-key"
 })

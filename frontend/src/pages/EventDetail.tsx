@@ -287,7 +287,7 @@ export default function EventDetail() {
         </section>
 
         <section className="control-card command-card" aria-labelledby="command-title">
-          {event.enabledActionTypes.length > 1 && (
+          {event.enabledActionTypes && event.enabledActionTypes.length > 1 && (
             <div className="action-types-chips">
               <span className="section-label">{t('eventDetailActionTypesLabel')}</span>
               <div className="chip-row">
@@ -302,15 +302,15 @@ export default function EventDetail() {
               </div>
             </div>
           )}
-          <span className="section-label">{t(event.status === 'OPEN' ? 'eventDetailHowToEnter' : 'eventDetailEntryCommand')}</span>
-          <h2 id="command-title">{t(event.status === 'OPEN' ? 'eventDetailSendCommand' : 'eventDetailCommandUsed')}</h2>
-          {event.enabledActionTypes.includes('chat') && (
-            <code className={`signal-command${event.status === 'OPEN' ? ' is-live' : ''}`}>
+          <span className="section-label">{event.status === 'OPEN' ? t('eventDetailEntryCommandActive' as any) : t('eventDetailEntryCommand' as any)}</span>
+          <h2 id="command-title">{event.status === 'OPEN' ? t('eventDetailEnterNowLabel' as any) : t('eventDetailCommandLabel' as any)}</h2>
+          {event.enabledActionTypes && event.enabledActionTypes.includes('chat') && (
+            <code className={`signal-command${event.status === 'OPEN' ? ' is-active' : ''}`}>
               {event.entryCommand}
             </code>
           )}
           <div className="action-type-instructions">
-            {event.enabledActionTypes.map((type) => {
+            {event.enabledActionTypes && event.enabledActionTypes.map((type) => {
               const cfg = ACTION_TYPE_CONFIG[type];
               return cfg ? <p key={type}>{t(cfg.howTo)}</p> : null;
             })}

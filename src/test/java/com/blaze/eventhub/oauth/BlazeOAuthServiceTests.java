@@ -44,7 +44,7 @@ class BlazeOAuthServiceTests {
 		BlazeProperties properties = new BlazeProperties();
 		properties.setClientId("client-id");
 		properties.setClientSecret("client-secret");
-		properties.setRedirectUri("http://localhost:8080/api/blaze/oauth/callback");
+		properties.setRedirectUri("http://localhost:9090/api/blaze/oauth/callback");
 		properties.setScopes(List.of("users.read", "offline.access"));
 		clock = Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC);
 		stateStore = new InMemoryOAuthStateStore(clock);
@@ -69,7 +69,7 @@ class BlazeOAuthServiceTests {
 		assertThat(gateway.lastGenerateRequest).isNotNull();
 		assertThat(gateway.lastGenerateRequest.clientId()).isEqualTo("client-id");
 		assertThat(gateway.lastGenerateRequest.clientSecret()).isEqualTo("client-secret");
-		assertThat(gateway.lastGenerateRequest.redirectUri()).isEqualTo("http://localhost:8080/api/blaze/oauth/callback");
+		assertThat(gateway.lastGenerateRequest.redirectUri()).isEqualTo("http://localhost:9090/api/blaze/oauth/callback");
 		assertThat(gateway.lastGenerateRequest.scopes()).containsExactly("users.read", "offline.access");
 		assertThat(response.authorizationUrl()).startsWith("https://blaze.stream/oauth2/authorize");
 		assertThat(stateStore.find("blaze-state-1")).isPresent();
@@ -475,7 +475,7 @@ class BlazeOAuthServiceTests {
 			lastGeneratedState = "blaze-state-" + generatedCount;
 			lastGeneratedVerifier = "verifier-" + generatedCount;
 			return new GeneratedAuthUrl(
-					"https://blaze.stream/oauth2/authorize?response_type=code&client_id=client-id&redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fapi%2Fblaze%2Foauth%2Fcallback&scope=users.read+offline.access&state=" + lastGeneratedState + "&code_challenge_method=S256&code_challenge=blaze-challenge",
+					"https://blaze.stream/oauth2/authorize?response_type=code&client_id=client-id&redirect_uri=http%3A%2F%2Flocalhost%3A9090%2Fapi%2Fblaze%2Foauth%2Fcallback&scope=users.read+offline.access&state=" + lastGeneratedState + "&code_challenge_method=S256&code_challenge=blaze-challenge",
 					lastGeneratedState,
 					lastGeneratedVerifier);
 		}

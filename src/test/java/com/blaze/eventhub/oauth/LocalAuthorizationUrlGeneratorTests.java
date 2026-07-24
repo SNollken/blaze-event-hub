@@ -22,7 +22,7 @@ class LocalAuthorizationUrlGeneratorTests {
 	void buildAuthorizationUrlContainsAllRequiredParameters() {
 		String url = LocalAuthorizationUrlGenerator.buildAuthorizationUrl(
 				"client-123",
-				"http://localhost:8080/callback",
+				"http://localhost:9090/callback",
 				java.util.List.of("users.read", "offline.access"),
 				"state-abc",
 				"challenge-xyz");
@@ -41,7 +41,7 @@ class LocalAuthorizationUrlGeneratorTests {
 	void generateProducesValidAuthorizationUrl() {
 		GeneratedAuthUrl result = generator.generate(
 				"client-id",
-				"http://localhost:8080/callback",
+				"http://localhost:9090/callback",
 				java.util.List.of("users.read"));
 
 		assertThat(result.authorizationUrl()).isNotNull();
