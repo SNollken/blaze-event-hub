@@ -54,3 +54,6 @@ build/
 
 # Frontend build output (generated inside Docker at build time)
 src/main/resources/static/assets/
+apache-maven-3.9.16/
+maven.zip
+.mvn/

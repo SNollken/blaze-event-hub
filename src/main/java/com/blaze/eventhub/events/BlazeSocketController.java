@@ -47,14 +47,14 @@ public class BlazeSocketController {
 
         // Get open channel IDs for this member
         List<String> channelIds = pipeline.getOpenChannelIdsForMember(member.id());
-        
+
         if (channelIds.isEmpty()) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "Nenhum evento aberto encontrado para este canal"));
         }
 
         // Connect to Blaze Socket.IO
-        socketClient.connect(memberId());
+        socketClient.connect(memberId);
 
         // Subscribe to channel events for each open channel
         // (The BlazeSocketIOClient will handle subscriptions internally)
@@ -71,7 +71,7 @@ public class BlazeSocketController {
     @PostMapping("/disconnect")
     public ResponseEntity<Map<String, Object>> disconnect() {
         var member = memberService.getCurrentMember();
-        
+
         log.info("Disconnecting Socket.IO for member {}", member.id());
 
         socketClient.disconnect(member.id());
@@ -85,7 +85,7 @@ public class BlazeSocketController {
     @GetMapping("/status")
     public ResponseEntity<Map<String, Object>> status() {
         var member = memberService.getCurrentMember();
-        
+
         boolean connected = socketClient.isConnected(member.id());
 
         return ResponseEntity.ok(Map.of(
@@ -100,17 +100,17 @@ public class BlazeSocketController {
     @PostMapping("/test-event")
     public ResponseEntity<Map<String, Object>> testEvent(@RequestBody Map<String, Object> payload) {
         String actionType = (String) payload.get("actionType");
-        
+
         if (actionType == null) {
             return ResponseEntity.badRequest()
                     .body(Map.of("error", "actionType is required"));
         }
 
         log.info("Test event received: {}", actionType);
-        
+
         // Forward to pipeline for processing
         pipeline.processActionEvent(actionType, payload);
-        
+
         return ResponseEntity.ok(Map.of("status", "processed"));
     }
 }

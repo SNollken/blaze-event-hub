@@ -3,12 +3,10 @@ package com.blaze.eventhub.events;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Consumer;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.DisposableBean;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.blaze.eventhub.config.BlazeProperties;
@@ -28,8 +26,8 @@ public class BlazeSocketIOClient implements DisposableBean {
     private final PersistentOAuthCredentialService credentialService;
     private final BlazeEventsPipeline pipeline;
 
-    private final Map<String, Socket> sockets = new ConcurrentHashMap<>();
-    private final Map<String, String> socketToUserId = new ConcurrentHashMap<>();
+    private final java.util.Map<String, Socket> sockets = new ConcurrentHashMap<>();
+    private final java.util.Map<String, String> socketToUserId = new ConcurrentHashMap<>();
 
     public BlazeSocketIOClient(
             BlazeProperties properties,
@@ -51,7 +49,6 @@ public class BlazeSocketIOClient implements DisposableBean {
                 log.debug("Socket already connected for member {}", memberId);
                 return;
             } else {
-                // Clean up stale socket
                 disconnect(memberId);
             }
         }
@@ -59,27 +56,26 @@ public class BlazeSocketIOClient implements DisposableBean {
         log.info("Connecting to Blaze Socket.IO for member {}", memberId);
 
         // Get valid token for this user
-        TokenSnapshot token = credentialService.currentValid(memberId)
-                .filter(t -> !t.accessTokenBlank())
-                .orElseThrow(() -> new IllegalStateException(
-                        "No valid access token for member " + memberId + ". User must authenticate first."));
+        TokenSnapshot token = credentialService.currentValid(memberId);
+        if (token == null || token.accessTokenBlank()) {
+            throw new IllegalStateException(
+                    "No valid access token for member " + memberId + ". User must authenticate first.");
+        }
 
         try {
             IO.Options options = new IO.Options();
             options.transports = new String[]{"websocket", "polling"};
             options.reconnection = true;
             options.reconnectionAttempts = properties.getSocketReconnectAttempts();
-            options.reconnectionDelay = properties.getSocketReconnectIntervalSec() * 1000;
+            options.reconnectionDelay = properties.getSocketReconnectIntervalSec() * 1000L;
             options.reconnectionDelayMax = 30000;
             options.timeout = 20000;
-            options.autoConnect = true;
-            options.query = "token=" + token.getAccessToken();
+            options.query = "token=" + token.accessToken();
 
             Socket socket = IO.socket(properties.getSocketUrl() + "/ws", options);
 
             socket.on(Socket.EVENT_CONNECT, args -> {
                 log.info("Socket.IO connected for member {}", memberId);
-                // Subscribe to events for this user's channels
                 subscribeToChannels(socket, memberId);
             });
 
@@ -91,13 +87,6 @@ public class BlazeSocketIOClient implements DisposableBean {
                 log.error("Socket.IO connection error for member {}: {}", memberId, args.length > 0 ? args[0] : "unknown");
             });
 
-            socket.on(Socket.EVENT_RECONNECT, args -> {
-                log.info("Socket.IO reconnected for member {}", memberId);
-                // Re-subscribe after reconnect
-                subscribeToChannels(socket, memberId);
-            });
-
-            // Listen for Blaze real-time events
             socket.on("channel.vote", createEventHandler("vote"));
             socket.on("channel.subscribe", createEventHandler("sub"));
             socket.on("channel.subscription.gift", createEventHandler("gifted_sub"));
@@ -114,12 +103,7 @@ public class BlazeSocketIOClient implements DisposableBean {
         }
     }
 
-    /**
-     * Subscribe to event channels for all events this user has open.
-     * This should be called after connect and after reconnect.
-     */
     private void subscribeToChannels(Socket socket, String memberId) {
-        // Get all open events for this user
         List<String> channelIds = pipeline.getOpenChannelIdsForMember(memberId);
 
         if (channelIds.isEmpty()) {
@@ -129,16 +113,16 @@ public class BlazeSocketIOClient implements DisposableBean {
 
         for (String channelId : channelIds) {
             log.debug("Subscribing to channel {} for member {}", channelId, memberId);
-            socket.emit("subscribe", channelId, ack -> {
-                if (ack != null && ack.length > 0) {
-                    Object response = ack[0];
-                    if (response instanceof Map) {
-                        @SuppressWarnings("unchecked")
-                        Map<String, Object> map = (Map<String, Object>) response;
-                        if (Boolean.TRUE.equals(map.get("success"))) {
+            socket.emit("subscribe", channelId, new io.socket.client.Ack() {
+                @Override
+                @SuppressWarnings("unchecked")
+                public void call(Object... args) {
+                    if (args != null && args.length > 0 && args[0] instanceof Map) {
+                        Map<String, Object> response = (Map<String, Object>) args[0];
+                        if (Boolean.TRUE.equals(response.get("success"))) {
                             log.debug("Successfully subscribed to channel {}", channelId);
                         } else {
-                            log.warn("Failed to subscribe to channel {}: {}", channelId, map.get("error"));
+                            log.warn("Failed to subscribe to channel {}: {}", channelId, response.get("error"));
                         }
                     }
                 }
@@ -146,9 +130,6 @@ public class BlazeSocketIOClient implements DisposableBean {
         }
     }
 
-    /**
-     * Create an event handler that forwards to the pipeline.
-     */
     private Emitter.Listener createEventHandler(String actionType) {
         return args -> {
             try {
@@ -160,8 +141,13 @@ public class BlazeSocketIOClient implements DisposableBean {
                 Object payload = args[0];
                 log.debug("Received {} event: {}", actionType, payload);
 
-                // Forward to pipeline for action detection and entry calculation
-                pipeline.processActionEvent(actionType, payload);
+                if (payload instanceof Map) {
+                    @SuppressWarnings("unchecked")
+                    Map<String, Object> payloadMap = (Map<String, Object>) payload;
+                    pipeline.processActionEvent(actionType, payloadMap);
+                } else {
+                    log.warn("Unexpected payload type {} for event {}", payload.getClass().getSimpleName(), actionType);
+                }
 
             } catch (Exception e) {
                 log.error("Error processing {} event", actionType, e);
@@ -169,9 +155,6 @@ public class BlazeSocketIOClient implements DisposableBean {
         };
     }
 
-    /**
-     * Disconnect a specific user's socket.
-     */
     public synchronized void disconnect(String memberId) {
         Socket socket = sockets.remove(memberId);
         if (socket != null) {
@@ -186,17 +169,11 @@ public class BlazeSocketIOClient implements DisposableBean {
         }
     }
 
-    /**
-     * Check if a user is connected.
-     */
     public boolean isConnected(String memberId) {
         Socket socket = sockets.get(memberId);
         return socket != null && socket.connected();
     }
 
-    /**
-     * Get the number of connected sockets.
-     */
     public int connectedCount() {
         return (int) sockets.values().stream().filter(Socket::connected).count();
     }

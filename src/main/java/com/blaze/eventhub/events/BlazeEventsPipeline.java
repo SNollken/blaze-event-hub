@@ -2,7 +2,6 @@ package com.blaze.eventhub.events;
 
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,7 +56,7 @@ public class BlazeEventsPipeline {
             // Extract user and channel info from Blaze payload
             Map<String, Object> user = extractUser(payload);
             if (user == null) {
-                log.warn("Could not extract user from {} payload: {}", actionType, actionType);
+                log.warn("Could not extract user from {} payload: {}", actionType, payload);
                 return;
             }
 
@@ -90,16 +89,15 @@ public class BlazeEventsPipeline {
 
             // Create candidate for each matching event
             for (Event event : openEvents) {
-                ChatEntryCandidate candidate = ChatEntryCandidate.builder()
-                        .channelId(channelId)
-                        .messageId(actionType + "_" + System.currentTimeMillis() + "_" + user.get("id"))
-                        .message("") // Socket events don't have a chat message
-                        .blazeUserId(blazeUserId)
-                        .blazeUsername(username)
-                        .displayName(displayName)
-                        .actionType(actionType.toLowerCase())
-                        .sentAt(java.time.Instant.now())
-                        .build();
+                ChatEntryCandidate candidate = new ChatEntryCandidate(
+                        channelId,
+                        actionType + "_" + System.currentTimeMillis() + "_" + user.get("id"),
+                        "",
+                        blazeUserId,
+                        username,
+                        displayName,
+                        actionType.toLowerCase(),
+                        java.time.Instant.now());
 
                 CaptureResult result = captureService.capture(candidate);
                 if (result.status() == com.blaze.eventhub.event.participant.CaptureStatus.ACCEPTED) {
