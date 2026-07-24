@@ -315,7 +315,11 @@ export default function EventDetail() {
               return cfg ? <p key={type}>{t(cfg.howTo)}</p> : null;
             })}
           </div>
-          <p>{t(captureDescriptionKey)}</p>
+          {event.status === 'OPEN' ? (
+            <p>{t('eventDetailCaptureOpen' as any)}</p>
+          ) : (
+            <p>{t(captureDescriptionKey)}</p>
+          )}
         </section>
       </div>
 

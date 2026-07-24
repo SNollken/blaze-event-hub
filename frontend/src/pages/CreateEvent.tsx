@@ -4,6 +4,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { ApiError, createEvent, getMe, updateActionRules } from '../api/client';
 import type { MemberProfile } from '../api/types';
 import { addToast } from '../components/Toast';
+import { TierPreview } from '../components/TierPreview';
 import { useI18n } from '../i18n/I18nContext';
 import { defaultEntryCommand, normalizeXPostUrl } from '../utils/giveaway-form';
 
@@ -52,6 +53,14 @@ export default function CreateEvent() {
   const [actionWeights, setActionWeights] = useState<Record<ActionTypeValue, number>>({
     chat: 1, vote: 1, sub: 1, gifted_sub: 1, follow: 1, donation: 1,
   });
+
+  const [demoTiers, setDemoTiers] = useState<Array<{threshold: number, entries: number}>>([
+    { threshold: 5, entries: 10 },
+    { threshold: 10, entries: 25 },
+    { threshold: 25, entries: 60 }
+  ]);
+  const [tierMode, setTierMode] = useState<'REPLACE' | 'ACCUMULATE'>('REPLACE');
+
   const [startsAt, setStartsAt] = useState('');
   const [endsAt, setEndsAt] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -319,13 +328,12 @@ export default function CreateEvent() {
                 setEntryCommand(event.target.value);
                 clearFieldError('entryCommand');
               }}
-              aria-invalid={Boolean(fieldErrors.entryCommand)}
+              aria-invalid={Boolean(fieldErrors.entryCommand) ? 'true' : 'false'}
               aria-describedby={fieldErrors.entryCommand ? 'event-command-error' : undefined}
               maxLength={80}
               autoComplete="off"
               spellCheck={false}
-              disabled={isSubmitting}
-              required={enabledActionTypes.includes('chat')}
+              required
             />
             {fieldErrors.entryCommand && <span id="event-command-error" className="form-helper form-helper--err" role="alert">{fieldErrors.entryCommand}</span>}
           </div>
@@ -384,6 +392,51 @@ export default function CreateEvent() {
                 </label>
               );
             })}
+          </div>
+
+          <div style={{ marginTop: '2rem' }}>
+            <div className="section-label">{t('tierConfiguration') || 'Configuração de Tiers (Preview Demo)'}</div>
+            <div style={{ display: 'flex', gap: '1rem', marginTop: '1rem' }}>
+              <label>
+                <input type="radio" name="tierMode" checked={tierMode === 'REPLACE'} onChange={() => setTierMode('REPLACE')} />{' '}
+                {t('tierModeReplace') || 'Substituir'}
+              </label>
+              <label>
+                <input type="radio" name="tierMode" checked={tierMode === 'ACCUMULATE'} onChange={() => setTierMode('ACCUMULATE')} />{' '}
+                {t('tierModeAccumulate') || 'Acumular'}
+              </label>
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: '0.5rem', marginTop: '1rem', maxWidth: '300px' }}>
+              {demoTiers.map((tier, idx) => (
+                <div key={idx} style={{ display: 'flex', gap: '0.5rem' }}>
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Lim"
+                    value={tier.threshold || ''}
+                    onChange={(e) => {
+                      const nt = [...demoTiers];
+                      nt[idx].threshold = parseInt(e.target.value) || 0;
+                      setDemoTiers(nt);
+                    }}
+                  />
+                  <input
+                    type="number"
+                    className="form-control"
+                    placeholder="Entradas"
+                    value={tier.entries || ''}
+                    onChange={(e) => {
+                      const nt = [...demoTiers];
+                      nt[idx].entries = parseInt(e.target.value) || 0;
+                      setDemoTiers(nt);
+                    }}
+                  />
+                </div>
+              ))}
+              <button type="button" className="btn btn-secondary" onClick={() => setDemoTiers([...demoTiers, {threshold: 0, entries: 0}])}>+</button>
+            </div>
+
+            <TierPreview tiers={demoTiers.filter(t => t.threshold > 0)} mode={tierMode} />
           </div>
         </section>
 
