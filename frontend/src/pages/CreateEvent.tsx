@@ -234,11 +234,11 @@ export default function CreateEvent() {
               id="event-title"
               className={fieldErrors.title ? 'is-invalid' : undefined}
               value={title}
-              onChange={(event) => {
-                setTitle(event.target.value);
+              onChange={(e) => {
+                setTitle(e.target.value);
                 clearFieldError('title');
               }}
-              aria-invalid={Boolean(fieldErrors.title)}
+              aria-invalid={Boolean(fieldErrors.title) ? 'true' : 'false'}
               aria-describedby={fieldErrors.title ? 'event-title-error' : undefined}
               maxLength={140}
               placeholder={t('createTitlePlaceholder')}
@@ -254,11 +254,11 @@ export default function CreateEvent() {
               id="event-prize"
               className={fieldErrors.prize ? 'is-invalid' : undefined}
               value={prize}
-              onChange={(event) => {
-                setPrize(event.target.value);
+              onChange={(e) => {
+                setPrize(e.target.value);
                 clearFieldError('prize');
               }}
-              aria-invalid={Boolean(fieldErrors.prize)}
+              aria-invalid={Boolean(fieldErrors.prize) ? 'true' : 'false'}
               aria-describedby={fieldErrors.prize ? 'event-prize-error' : undefined}
               maxLength={180}
               placeholder={t('createPrizePlaceholder')}
@@ -279,24 +279,23 @@ export default function CreateEvent() {
             />
           </div>
           <div className="form-group">
-            <label htmlFor="event-x-post">{t('createXPostLabel')}</label>
             <input
               ref={xPostUrlRef}
-              id="event-x-post"
+              aria-describedby={fieldErrors.xPostUrl ? 'event-x-post-error' : 'event-x-post-help'}
+              aria-invalid={Boolean(fieldErrors.xPostUrl) ? 'true' : 'false'}
+              autoComplete="url"
               className={fieldErrors.xPostUrl ? 'is-invalid' : undefined}
-              type="url"
+              disabled={isSubmitting}
+              id="event-x-post"
               inputMode="url"
-              value={xPostUrl}
-              onChange={(event) => {
-                setXPostUrl(event.target.value);
+              maxLength={2_048}
+              onChange={(e) => {
+                setXPostUrl(e.target.value);
                 clearFieldError('xPostUrl');
               }}
-              aria-invalid={Boolean(fieldErrors.xPostUrl)}
-              aria-describedby={fieldErrors.xPostUrl ? 'event-x-post-error' : 'event-x-post-help'}
-              maxLength={2_048}
               placeholder={t('createXPostPlaceholder')}
-              autoComplete="url"
-              disabled={isSubmitting}
+              type="url"
+              value={xPostUrl}
             />
             {fieldErrors.xPostUrl
               ? <span id="event-x-post-error" className="form-helper form-helper--err" role="alert">{fieldErrors.xPostUrl}</span>
