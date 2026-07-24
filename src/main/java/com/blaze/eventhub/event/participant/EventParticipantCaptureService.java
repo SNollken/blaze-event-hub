@@ -107,7 +107,7 @@ public class EventParticipantCaptureService {
             if (newEntries != entries) {
                 participantStore.updateEntryWeight(lockedEvent.id(), candidate.blazeUserId().trim(), newEntries);
             }
-            return CaptureResult.accepted(lockedEvent.id());
+            return CaptureResult.duplicate(lockedEvent.id());
         }
 
         return CaptureResult.accepted(lockedEvent.id());

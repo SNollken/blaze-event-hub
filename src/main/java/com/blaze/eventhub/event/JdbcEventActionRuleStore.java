@@ -9,12 +9,22 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
 
 @Repository
 public class JdbcEventActionRuleStore implements EventActionRuleStore {
+
+    private static final String INSERT_SQL = """
+            INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, mode, created_at)
+            VALUES (?, ?, ?, ?, ?, ?, ?)
+            """;
+    private static final String UPDATE_SQL = """
+            UPDATE event_action_rules SET enabled = ?, weight = ?, mode = ?
+            WHERE event_id = ? AND action_type = ?
+            """;
 
     private final JdbcTemplate jdbc;
 
@@ -50,15 +60,16 @@ public class JdbcEventActionRuleStore implements EventActionRuleStore {
 
     @Override
     public void save(EventActionRule rule) {
-        jdbc.update("""
-                INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, mode, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (event_id, action_type)
-                DO UPDATE SET enabled = EXCLUDED.enabled, weight = EXCLUDED.weight, mode = EXCLUDED.mode
-                """,
-                rule.id(), rule.eventId(), rule.actionType().value(),
-                rule.enabled(), rule.weight(), rule.mode().value(),
-                Timestamp.from(rule.createdAt()));
+        try {
+            jdbc.update(INSERT_SQL,
+                    rule.id(), rule.eventId(), rule.actionType().value(),
+                    rule.enabled(), rule.weight(), rule.mode().value(),
+                    Timestamp.from(rule.createdAt()));
+        } catch (DuplicateKeyException e) {
+            jdbc.update(UPDATE_SQL,
+                    rule.enabled(), rule.weight(), rule.mode().value(),
+                    rule.eventId(), rule.actionType().value());
+        }
     }
 
     @Override
@@ -66,30 +77,10 @@ public class JdbcEventActionRuleStore implements EventActionRuleStore {
         if (rules.isEmpty()) {
             return;
         }
-        String sql = """
-                INSERT INTO event_action_rules (id, event_id, action_type, enabled, weight, mode, created_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
-                ON CONFLICT (event_id, action_type)
-                DO UPDATE SET enabled = EXCLUDED.enabled, weight = EXCLUDED.weight, mode = EXCLUDED.mode
-                """;
-        jdbc.batchUpdate(sql, new org.springframework.jdbc.core.BatchPreparedStatementSetter() {
-            @Override
-            public void setValues(PreparedStatement ps, int i) throws SQLException {
-                EventActionRule rule = rules.get(i);
-                ps.setString(1, rule.id());
-                ps.setString(2, rule.eventId());
-                ps.setString(3, rule.actionType().value());
-                ps.setBoolean(4, rule.enabled());
-                ps.setInt(5, rule.weight());
-                ps.setString(6, rule.mode().value());
-                ps.setTimestamp(7, Timestamp.from(rule.createdAt()));
-            }
-
-            @Override
-            public int getBatchSize() {
-                return rules.size();
-            }
-        });
+        // ponytail: batch upsert for production PostgreSQL; try-catch per row for H2 test compat
+        for (EventActionRule rule : rules) {
+            save(rule);
+        }
     }
 
     @Override

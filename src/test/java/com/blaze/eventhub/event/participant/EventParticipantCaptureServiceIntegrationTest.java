@@ -48,6 +48,8 @@ class EventParticipantCaptureServiceIntegrationTest {
     void cleanUp() {
         jdbc.update("DELETE FROM event_draw_results");
         jdbc.update("DELETE FROM event_participants");
+        jdbc.update("DELETE FROM event_action_tiers");
+        jdbc.update("DELETE FROM event_action_rules");
         jdbc.update("DELETE FROM events");
         jdbc.update("DELETE FROM chat_polling_cursors");
         jdbc.update("DELETE FROM members");

@@ -6,8 +6,8 @@ package com.blaze.eventhub.event;
  * ACCUMULATE: tiers se somam (ex: 10 votos=1e, 30 votos=5e -> 30 votos = 1+5 = 6 entradas total)
  */
 public enum TierMode {
-    REPLACE("replace"),
-    ACCUMULATE("accumulate");
+    REPLACE("REPLACE"),
+    ACCUMULATE("ACCUMULATE");
 
     private final String value;
 
