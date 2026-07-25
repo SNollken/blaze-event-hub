@@ -1,8 +1,8 @@
 package com.nollen.blaze.common;
 
 import java.io.IOException;
+import java.security.MessageDigest;
 import java.util.List;
-
 import com.nollen.blaze.config.ApiSecurityProperties;
 
 import jakarta.servlet.FilterChain;
@@ -55,7 +55,9 @@ public class ApiKeyFilter extends OncePerRequestFilter {
 		if (requestKey == null || requestKey.isBlank()) {
 			requestKey = bearerToken(request.getHeader(HttpHeaders.AUTHORIZATION));
 		}
-		if (!configuredKey.equals(requestKey)) {
+		if (!MessageDigest.isEqual(
+				configuredKey.getBytes(java.nio.charset.StandardCharsets.UTF_8),
+				(requestKey != null ? requestKey : "").getBytes(java.nio.charset.StandardCharsets.UTF_8))) {
 			response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
 			response.setContentType("application/json");
 			response.getWriter().write("{\"code\":\"UNAUTHORIZED\",\"message\":\"API key required\"}");

@@ -49,14 +49,14 @@ public class PayloadSanitizer {
 
 	private String stripXss(String value) {
 		return value
-				.replaceAll("<script[^>]*>.*?</script>", "")
-				.replaceAll("<script[^>]*/?>", "")
+				.replaceAll("(?is)<script[^>]*>.*?</script>", "")
+				.replaceAll("(?is)<script[^>]*/?>", "")
+				.replaceAll("(?i)<iframe[^>]*>.*?</iframe>", "")
+				.replaceAll("(?is)<iframe[^>]*/?>", "")
+				.replaceAll("(?is)<object[^>]*>.*?</object>", "")
+				.replaceAll("(?is)<embed[^>]*/?>", "")
 				.replaceAll("javascript:", "")
 				.replaceAll("on\\w+\\s*=", "")
-				.replaceAll("<iframe[^>]*>.*?</iframe>", "")
-				.replaceAll("<iframe[^>]*/?>", "")
-				.replaceAll("<object[^>]*>.*?</object>", "")
-				.replaceAll("<embed[^>]*/?>", "")
-				.replaceAll("<svg[^>]*on\\w+[^>]*>", "");
+				.replaceAll("(?is)<svg[^>]*on\\w+[^>]*>", "");
 	}
 }

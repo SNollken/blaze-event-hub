@@ -78,7 +78,7 @@ public class OverlayContentService {
 		html.append(getBaseCss());
 		html.append(getOverlayTypeCss(overlayType));
 		if (config.customCss() != null && !config.customCss().isBlank()) {
-			html.append("\n/* Custom CSS */\n").append(config.customCss());
+			html.append("\n/* Custom CSS */\n").append(sanitizeCss(config.customCss()));
 		}
 		html.append("\n</style>\n");
 		html.append("</head>\n<body>\n");
@@ -325,6 +325,14 @@ public class OverlayContentService {
 				  updateEvents();
 				})();
 				""";
+	}
+
+	private static String sanitizeCss(String css) {
+		return css.replaceAll("(?i)expression\\s*\\(", "")
+				.replaceAll("(?i)-moz-binding\\s*:", "")
+				.replaceAll("(?i)url\\s*\\(\\s*data\\s*:", "")
+				.replaceAll("(?i)\\bbehavior\\s*:", "")
+				.replaceAll("(?i)@import\\s+", "");
 	}
 
 	private static void trim(ConcurrentLinkedDeque<?> deque) {
