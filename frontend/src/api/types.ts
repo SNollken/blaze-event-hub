@@ -29,6 +29,9 @@ export interface BlazeEventsStatusResponse {
   sessionId: string | null;
   lastMessageType: string | null;
   startedAt: string | null;
+  lastEventReceivedAt?: string | null;
+  eventCount?: number;
+  engineAvailable?: boolean;
 }
 
 export interface OAuthSessionResponse {
@@ -52,6 +55,7 @@ export interface OAuthProfileResponse {
   username: string;
   displayName: string;
   avatarUrl: string | null;
+  rawAvailable: boolean;
 }
 
 export interface OAuthStartResponse {

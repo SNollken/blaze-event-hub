@@ -2,14 +2,15 @@ const BASE = '';
 const API_KEY = import.meta.env.VITE_NOLLEN_API_KEY || 'dev-local-key';
 
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
+  const { headers: callerHeaders, ...restOptions } = options || {};
   const res = await fetch(`${BASE}${url}`, {
+    ...restOptions,
     headers: {
       'Content-Type': 'application/json',
       Accept: 'application/json',
+      ...(callerHeaders || {}),
       'X-Nollen-Api-Key': API_KEY,
-      ...(options?.headers || {}),
     },
-    ...options,
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
