@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.HashMap;
 import java.util.Map;
 
+import com.nollen.blaze.common.JsonData;
 import com.nollen.blaze.alert.AlertService;
 import com.nollen.blaze.alert.EvaluateEventRequest;
 import com.nollen.blaze.common.IdGenerator;
@@ -55,7 +56,7 @@ public class BlazeEventsPipeline {
 				resolvedType,
 				"simulate",
 				resolvedMessage,
-				Map.of("simulated", true, "eventType", resolvedType, "timestamp", now.toString()).toString());
+				JsonData.write(Map.of("simulated", true, "eventType", resolvedType, "timestamp", now.toString())));
 		logStore.append(entry);
 		dispatch(resolveBlazeEventType(resolvedType, resolvedType), Map.of(
 				"message", resolvedMessage,

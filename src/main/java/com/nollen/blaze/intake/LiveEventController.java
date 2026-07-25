@@ -3,6 +3,9 @@ package com.nollen.blaze.intake;
 import java.util.List;
 import java.util.Map;
 
+import jakarta.validation.Valid;
+import jakarta.validation.constraints.NotNull;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/live-events")
 public class LiveEventController {
+
 
 	private final LiveEventService service;
 
@@ -30,7 +34,7 @@ public class LiveEventController {
 	}
 
 	@PostMapping
-	LiveEvent create(@RequestBody CreateLiveEventRequest request) {
+	LiveEvent create(@Valid @RequestBody CreateLiveEventRequest request) {
 		return service.create(request.type(), request.source(), request.payload(), request.dedupKey());
 	}
 
@@ -50,8 +54,8 @@ public class LiveEventController {
 	}
 
 	public record CreateLiveEventRequest(
-			LiveEventType type,
-			LiveEventSource source,
+			@NotNull LiveEventType type,
+			@NotNull LiveEventSource source,
 			Map<String, Object> payload,
 			String dedupKey) {
 	}

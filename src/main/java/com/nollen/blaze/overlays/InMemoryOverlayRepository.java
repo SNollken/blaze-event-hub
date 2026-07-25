@@ -10,6 +10,7 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.nollen.blaze.common.JsonData;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -92,6 +93,7 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 	}
 
 	@Override
+	@Transactional
 	public void deleteProfile(String profileId) {
 		if (jdbc != null) {
 			jdbc.update("DELETE FROM overlays WHERE profile_id = ?", profileId);

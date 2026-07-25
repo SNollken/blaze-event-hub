@@ -8,6 +8,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.stereotype.Repository;
@@ -136,6 +137,7 @@ public class InMemoryGiveawayEntryStore {
 				.toList();
 	}
 
+	@Transactional
 	public void replaceAllForGiveaway(String giveawayId, List<GiveawayEntry> updatedEntries) {
 		if (jdbc != null) {
 			jdbc.update("DELETE FROM giveaway_entries WHERE giveaway_id = ?", giveawayId);

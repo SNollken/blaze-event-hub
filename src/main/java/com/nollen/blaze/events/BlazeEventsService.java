@@ -5,6 +5,7 @@ import java.time.Instant;
 import java.util.List;
 import java.util.Map;
 
+import com.nollen.blaze.common.JsonData;
 import com.nollen.blaze.common.IdGenerator;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -80,7 +81,7 @@ public class BlazeEventsService {
 				resolvedType,
 				"simulate",
 				resolvedMessage,
-				Map.of("simulated", true, "eventType", resolvedType, "timestamp", now.toString()).toString());
+				JsonData.write(Map.of("simulated", true, "eventType", resolvedType, "timestamp", now.toString())));
 		logStore.append(entry);
 		return entry;
 	}

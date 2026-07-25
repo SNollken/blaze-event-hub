@@ -17,6 +17,7 @@ import com.nollen.blaze.common.NotFoundException;
 
 import jakarta.annotation.PostConstruct;
 
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 import org.springframework.web.multipart.MultipartFile;
@@ -116,6 +117,7 @@ public class OverlayService {
 		return repository.saveProfile(updated);
 	}
 
+	@Transactional
 	public void deleteProfile(String profileId) {
 		OverlayProfile profile = getProfile(profileId);
 		List<Overlay> overlays = repository.listOverlays(profile.id());
@@ -342,9 +344,43 @@ public class OverlayService {
 		if (BLOCKED_EXTENSIONS.contains(extension)) {
 			throw new IllegalArgumentException("Asset file type is blocked");
 		}
-		if (!ALLOWED_MIME_TYPES.contains(file.getContentType())) {
+		String headerContentType = file.getContentType();
+		if (!ALLOWED_MIME_TYPES.contains(headerContentType)) {
 			throw new IllegalArgumentException("Asset mime type is not allowed");
 		}
+		// Validate actual content via magic bytes to prevent MIME spoofing
+		try {
+			byte[] header = file.getBytes();
+			int len = Math.min(header.length, 12);
+			byte[] buf = new byte[len];
+			System.arraycopy(header, 0, buf, 0, len);
+			String detectedType = detectMimeType(buf);
+			if (!ALLOWED_MIME_TYPES.contains(detectedType)) {
+				throw new IllegalArgumentException("File content does not match declared mime type");
+			}
+		} catch (IllegalArgumentException e) {
+			throw e;
+		} catch (IOException e) {
+			throw new IllegalArgumentException("Failed to read asset file for validation");
+		}
+	}
+
+	private static String detectMimeType(byte[] header) {
+		if (header.length >= 8
+				&& (header[0] & 0xFF) == 0x89 && header[1] == 0x50 && header[2] == 0x4E && header[3] == 0x47
+				&& header[4] == 0x0D && header[5] == 0x0A && (header[6] & 0xFF) == 0x1A && header[7] == 0x0A) {
+			return "image/png";
+		}
+		if (header.length >= 4
+				&& header[0] == 0x47 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x38) {
+			return "image/gif";
+		}
+		if (header.length >= 12
+				&& header[0] == 0x52 && header[1] == 0x49 && header[2] == 0x46 && header[3] == 0x46
+				&& header[8] == 0x57 && header[9] == 0x45 && header[10] == 0x42 && header[11] == 0x50) {
+			return "image/webp";
+		}
+		return "application/octet-stream";
 	}
 
 	private static String safeFilename(String originalFilename) {
