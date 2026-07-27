@@ -5,7 +5,6 @@ import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.concurrent.atomic.AtomicInteger;
 
 import com.nollen.blaze.common.JsonData;
 import com.nollen.blaze.events.BlazeEventType;
@@ -23,7 +22,6 @@ public class AlertStore {
 			(Alert a) -> a.triggeredAt() != null ? a.triggeredAt() : Instant.EPOCH).reversed();
 
 	private final ConcurrentLinkedDeque<Alert> alerts = new ConcurrentLinkedDeque<>();
-	private final AtomicInteger counter = new AtomicInteger(0);
 	private final JdbcTemplate jdbc;
 	private final RowMapper<Alert> mapper = (rs, rowNum) -> new Alert(
 			rs.getString("id"),
@@ -62,7 +60,6 @@ public class AlertStore {
 		}
 		alerts.removeIf(a -> a.id().equals(alert.id()));
 		alerts.addFirst(alert);
-		counter.incrementAndGet();
 		while (alerts.size() > MAX_ALERTS) {
 			alerts.removeLast();
 		}
@@ -104,6 +101,17 @@ public class AlertStore {
 				.sorted(BY_TIME)
 				.toList();
 	}
+	public Optional<Alert> findLastByRuleId(String ruleId) {
+		if (jdbc != null) {
+			return jdbc.query("SELECT * FROM alerts WHERE rule_id = ? ORDER BY triggered_at DESC", mapper, ruleId)
+					.stream().findFirst();
+		}
+		return alerts.stream()
+				.filter(a -> a.ruleId() != null && a.ruleId().equals(ruleId))
+				.sorted(BY_TIME)
+				.findFirst();
+	}
+
 
 	public long count() {
 		if (jdbc != null) {

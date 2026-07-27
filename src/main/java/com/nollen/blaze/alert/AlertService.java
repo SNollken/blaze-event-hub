@@ -1,7 +1,9 @@
 package com.nollen.blaze.alert;
 
+import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 import com.nollen.blaze.common.IdGenerator;
 
@@ -10,13 +12,15 @@ import org.springframework.stereotype.Service;
 @Service
 public class AlertService {
 
+	private final Clock clock;
 	private final AlertStore alertStore;
 	private final AlertRuleStore ruleStore;
 	private final AlertNotifier notifier;
 	private final IdGenerator idGenerator;
 
-	public AlertService(AlertStore alertStore, AlertRuleStore ruleStore, AlertNotifier notifier,
+	public AlertService(Clock clock, AlertStore alertStore, AlertRuleStore ruleStore, AlertNotifier notifier,
 			IdGenerator idGenerator) {
+		this.clock = clock;
 		this.alertStore = alertStore;
 		this.ruleStore = ruleStore;
 		this.notifier = notifier;
@@ -65,6 +69,13 @@ public class AlertService {
 		List<Alert> triggered = new ArrayList<>();
 		for (AlertRule rule : enabledRules) {
 			if (AlertEvaluator.matches(rule, request.eventType(), request.payload())) {
+				if (rule.cooldownMs() > 0) {
+					Optional<Alert> lastTriggered = alertStore.findLastByRuleId(rule.id());
+					if (lastTriggered.isPresent()
+							&& clock.instant().isBefore(lastTriggered.get().triggeredAt().plusMillis(rule.cooldownMs()))) {
+						continue;
+					}
+				}
 				Alert alert = createAlert(rule, request);
 				alertStore.save(alert);
 				notifier.notify(alert);
@@ -81,7 +92,7 @@ public class AlertService {
 				rule.id(),
 				rule.name(),
 				request.eventType(),
-				java.time.Instant.now(),
+				clock.instant(),
 				message,
 				false,
 				request.payload() == null ? java.util.Map.of() : java.util.Map.copyOf(request.payload()));
