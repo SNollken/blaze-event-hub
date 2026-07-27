@@ -1,8 +1,10 @@
 package com.nollen.blaze.overlays;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
@@ -30,8 +32,8 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 			rs.getString("id"),
 			rs.getString("name"),
 			rs.getString("description"),
-			rs.getTimestamp("created_at").toInstant(),
-			rs.getTimestamp("updated_at").toInstant());
+			toInstant(rs.getTimestamp("created_at")),
+			toInstant(rs.getTimestamp("updated_at")));
 	private final RowMapper<Overlay> overlayMapper = (rs, rowNum) -> new Overlay(
 			rs.getString("id"),
 			rs.getString("profile_id"),
@@ -43,8 +45,8 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 			}, OverlayConfig.defaultConfig()),
 			JsonData.read(rs.getString("layers"), LAYERS_TYPE, List.of()),
 			JsonData.read(rs.getString("assets"), ASSETS_TYPE, List.of()),
-			rs.getTimestamp("created_at").toInstant(),
-			rs.getTimestamp("updated_at").toInstant());
+			toInstant(rs.getTimestamp("created_at")),
+			toInstant(rs.getTimestamp("updated_at")));
 
 	public InMemoryOverlayRepository() {
 		this.jdbc = null;
@@ -155,7 +157,7 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 					.stream().findFirst();
 		}
 		return overlays.values().stream()
-				.filter(overlay -> overlay.publicToken().equals(publicToken))
+				.filter(overlay -> Objects.equals(overlay.publicToken(), publicToken))
 				.findFirst();
 	}
 
@@ -192,5 +194,9 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 			return jdbc.query("SELECT * FROM overlays ORDER BY created_at", overlayMapper);
 		}
 		return new ArrayList<>(overlays.values());
+	}
+
+	private static Instant toInstant(java.sql.Timestamp ts) {
+		return ts != null ? ts.toInstant() : Instant.now();
 	}
 }
