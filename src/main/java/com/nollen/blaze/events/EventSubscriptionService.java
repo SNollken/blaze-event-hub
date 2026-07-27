@@ -46,6 +46,8 @@ public class EventSubscriptionService {
 				request.channelId(),
 				sessionId,
 				Instant.now(clock));
+		store.findByChannelIdAndType(request.channelId(), request.type())
+			.ifPresent(existing -> store.delete(existing.id()));
 		store.save(snapshot);
 		return store.list();
 	}

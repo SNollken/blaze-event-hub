@@ -39,7 +39,7 @@ public class BlazeEventsCapabilities {
 				"configuration", Map.of(
 						"socketConfigured", blazeProperties.isSocketConfigured(),
 						"monitoredChannelConfigured", blazeProperties.isMonitoredChannelConfigured(),
-						"socketUrl", blazeProperties.getSocketUrl(),
-						"socketPath", blazeProperties.getSocketPath()));
+						"socketUrl", blazeProperties.getSocketUrl() != null ? blazeProperties.getSocketUrl() : "",
+						"socketPath", blazeProperties.getSocketPath() != null ? blazeProperties.getSocketPath() : ""));
 	}
 }

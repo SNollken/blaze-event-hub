@@ -1,6 +1,7 @@
 package com.nollen.blaze.intake;
 
 import java.util.ArrayList;
+import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -18,14 +19,18 @@ public class LiveEventStore {
 
 	private final ConcurrentHashMap<String, LiveEvent> events = new ConcurrentHashMap<>();
 	private final JdbcTemplate jdbc;
-	private final RowMapper<LiveEvent> mapper = (rs, rowNum) -> new LiveEvent(
+	private final RowMapper<LiveEvent> mapper = (rs, rowNum) -> {
+		Timestamp ts = rs.getTimestamp("occurred_at");
+		java.time.Instant instant = ts != null ? ts.toInstant() : java.time.Instant.now();
+		return new LiveEvent(
 			rs.getString("id"),
 			LiveEventType.valueOf(rs.getString("type")),
 			LiveEventSource.valueOf(rs.getString("source")),
 			LiveEventStatus.valueOf(rs.getString("status")),
 			JsonData.readMap(rs.getString("payload")),
-			rs.getTimestamp("occurred_at").toInstant(),
+			instant,
 			rs.getString("dedup_key"));
+	};
 
 	public LiveEventStore() {
 		this.jdbc = null;

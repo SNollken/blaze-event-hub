@@ -11,4 +11,17 @@ public record EventSubscriptionRequest(
 	public String effectiveVersion() {
 		return version == null || version.isBlank() ? "1" : version;
 	}
+
+	/**
+	 * Valida campos obrigatórios manualmente (útil quando o parsing
+	 * não passa pelo @Valid do Spring, ex: objectMapper.readValue).
+	 */
+	public void validate() {
+		if (type == null) {
+			throw new IllegalArgumentException("type is required");
+		}
+		if (channelId == null || channelId.isBlank()) {
+			throw new IllegalArgumentException("channelId is required");
+		}
+	}
 }

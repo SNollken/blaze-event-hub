@@ -39,19 +39,17 @@ public class LiveEventService {
 	}
 
 	public List<LiveEvent> listFiltered(LiveEventType type, LiveEventSource source, LiveEventStatus status) {
-		if (type != null && source != null) {
-			return store.findByTypeAndSource(type, source);
-		}
+		List<LiveEvent> results = store.listAll();
 		if (type != null) {
-			return store.findByType(type);
+			results = results.stream().filter(e -> e.type() == type).toList();
 		}
 		if (source != null) {
-			return store.findBySource(source);
+			results = results.stream().filter(e -> e.source() == source).toList();
 		}
 		if (status != null) {
-			return store.findByStatus(status);
+			results = results.stream().filter(e -> e.status() == status).toList();
 		}
-		return store.listAll();
+		return results;
 	}
 
 	public LiveEvent getById(String id) {

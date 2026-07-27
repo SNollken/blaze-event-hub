@@ -39,7 +39,7 @@ public class BlazeEventsPipeline {
 		}
 		BlazeEventType eventType = resolveBlazeEventType(envelope.subscriptionType(), envelope.messageType());
 		Map<String, Object> payload = envelope.payload() == null ? Map.of() : new HashMap<>(envelope.payload());
-		dispatch(eventType, payload, "blaze:" + (envelope.sessionId() == null ? "" : envelope.sessionId()));
+		dispatch(eventType, payload, "blaze:" + (envelope.sessionId() != null ? envelope.sessionId() : idGenerator.newId()));
 		logEntry(
 				envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
 				envelope.messageType() != null ? envelope.messageType() : "unknown",

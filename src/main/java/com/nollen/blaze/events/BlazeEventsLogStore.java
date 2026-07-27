@@ -8,6 +8,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.RowMapper;
+import java.sql.Timestamp;
 import org.springframework.stereotype.Repository;
 
 @Repository
@@ -17,13 +18,17 @@ public class BlazeEventsLogStore {
 
 	private final ConcurrentLinkedDeque<BlazeEventsLogEntry> entries = new ConcurrentLinkedDeque<>();
 	private final JdbcTemplate jdbc;
-	private final RowMapper<BlazeEventsLogEntry> mapper = (rs, rowNum) -> new BlazeEventsLogEntry(
+	private final RowMapper<BlazeEventsLogEntry> mapper = (rs, rowNum) -> {
+		Timestamp ts = rs.getTimestamp("received_at");
+		java.time.Instant instant = ts != null ? ts.toInstant() : java.time.Instant.now();
+		return new BlazeEventsLogEntry(
 			rs.getString("id"),
-			rs.getTimestamp("received_at").toInstant(),
+			instant,
 			rs.getString("event_type"),
 			rs.getString("source"),
 			rs.getString("message"),
 			rs.getString("raw_payload"));
+	};
 
 	public BlazeEventsLogStore() {
 		this.jdbc = null;

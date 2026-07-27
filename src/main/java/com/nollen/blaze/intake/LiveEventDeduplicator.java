@@ -1,14 +1,19 @@
 package com.nollen.blaze.intake;
 
-import java.util.concurrent.ConcurrentHashMap;
-
+import java.util.LinkedHashMap;
+import java.util.Map;
 import org.springframework.stereotype.Component;
 
 @Component
 public class LiveEventDeduplicator {
 
 	private final LiveEventStore store;
-	private final ConcurrentHashMap<String, Boolean> knownDuplicates = new ConcurrentHashMap<>();
+	private final Map<String, Boolean> knownDuplicates = new LinkedHashMap<>(100, 0.75f, true) {
+		@Override
+		protected boolean removeEldestEntry(Map.Entry<String, Boolean> eldest) {
+			return size() > 10_000;
+		}
+	};
 
 	public LiveEventDeduplicator(LiveEventStore store) {
 		this.store = store;

@@ -2,6 +2,7 @@ package com.nollen.blaze.events;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,7 +17,7 @@ public class InMemoryEventSubscriptionStore {
 	private final JdbcTemplate jdbc;
 	private final RowMapper<EventSubscriptionSnapshot> mapper = (rs, rowNum) -> new EventSubscriptionSnapshot(
 			rs.getString("id"),
-			BlazeEventType.valueOf(rs.getString("type")),
+			BlazeEventType.from(rs.getString("type")),
 			rs.getString("version"),
 			rs.getString("channel_id"),
 			rs.getString("session_id"),
@@ -53,6 +54,25 @@ public class InMemoryEventSubscriptionStore {
 			return jdbc.query("SELECT * FROM event_subscriptions ORDER BY created_at", mapper);
 		}
 		return new ArrayList<>(subscriptions.values());
+	}
+
+	public Optional<EventSubscriptionSnapshot> findByChannelIdAndType(String channelId, BlazeEventType type) {
+		if (jdbc != null) {
+			return jdbc.query(
+				"SELECT * FROM event_subscriptions WHERE channel_id = ? AND type = ? ORDER BY created_at DESC LIMIT 1",
+				mapper, channelId, type.name()).stream().findFirst();
+		}
+		return subscriptions.values().stream()
+			.filter(s -> channelId.equals(s.channelId()) && s.type() == type)
+			.findFirst();
+	}
+
+	public void delete(String id) {
+		if (jdbc != null) {
+			jdbc.update("DELETE FROM event_subscriptions WHERE id = ?", id);
+			return;
+		}
+		subscriptions.remove(id);
 	}
 
 	public void clear() {
