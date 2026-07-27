@@ -1,4 +1,4 @@
-import { usePolling } from './Toast';
+import { usePolling } from '../hooks/usePolling';
 import { getStatus } from '../api/client';
 import { StatusDot } from './Badge';
 import { RefreshCw } from 'lucide-react';

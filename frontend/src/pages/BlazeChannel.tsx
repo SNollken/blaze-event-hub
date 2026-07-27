@@ -2,7 +2,8 @@ import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { Badge, StatusDot } from '../components/Badge';
-import { usePolling, addToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
+import { addToast } from '../components/Toast';
 import {
   getStatus,
   getSetupStatus,
@@ -14,7 +15,6 @@ import {
 import {
   Key,
   Radio,
-  User,
   RefreshCw,
   ExternalLink,
   Copy,

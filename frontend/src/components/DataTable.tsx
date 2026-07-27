@@ -122,9 +122,11 @@ export function DataTable<T>({
                 </td>
               </tr>
             ) : (
-              sorted.map((row, i) => (
+              sorted.map((row) => {
+                const originalIndex = filtered.indexOf(row);
+                return (
                 <tr
-                  key={i}
+                  key={originalIndex >= 0 ? `row-${originalIndex}` : `row-${row}`}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
                   style={onRowClick ? { cursor: 'pointer' } : undefined}
                 >
@@ -136,7 +138,8 @@ export function DataTable<T>({
                     </td>
                   ))}
                 </tr>
-              ))
+                );
+              })
             )}
           </tbody>
         </table>

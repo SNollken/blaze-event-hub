@@ -3,7 +3,8 @@ import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
-import { usePolling, addToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
+import { addToast } from '../components/Toast';
 import {
   getStatus,
   getEventsStatus,

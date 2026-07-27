@@ -4,7 +4,8 @@ import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
-import { usePolling, addToast } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
+import { addToast } from '../components/Toast';
 import {
   getOverlayProfiles,
   getOverlays,
@@ -33,6 +34,8 @@ export default function Overlays() {
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
   const [showCreateProfileModal, setShowCreateProfileModal] = useState(false);
   const [selectedOverlay, setSelectedOverlay] = useState<Overlay | null>(null);
+  const [profileName, setProfileName] = useState('');
+  const [profileDescription, setProfileDescription] = useState('');
 
   const loadOverlays = async (profileId: string) => {
     setSelectedProfileId(profileId);
@@ -44,10 +47,12 @@ export default function Overlays() {
     }
   };
 
-  const handleCreateProfile = async (name: string) => {
+  const handleCreateProfile = async (name: string, description: string) => {
     try {
-      await createOverlayProfile({ name });
+      await createOverlayProfile({ name, description: description || undefined });
       addToast('success', 'Perfil criado com sucesso');
+      setProfileName('');
+      setProfileDescription('');
       reloadProfiles();
     } catch (e: unknown) {
       addToast('error', e instanceof Error ? e.message : 'Erro ao criar perfil');
@@ -215,9 +220,8 @@ export default function Overlays() {
           <>
             <button className="btn btn-secondary" onClick={() => setShowCreateProfileModal(false)}>Cancelar</button>
             <button className="btn btn-primary" onClick={() => {
-              const input = document.querySelector('.modal-body .input') as HTMLInputElement;
-              if (input?.value) {
-                handleCreateProfile(input.value);
+              if (profileName.trim()) {
+                handleCreateProfile(profileName.trim(), profileDescription.trim());
                 setShowCreateProfileModal(false);
               }
             }}>Criar Perfil</button>
@@ -226,11 +230,11 @@ export default function Overlays() {
       >
         <div>
           <label>Nome do Perfil</label>
-          <input className="input" placeholder="Ex: Meu Perfil OBS" />
+          <input className="input" placeholder="Ex: Meu Perfil OBS" value={profileName} onChange={e => setProfileName(e.target.value)} />
         </div>
         <div>
           <label>Descricao (opcional)</label>
-          <input className="input" placeholder="Descricao breve" />
+          <input className="input" placeholder="Descricao breve" value={profileDescription} onChange={e => setProfileDescription(e.target.value)} />
         </div>
       </Modal>
 

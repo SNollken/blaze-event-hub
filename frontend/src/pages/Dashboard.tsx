@@ -2,7 +2,7 @@ import { useCallback } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { StatusDot } from '../components/Badge';
-import { usePolling } from '../components/Toast';
+import { usePolling } from '../hooks/usePolling';
 import { getStatus, getEventsStatus, getOAuthSession } from '../api/client';
 import {
   Server,
@@ -10,7 +10,6 @@ import {
   Radio,
   Layers,
   Clock,
-  User,
   Zap,
   Settings,
 } from 'lucide-react';

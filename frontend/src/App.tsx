@@ -2,6 +2,13 @@ import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 
+const NotFound = () => (
+  <div style={{ padding: '2rem', textAlign: 'center' }}>
+    <h2>404</h2>
+    <p>Pagina nao encontrada.</p>
+  </div>
+);
+
 const Dashboard = lazy(() => import('./pages/Dashboard'));
 const LiveEvents = lazy(() => import('./pages/LiveEvents'));
 const BlazeChannel = lazy(() => import('./pages/BlazeChannel'));
@@ -20,7 +27,7 @@ export default function App() {
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/giveaways" element={<Giveaways />} />
           <Route path="/overlays" element={<Overlays />} />
-          <Route path="*" element={<Dashboard />} />
+          <Route path="*" element={<NotFound />} />
         </Routes>
       </Suspense>
     </ErrorBoundary>
