@@ -4,8 +4,7 @@ public record OAuthProfileResponse(
 		String id,
 		String username,
 		String displayName,
-		String avatarUrl,
-		boolean rawAvailable) {
+		String avatarUrl) {
 
 	public static OAuthProfileResponse from(OAuthProfileSummary profile) {
 		if (profile == null) {
@@ -15,7 +14,6 @@ public record OAuthProfileResponse(
 				profile.id(),
 				profile.username(),
 				profile.displayName(),
-				profile.avatarUrl(),
-				false);
+				profile.avatarUrl());
 	}
 }

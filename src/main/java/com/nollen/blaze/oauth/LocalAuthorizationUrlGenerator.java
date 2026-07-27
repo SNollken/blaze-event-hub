@@ -7,18 +7,16 @@ import java.security.NoSuchAlgorithmException;
 import java.security.SecureRandom;
 import java.util.Base64;
 import java.util.List;
-import java.util.stream.Collectors;
-
-import org.springframework.stereotype.Component;
-
 /**
  * Gera localmente a authorizationUrl do OAuth com PKCE S256,
  * sem depender de chamada externa para a Blaze.
  *
  * state e codeVerifier são gerados com SecureRandom.
  * codeChallenge é derivado do codeVerifier via SHA-256 (S256).
+ *
+ * Nota: @Component removido — não injetado em produção (o gateway remoto gera a URL).
+ * Mantido para uso em testes unitários.
  */
-@Component
 public class LocalAuthorizationUrlGenerator {
 
     private static final SecureRandom RANDOM = new SecureRandom();
@@ -55,8 +53,7 @@ public class LocalAuthorizationUrlGenerator {
                                          String state, String codeChallenge) {
         String scopeParam = scopes == null || scopes.isEmpty()
                 ? ""
-                : scopes.stream().map(LocalAuthorizationUrlGenerator::encodeParam)
-                        .collect(Collectors.joining(" "));
+                : String.join(" ", scopes);
 
         return "https://blaze.stream/oauth2/authorize"
                 + "?response_type=code"
