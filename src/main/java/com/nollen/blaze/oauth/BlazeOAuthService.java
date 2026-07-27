@@ -65,7 +65,7 @@ public class BlazeOAuthService {
 			throw new OAuthException(400, "OAUTH_CALLBACK_INCOMPLETE",
 					"OAuth callback incompleto. Volte ao dashboard e clique em Iniciar OAuth novamente.");
 		}
-		OAuthState stored = stateStore.find(state)
+		OAuthState stored = stateStore.consume(state)
 				.orElseThrow(() -> new OAuthException(400, "OAUTH_CALLBACK_INVALID",
 						"Autorizacao OAuth expirada, ja usada ou perdida pelo reinicio do backend. Volte ao dashboard e clique em Iniciar OAuth novamente."));
 		try {
@@ -76,9 +76,7 @@ public class BlazeOAuthService {
 					stored.codeVerifier(),
 					properties.getRedirectUri(),
 					"authorization_code"));
-			OAuthCallbackResponse callbackResponse = saveCallbackAndSanitize(response);
-			stateStore.consume(state);
-			return callbackResponse;
+			return saveCallbackAndSanitize(response);
 		} catch (OAuthException e) {
 			// Erros do gateway (4xx/5xx da Blaze) — deixa propagar com codigo especifico
 			throw e;

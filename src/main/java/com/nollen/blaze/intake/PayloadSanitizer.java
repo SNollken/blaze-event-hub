@@ -49,14 +49,16 @@ public class PayloadSanitizer {
 
 	private String stripXss(String value) {
 		return value
+				// Neutralize HTML numeric character references FIRST: &#106;avascript: -> harmless
+				.replaceAll("&#", "&amp;#")
 				.replaceAll("(?is)<script[^>]*>.*?</script>", "")
 				.replaceAll("(?is)<script[^>]*/?>", "")
 				.replaceAll("(?i)<iframe[^>]*>.*?</iframe>", "")
 				.replaceAll("(?is)<iframe[^>]*/?>", "")
 				.replaceAll("(?is)<object[^>]*>.*?</object>", "")
 				.replaceAll("(?is)<embed[^>]*/?>", "")
-				.replaceAll("javascript:", "")
-				.replaceAll("on\\w+\\s*=", "")
+				.replaceAll("(?i)javascript\\s*:", "")
+				.replaceAll("(?i)on\\w+\\s*=", "")
 				.replaceAll("(?is)<svg[^>]*on\\w+[^>]*>", "");
 	}
 }
