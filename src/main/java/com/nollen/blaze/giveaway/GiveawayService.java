@@ -131,7 +131,9 @@ public class GiveawayService {
 		return giveawayStore.save(closed);
 	}
 
-	public GiveawayEntry enterGiveaway(String giveawayId, EnterGiveawayRequest request) {
+	public synchronized GiveawayEntry enterGiveaway(String giveawayId, EnterGiveawayRequest request) {
+		// FIX BUG 1 & 2: synchronized prevents duplicate entries and stale entryCount.
+		// Re-read giveaway to get fresh entryCount (another thread may have incremented it).
 		Giveaway giveaway = getGiveaway(giveawayId);
 		if (giveaway.status() != GiveawayStatus.OPEN) {
 			throw new ConflictException("Giveaway is not open for entries");
@@ -152,24 +154,31 @@ public class GiveawayService {
 				false,
 				true);
 		entryStore.save(entry);
+		// Re-read after save to get latest entryCount (defense-in-depth)
+		Giveaway fresh = getGiveaway(giveawayId);
 		Giveaway updated = new Giveaway(
-				giveaway.id(),
-				giveaway.title(),
-				giveaway.description(),
-				giveaway.status(),
-				giveaway.entryCount() + 1,
-				giveaway.maxEntries(),
-				giveaway.createdAt(),
-				giveaway.openedAt(),
-				giveaway.closedAt(),
-				giveaway.drawnAt(),
-				giveaway.winnerIds());
+				fresh.id(),
+				fresh.title(),
+				fresh.description(),
+				fresh.status(),
+				fresh.entryCount() + 1,
+				fresh.maxEntries(),
+				fresh.createdAt(),
+				fresh.openedAt(),
+				fresh.closedAt(),
+				fresh.drawnAt(),
+				fresh.winnerIds());
 		giveawayStore.save(updated);
 		return entry;
 	}
 
-	public Giveaway drawWinners(String giveawayId, int winnerCount) {
+	public synchronized Giveaway drawWinners(String giveawayId, int winnerCount) {
+		// FIX BUG 3: synchronized prevents concurrent draws on the same giveaway.
 		Giveaway giveaway = getGiveaway(giveawayId);
+		// FIX BUG 3: If already COMPLETED, return early (idempotent).
+		if (giveaway.status() == GiveawayStatus.COMPLETED) {
+			return giveaway;
+		}
 		if (giveaway.status() != GiveawayStatus.CLOSED) {
 			throw new ConflictException("Can only draw winners when giveaway is CLOSED");
 		}
@@ -177,7 +186,14 @@ public class GiveawayService {
 		if (entries.isEmpty()) {
 			throw new ConflictException("No entries to draw from");
 		}
-		int actualWinnerCount = Math.min(winnerCount <= 0 ? DEFAULT_WINNER_COUNT : winnerCount, entries.size());
+
+		// FIX BUG 4: Filter only eligible entries before shuffling.
+		List<GiveawayEntry> eligible = entries.stream().filter(GiveawayEntry::eligible).toList();
+		if (eligible.isEmpty()) {
+			throw new ConflictException("No eligible participants to draw from");
+		}
+
+		int actualWinnerCount = Math.min(winnerCount <= 0 ? DEFAULT_WINNER_COUNT : winnerCount, eligible.size());
 
 		// Set status to DRAWING
 		Instant now = Instant.now(clock);
@@ -195,39 +211,57 @@ public class GiveawayService {
 				giveaway.winnerIds());
 		giveawayStore.save(drawing);
 
-		// Shuffle and pick winners
-		List<GiveawayEntry> shuffled = new ArrayList<>(entries);
-		Collections.shuffle(shuffled);
-		List<GiveawayEntry> selected = shuffled.subList(0, actualWinnerCount);
-		List<String> winnerIds = selected.stream().map(GiveawayEntry::id).toList();
+		try {
+			// FIX BUG 4: Shuffle and pick winners from ELIGIBLE entries only.
+			List<GiveawayEntry> shuffled = new ArrayList<>(eligible);
+			Collections.shuffle(shuffled);
+			List<GiveawayEntry> selected = shuffled.subList(0, actualWinnerCount);
+			List<String> winnerIds = selected.stream().map(GiveawayEntry::id).toList();
 
-		// Update entries with selection status
-		List<GiveawayEntry> allEntries = new ArrayList<>(entries);
-		List<GiveawayEntry> updatedEntries = allEntries.stream()
-				.map(e -> new GiveawayEntry(
-						e.id(),
-						e.giveawayId(),
-						e.participantName(),
-						e.enteredAt(),
-						winnerIds.contains(e.id()),
-						e.eligible()))
-				.toList();
-		entryStore.replaceAllForGiveaway(giveawayId, updatedEntries);
+			// Update entries with selection status
+			List<GiveawayEntry> allEntries = new ArrayList<>(entries);
+			List<GiveawayEntry> updatedEntries = allEntries.stream()
+					.map(e -> new GiveawayEntry(
+							e.id(),
+							e.giveawayId(),
+							e.participantName(),
+							e.enteredAt(),
+							winnerIds.contains(e.id()),
+							e.eligible()))
+					.toList();
+			entryStore.replaceAllForGiveaway(giveawayId, updatedEntries);
 
-		// Set status to COMPLETED
-		Giveaway completed = new Giveaway(
-				giveaway.id(),
-				giveaway.title(),
-				giveaway.description(),
-				GiveawayStatus.COMPLETED,
-				giveaway.entryCount(),
-				giveaway.maxEntries(),
-				giveaway.createdAt(),
-				giveaway.openedAt(),
-				giveaway.closedAt(),
-				now,
-				winnerIds);
-		return giveawayStore.save(completed);
+			// Set status to COMPLETED
+			Giveaway completed = new Giveaway(
+					giveaway.id(),
+					giveaway.title(),
+					giveaway.description(),
+					GiveawayStatus.COMPLETED,
+					giveaway.entryCount(),
+					giveaway.maxEntries(),
+					giveaway.createdAt(),
+					giveaway.openedAt(),
+					giveaway.closedAt(),
+					now,
+					winnerIds);
+			return giveawayStore.save(completed);
+		} catch (Exception e) {
+			// FIX BUG 3: On failure, revert to CLOSED instead of leaving stuck in DRAWING.
+			Giveaway reverted = new Giveaway(
+					giveaway.id(),
+					giveaway.title(),
+					giveaway.description(),
+					GiveawayStatus.CLOSED,
+					giveaway.entryCount(),
+					giveaway.maxEntries(),
+					giveaway.createdAt(),
+					giveaway.openedAt(),
+					giveaway.closedAt(),
+					null,
+					giveaway.winnerIds());
+			giveawayStore.save(reverted);
+			throw e;
+		}
 	}
 
 	public GiveawayResultsResponse getResults(String giveawayId) {
