@@ -256,35 +256,41 @@ public class OverlayContentService {
 	}
 
 	private String getGiveawayScript() {
-		return """
-				(function() {
-				  var container = document.querySelector('.overlay-container');
-				  var refreshMs = parseInt(container.dataset.refreshMs || '3000', 10);
-				  var content = document.getElementById('overlay-content');
+			return """
+					(function() {
+					  var container = document.querySelector('.overlay-container');
+					  var refreshMs = parseInt(container.dataset.refreshMs || '3000', 10);
+					  var content = document.getElementById('overlay-content');
 
-				  function updateGiveaway() {
-				    fetch('/api/overlays/content/giveaways', {cache: 'no-store'})
-				      .then(function(r) { return r.json(); })
-				      .then(function(giveaways) {
-				        if (!giveaways.length) {
-				          content.innerHTML = '<div class="giveaway-container"><div class="giveaway-title">No Active Giveaway</div></div>';
-				          return;
-				        }
-				        var latest = giveaways[0];
-				        var data = latest.data || {};
-				        if (data.winner) {
-				          content.innerHTML = '<div class="giveaway-container"><div class="giveaway-title">' + (data.title || 'Giveaway') + '</div><div class="giveaway-winner">' + data.winner + '</div></div>';
-				        } else {
-				          content.innerHTML = '<div class="giveaway-container"><div class="giveaway-title">' + (data.title || 'Giveaway') + '</div><div class="giveaway-participants">' + (data.participants || 0) + ' participants</div><div class="giveaway-spinning">\u2728</div></div>';
-				        }
-				      })
-				      .catch(function() {});
-				  }
+					  function escapeHtml(text) {
+					    var div = document.createElement('div');
+					    div.textContent = text;
+					    return div.innerHTML;
+					  }
 
-				  setInterval(updateGiveaway, refreshMs);
-				  updateGiveaway();
-				})();
-				""";
+					  function updateGiveaway() {
+					    fetch('/api/overlays/content/giveaways', {cache: 'no-store'})
+					      .then(function(r) { return r.json(); })
+					      .then(function(giveaways) {
+					        if (!giveaways.length) {
+					          content.innerHTML = '<div class="giveaway-container"><div class="giveaway-title">No Active Giveaway</div></div>';
+					          return;
+					        }
+					        var latest = giveaways[0];
+					        var data = latest.data || {};
+					        if (data.winner) {
+					          content.innerHTML = '<div class="giveaway-container"><div class="giveaway-title">' + escapeHtml(data.title || 'Giveaway') + '</div><div class="giveaway-winner">' + escapeHtml(data.winner) + '</div></div>';
+					        } else {
+					          content.innerHTML = '<div class="giveaway-container"><div class="giveaway-title">' + escapeHtml(data.title || 'Giveaway') + '</div><div class="giveaway-participants">' + escapeHtml(String(data.participants || 0)) + ' participants</div><div class="giveaway-spinning">\u2728</div></div>';
+					        }
+					      })
+					      .catch(function() {});
+					  }
+
+					  setInterval(updateGiveaway, refreshMs);
+					  updateGiveaway();
+					})();
+					""";
 	}
 
 	private String getEventsScript() {
@@ -331,13 +337,18 @@ public class OverlayContentService {
 		return css.replaceAll("(?i)expression\\s*\\(", "")
 				.replaceAll("(?i)-moz-binding\\s*:", "")
 				.replaceAll("(?i)url\\s*\\(\\s*data\\s*:", "")
+				.replaceAll("(?i)url\\s*\\(\\s*['\\\"]?\\s*javascript\\s*:", "")
+				.replaceAll("(?i)url\\s*\\(\\s*['\\\"]?\\s*https?://", "")
 				.replaceAll("(?i)\\bbehavior\\s*:", "")
-				.replaceAll("(?i)@import\\s+", "");
+				.replaceAll("(?i)@import\\s+", "")
+				.replaceAll("(?i)@font-face", "")
+				.replaceAll("(?i)@supports", "");
 	}
+
 
 	private static void trim(ConcurrentLinkedDeque<?> deque) {
 		while (deque.size() > MAX_EVENTS) {
-			deque.removeLast();
+			deque.pollLast();
 		}
 	}
 
