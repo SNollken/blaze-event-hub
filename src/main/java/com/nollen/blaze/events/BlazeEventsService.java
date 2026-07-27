@@ -68,6 +68,8 @@ public class BlazeEventsService {
 		}
 	}
 
+	// Fallback when pipeline is not injected: creates a log entry without dispatch.
+	// When pipeline is present, delegates to it (which also dispatches to alert/live services).
 	public BlazeEventsLogEntry simulate(String eventType, String message) {
 		if (pipeline != null) {
 			return pipeline.simulate(eventType, message);

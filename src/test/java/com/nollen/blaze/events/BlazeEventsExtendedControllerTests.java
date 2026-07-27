@@ -33,8 +33,7 @@ class BlazeEventsExtendedControllerTests {
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.runnerRunning").value(false))
 				.andExpect(jsonPath("$.clientRunning").value(false))
-				.andExpect(jsonPath("$.eventCount").exists())
-				.andExpect(jsonPath("$.engineAvailable").value(true));
+				.andExpect(jsonPath("$.eventCount").exists());
 	}
 
 	@Test

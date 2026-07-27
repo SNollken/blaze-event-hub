@@ -58,7 +58,6 @@ class BlazeEventsServiceTests {
 		service.simulate("channel.subscribe", "test2");
 		BlazeEventsStatusExtended status = service.status();
 		assertThat(status.eventCount()).isEqualTo(2);
-		assertThat(status.engineAvailable()).isTrue();
 	}
 
 	@Test

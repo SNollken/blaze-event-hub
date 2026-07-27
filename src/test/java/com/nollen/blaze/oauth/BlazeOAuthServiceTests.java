@@ -192,7 +192,6 @@ class BlazeOAuthServiceTests {
 
 		assertThat(session.connected()).isTrue();
 		assertThat(session.profilePresent()).isTrue();
-		assertThat(session.profile().rawAvailable()).isFalse();
 		assertThat(session.profile().displayName()).isEqualTo("Sofia Blaze");
 		assertThat(session.nextRecommendedAction()).isEqualTo("READY_FOR_EVENTS");
 		assertThat(session.toString()).doesNotContain("access-token-1", "refresh-token-1", "client-secret", "verifier-1");

@@ -337,8 +337,7 @@
 			["Client", data.clientRunning ? "Conectado" : "Desconectado", data.clientRunning ? "ok" : "pending"],
 			["Ultimo evento", data.lastMessageType || "Nenhum evento recebido", data.lastMessageType ? "ok" : "pending"],
 			["Ultimo recebimento", data.lastEventReceivedAt ? formatDate(data.lastEventReceivedAt) : "Sem dados", "muted"],
-			["Total no log", String(data.eventCount || 0), "muted"],
-			["Engine", data.engineAvailable === false ? "Indisponivel" : "Disponivel", data.engineAvailable === false ? "error" : "ok"]
+			["Total no log", String(data.eventCount || 0), "muted"]
 		]);
 		const entries = entriesFromLog(state.data.eventsLog);
 		setText("events-log-count", String(entries.length) + " itens");
