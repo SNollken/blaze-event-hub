@@ -34,16 +34,15 @@ public class InMemoryEventSubscriptionStore {
 
 	public void save(EventSubscriptionSnapshot snapshot) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO event_subscriptions KEY(id)
-					VALUES (?, ?, ?, ?, ?, ?)
-					""",
-					snapshot.id(),
-					snapshot.type().name(),
-					snapshot.version(),
-					snapshot.channelId(),
-					snapshot.sessionId(),
-					snapshot.createdAt());
+			int updated = jdbc.update(
+				"UPDATE event_subscriptions SET type = ?, version = ?, channel_id = ?, session_id = ?, created_at = ? WHERE id = ?",
+				snapshot.type().name(), snapshot.version(), snapshot.channelId(), snapshot.sessionId(), snapshot.createdAt(), snapshot.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO event_subscriptions (type, version, channel_id, session_id, created_at, id) VALUES (?, ?, ?, ?, ?, ?)",
+					snapshot.type().name(), snapshot.version(), snapshot.channelId(), snapshot.sessionId(), snapshot.createdAt(), snapshot.id());
+			}
+
 			return;
 		}
 		subscriptions.put(snapshot.id(), snapshot);

@@ -38,8 +38,11 @@ public class InMemoryOverlayAssetStorage implements OverlayAssetStorage {
 	@Override
 	public void store(String assetId, byte[] bytes) {
 		if (jdbc != null) {
-			jdbc.update("MERGE INTO overlay_asset_bytes KEY(asset_id) VALUES (?, ?)", assetId, bytes.clone());
-			return;
+			int updated = jdbc.update("UPDATE overlay_asset_bytes SET asset_bytes = ? WHERE asset_id = ?", bytes.clone(), assetId);
+		if (updated == 0) {
+			jdbc.update("INSERT INTO overlay_asset_bytes (asset_bytes, asset_id) VALUES (?, ?)", bytes.clone(), assetId);
+		}
+		return;
 		}
 		bytesByAssetId.put(assetId, bytes.clone());
 	}

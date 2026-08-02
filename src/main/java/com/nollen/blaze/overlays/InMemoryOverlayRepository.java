@@ -60,15 +60,15 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 	@Override
 	public OverlayProfile saveProfile(OverlayProfile profile) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO overlay_profiles KEY(id)
-					VALUES (?, ?, ?, ?, ?)
-					""",
-					profile.id(),
-					profile.name(),
-					profile.description(),
-					profile.createdAt(),
-					profile.updatedAt());
+			int updated = jdbc.update(
+				"UPDATE overlay_profiles SET name = ?, description = ?, created_at = ?, updated_at = ? WHERE id = ?",
+				profile.name(), profile.description(), profile.createdAt(), profile.updatedAt(), profile.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO overlay_profiles (name, description, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?)",
+					profile.name(), profile.description(), profile.createdAt(), profile.updatedAt(), profile.id());
+			}
+
 			return profile;
 		}
 		profiles.put(profile.id(), profile);
@@ -109,21 +109,15 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 	@Override
 	public Overlay saveOverlay(Overlay overlay) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO overlays KEY(id)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""",
-					overlay.id(),
-					overlay.profileId(),
-					overlay.name(),
-					overlay.type(),
-					overlay.publicToken(),
-					overlay.enabled(),
-					JsonData.write(overlay.config()),
-					JsonData.write(overlay.layers()),
-					JsonData.write(overlay.assets()),
-					overlay.createdAt(),
-					overlay.updatedAt());
+			int updated = jdbc.update(
+				"UPDATE overlays SET profile_id = ?, name = ?, type = ?, public_token = ?, enabled = ?, config = ?, layers = ?, assets = ?, created_at = ?, updated_at = ? WHERE id = ?",
+				overlay.profileId(), overlay.name(), overlay.type(), overlay.publicToken(), overlay.enabled(), JsonData.write(overlay.config()), JsonData.write(overlay.layers()), JsonData.write(overlay.assets()), overlay.createdAt(), overlay.updatedAt(), overlay.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO overlays (profile_id, name, type, public_token, enabled, config, layers, assets, created_at, updated_at, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					overlay.profileId(), overlay.name(), overlay.type(), overlay.publicToken(), overlay.enabled(), JsonData.write(overlay.config()), JsonData.write(overlay.layers()), JsonData.write(overlay.assets()), overlay.createdAt(), overlay.updatedAt(), overlay.id());
+			}
+
 			return overlay;
 		}
 		overlays.put(overlay.id(), overlay);

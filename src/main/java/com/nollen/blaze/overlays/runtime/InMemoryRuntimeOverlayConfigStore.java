@@ -40,21 +40,15 @@ public class InMemoryRuntimeOverlayConfigStore implements RuntimeOverlayConfigSt
     @Override
     public RuntimeOverlayConfig save(RuntimeOverlayConfig config) {
         if (jdbc != null) {
-            jdbc.update("""
-                    MERGE INTO runtime_overlay_configs KEY(id)
-                    VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-                    """,
-                    config.id(),
-                    config.type().name(),
-                    config.name(),
-                    config.enabled(),
-                    config.refreshIntervalMs(),
-                    config.customCss(),
-                    config.positionX(),
-                    config.positionY(),
-                    config.positionWidth(),
-                    config.positionHeight(),
-                    config.opacity());
+            int updated = jdbc.update(
+                "UPDATE runtime_overlay_configs SET type = ?, name = ?, enabled = ?, refresh_interval_ms = ?, custom_css = ?, position_x = ?, position_y = ?, position_width = ?, position_height = ?, opacity = ? WHERE id = ?",
+                config.type().name(), config.name(), config.enabled(), config.refreshIntervalMs(), config.customCss(), config.positionX(), config.positionY(), config.positionWidth(), config.positionHeight(), config.opacity(), config.id());
+            if (updated == 0) {
+                jdbc.update(
+                    "INSERT INTO runtime_overlay_configs (type, name, enabled, refresh_interval_ms, custom_css, position_x, position_y, position_width, position_height, opacity, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                    config.type().name(), config.name(), config.enabled(), config.refreshIntervalMs(), config.customCss(), config.positionX(), config.positionY(), config.positionWidth(), config.positionHeight(), config.opacity(), config.id());
+            }
+
             return config;
         }
         configs.put(config.id(), config);

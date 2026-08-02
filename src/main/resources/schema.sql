@@ -3,8 +3,8 @@ CREATE TABLE IF NOT EXISTS alert_rules (
 	name VARCHAR(255) NOT NULL,
 	event_type VARCHAR(80) NOT NULL,
 	rule_condition VARCHAR(40) NOT NULL,
-	threshold DOUBLE DEFAULT 0,
-	template CLOB,
+	threshold DOUBLE PRECISION DEFAULT 0,
+	template TEXT,
 	enabled BOOLEAN NOT NULL,
 	cooldown_ms BIGINT DEFAULT 0
 );
@@ -15,9 +15,9 @@ CREATE TABLE IF NOT EXISTS alerts (
 	rule_name VARCHAR(255) NOT NULL,
 	event_type VARCHAR(80) NOT NULL,
 	triggered_at TIMESTAMP WITH TIME ZONE NOT NULL,
-	message CLOB NOT NULL,
+	message TEXT NOT NULL,
 	acknowledged BOOLEAN NOT NULL,
-	metadata CLOB
+	metadata TEXT
 );
 
 CREATE TABLE IF NOT EXISTS blaze_events_log (
@@ -25,8 +25,8 @@ CREATE TABLE IF NOT EXISTS blaze_events_log (
 	received_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	event_type VARCHAR(80) NOT NULL,
 	source VARCHAR(80) NOT NULL,
-	message CLOB NOT NULL,
-	raw_payload CLOB
+	message TEXT NOT NULL,
+	raw_payload TEXT
 );
 
 CREATE TABLE IF NOT EXISTS blaze_channels (
@@ -51,7 +51,7 @@ CREATE TABLE IF NOT EXISTS live_events (
 	type VARCHAR(80) NOT NULL,
 	source VARCHAR(80) NOT NULL,
 	status VARCHAR(80) NOT NULL,
-	payload CLOB,
+	payload TEXT,
 	occurred_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	dedup_key VARCHAR(255)
 );
@@ -59,7 +59,7 @@ CREATE TABLE IF NOT EXISTS live_events (
 CREATE TABLE IF NOT EXISTS giveaways (
 	id VARCHAR(64) PRIMARY KEY,
 	title VARCHAR(255) NOT NULL,
-	description CLOB,
+	description TEXT,
 	status VARCHAR(40) NOT NULL,
 	entry_count INT NOT NULL,
 	max_entries INT NOT NULL,
@@ -67,7 +67,7 @@ CREATE TABLE IF NOT EXISTS giveaways (
 	opened_at TIMESTAMP WITH TIME ZONE,
 	closed_at TIMESTAMP WITH TIME ZONE,
 	drawn_at TIMESTAMP WITH TIME ZONE,
-	winner_ids CLOB
+	winner_ids TEXT
 );
 
 CREATE TABLE IF NOT EXISTS giveaway_entries (
@@ -83,7 +83,7 @@ CREATE TABLE IF NOT EXISTS giveaway_entries (
 CREATE TABLE IF NOT EXISTS overlay_profiles (
 	id VARCHAR(64) PRIMARY KEY,
 	name VARCHAR(255) NOT NULL,
-	description CLOB,
+	description TEXT,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
@@ -95,16 +95,16 @@ CREATE TABLE IF NOT EXISTS overlays (
 	type VARCHAR(80) NOT NULL,
 	public_token VARCHAR(160) NOT NULL UNIQUE,
 	enabled BOOLEAN NOT NULL,
-	config CLOB,
-	layers CLOB,
-	assets CLOB,
+	config TEXT,
+	layers TEXT,
+	assets TEXT,
 	created_at TIMESTAMP WITH TIME ZONE NOT NULL,
 	updated_at TIMESTAMP WITH TIME ZONE NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS overlay_asset_bytes (
 	asset_id VARCHAR(64) PRIMARY KEY,
-	asset_bytes BINARY LARGE OBJECT NOT NULL
+	asset_bytes BYTEA NOT NULL
 );
 
 CREATE TABLE IF NOT EXISTS runtime_overlay_configs (
@@ -113,10 +113,10 @@ CREATE TABLE IF NOT EXISTS runtime_overlay_configs (
 	name VARCHAR(255) NOT NULL,
 	enabled BOOLEAN NOT NULL,
 	refresh_interval_ms BIGINT NOT NULL,
-	custom_css CLOB,
+	custom_css TEXT,
 	position_x INT NOT NULL,
 	position_y INT NOT NULL,
 	position_width INT NOT NULL,
 	position_height INT NOT NULL,
-	opacity DOUBLE NOT NULL
+	opacity DOUBLE PRECISION NOT NULL
 );

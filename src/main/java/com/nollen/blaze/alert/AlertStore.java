@@ -47,18 +47,15 @@ public class AlertStore {
 
 	public Alert save(Alert alert) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO alerts KEY(id)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-					""",
-					alert.id(),
-					alert.ruleId(),
-					alert.ruleName(),
-					alert.eventType().id(),
-					alert.triggeredAt(),
-					alert.message(),
-					alert.acknowledged(),
-					JsonData.write(alert.metadata()));
+			int updated = jdbc.update(
+				"UPDATE alerts SET rule_id = ?, rule_name = ?, event_type = ?, triggered_at = ?, message = ?, acknowledged = ?, metadata = ? WHERE id = ?",
+				alert.ruleId(), alert.ruleName(), alert.eventType().id(), alert.triggeredAt(), alert.message(), alert.acknowledged(), JsonData.write(alert.metadata()), alert.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO alerts (rule_id, rule_name, event_type, triggered_at, message, acknowledged, metadata, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+					alert.ruleId(), alert.ruleName(), alert.eventType().id(), alert.triggeredAt(), alert.message(), alert.acknowledged(), JsonData.write(alert.metadata()), alert.id());
+			}
+
 			return alert;
 		}
 		alerts.removeIf(a -> a.id().equals(alert.id()));

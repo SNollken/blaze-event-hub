@@ -41,21 +41,15 @@ public class InMemoryGiveawayStore {
 
 	public Giveaway save(Giveaway giveaway) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO giveaways KEY(id)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-					""",
-					giveaway.id(),
-					giveaway.title(),
-					giveaway.description(),
-					giveaway.status().name(),
-					giveaway.entryCount(),
-					giveaway.maxEntries(),
-					giveaway.createdAt(),
-					giveaway.openedAt(),
-					giveaway.closedAt(),
-					giveaway.drawnAt(),
-					JsonData.write(giveaway.winnerIds()));
+			int updated = jdbc.update(
+				"UPDATE giveaways SET title = ?, description = ?, status = ?, entry_count = ?, max_entries = ?, created_at = ?, opened_at = ?, closed_at = ?, drawn_at = ?, winner_ids = ? WHERE id = ?",
+				giveaway.title(), giveaway.description(), giveaway.status().name(), giveaway.entryCount(), giveaway.maxEntries(), giveaway.createdAt(), giveaway.openedAt(), giveaway.closedAt(), giveaway.drawnAt(), JsonData.write(giveaway.winnerIds()), giveaway.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO giveaways (title, description, status, entry_count, max_entries, created_at, opened_at, closed_at, drawn_at, winner_ids, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+					giveaway.title(), giveaway.description(), giveaway.status().name(), giveaway.entryCount(), giveaway.maxEntries(), giveaway.createdAt(), giveaway.openedAt(), giveaway.closedAt(), giveaway.drawnAt(), JsonData.write(giveaway.winnerIds()), giveaway.id());
+			}
+
 			return giveaway;
 		}
 		giveaways.put(giveaway.id(), giveaway);

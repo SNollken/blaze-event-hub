@@ -45,17 +45,15 @@ public class LiveEventStore {
 
 	public LiveEvent save(LiveEvent event) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO live_events KEY(id)
-					VALUES (?, ?, ?, ?, ?, ?, ?)
-					""",
-					event.id(),
-					event.type().name(),
-					event.source().name(),
-					event.status().name(),
-					JsonData.write(event.payload()),
-					event.timestamp(),
-					event.dedupKey());
+			int updated = jdbc.update(
+				"UPDATE live_events SET type = ?, source = ?, status = ?, payload = ?, occurred_at = ?, dedup_key = ? WHERE id = ?",
+				event.type().name(), event.source().name(), event.status().name(), JsonData.write(event.payload()), event.timestamp(), event.dedupKey(), event.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO live_events (type, source, status, payload, occurred_at, dedup_key, id) VALUES (?, ?, ?, ?, ?, ?, ?)",
+					event.type().name(), event.source().name(), event.status().name(), JsonData.write(event.payload()), event.timestamp(), event.dedupKey(), event.id());
+			}
+
 			return event;
 		}
 		events.put(event.id(), event);

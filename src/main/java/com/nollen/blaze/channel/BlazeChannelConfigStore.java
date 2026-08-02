@@ -32,15 +32,15 @@ public class BlazeChannelConfigStore {
 
 	public void save(BlazeChannelConfig config) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO blaze_channels KEY(id)
-					VALUES (?, ?, ?, ?, ?)
-					""",
-					config.id(),
-					config.name(),
-					config.channelId(),
-					config.platform(),
-					config.monitored());
+			int updated = jdbc.update(
+				"UPDATE blaze_channels SET name = ?, channel_id = ?, platform = ?, monitored = ? WHERE id = ?",
+				config.name(), config.channelId(), config.platform(), config.monitored(), config.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO blaze_channels (name, channel_id, platform, monitored, id) VALUES (?, ?, ?, ?, ?)",
+					config.name(), config.channelId(), config.platform(), config.monitored(), config.id());
+			}
+
 			return;
 		}
 		channels.put(config.id(), config);

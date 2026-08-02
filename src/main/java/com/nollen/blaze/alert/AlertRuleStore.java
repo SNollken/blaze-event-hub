@@ -38,18 +38,15 @@ public class AlertRuleStore {
 
 	public AlertRule save(AlertRule rule) {
 		if (jdbc != null) {
-			jdbc.update("""
-					MERGE INTO alert_rules KEY(id)
-					VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-					""",
-					rule.id(),
-					rule.name(),
-					rule.eventType().id(),
-					rule.condition().name(),
-					rule.threshold(),
-					rule.template(),
-					rule.enabled(),
-					rule.cooldownMs());
+			int updated = jdbc.update(
+				"UPDATE alert_rules SET name = ?, event_type = ?, rule_condition = ?, threshold = ?, template = ?, enabled = ?, cooldown_ms = ? WHERE id = ?",
+				rule.name(), rule.eventType().id(), rule.condition().name(), rule.threshold(), rule.template(), rule.enabled(), rule.cooldownMs(), rule.id());
+			if (updated == 0) {
+				jdbc.update(
+					"INSERT INTO alert_rules (name, event_type, rule_condition, threshold, template, enabled, cooldown_ms, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+					rule.name(), rule.eventType().id(), rule.condition().name(), rule.threshold(), rule.template(), rule.enabled(), rule.cooldownMs(), rule.id());
+			}
+
 			return rule;
 		}
 		rules.put(rule.id(), rule);
