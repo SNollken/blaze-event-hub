@@ -57,6 +57,28 @@ class LiveEventServiceTests {
 	}
 
 	@Test
+	void getListFilteredByStatus() {
+		service.create(LiveEventType.FOLLOW, LiveEventSource.MANUAL, Map.of(), null);
+		service.create(LiveEventType.SUBSCRIPTION, LiveEventSource.MANUAL, Map.of(), null);
+		service.create(LiveEventType.SUBSCRIPTION, LiveEventSource.SIMULATED, Map.of(), "dup-status");
+		// third call is a duplicate
+		service.create(LiveEventType.SUBSCRIPTION, LiveEventSource.SIMULATED, Map.of(), "dup-status");
+
+		assertEquals(3, service.listFiltered(null, null, LiveEventStatus.ACCEPTED).size());
+		assertEquals(1, service.listFiltered(null, null, LiveEventStatus.DUPLICATE).size());
+	}
+
+	@Test
+	void getListFilteredByTypeAndSource() {
+		service.create(LiveEventType.FOLLOW, LiveEventSource.MANUAL, Map.of(), null);
+		service.create(LiveEventType.FOLLOW, LiveEventSource.SIMULATED, Map.of(), null);
+		service.create(LiveEventType.SUBSCRIPTION, LiveEventSource.MANUAL, Map.of(), null);
+
+		assertEquals(1, service.listFiltered(LiveEventType.FOLLOW, LiveEventSource.MANUAL, null).size());
+		assertEquals(0, service.listFiltered(LiveEventType.SUBSCRIPTION, LiveEventSource.SIMULATED, null).size());
+	}
+
+	@Test
 	void getByIdThrowsForMissing() {
 		assertThrows(com.nollen.blaze.common.NotFoundException.class,
 				() -> service.getById("nonexistent"));

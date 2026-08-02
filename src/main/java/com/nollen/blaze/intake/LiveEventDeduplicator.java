@@ -26,11 +26,7 @@ public class LiveEventDeduplicator {
 		if (Boolean.TRUE.equals(knownDuplicates.get(dedupKey))) {
 			return true;
 		}
-		boolean duplicate = store.listAll().stream()
-				.filter(e -> dedupKey.equals(e.dedupKey()))
-				.filter(e -> e.status() != LiveEventStatus.REJECTED)
-				.findFirst()
-				.isPresent();
+		boolean duplicate = store.existsByDedupKey(dedupKey);
 		if (duplicate) {
 			knownDuplicates.put(dedupKey, Boolean.TRUE);
 		}

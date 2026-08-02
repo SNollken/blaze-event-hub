@@ -69,6 +69,25 @@ class LiveEventStoreTests {
 	}
 
 	@Test
+	void existsByDedupKeyFindsNonRejected() {
+		store.save(new LiveEvent("a", LiveEventType.FOLLOW, LiveEventSource.MANUAL,
+				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), "dedup-1"));
+		assertTrue(store.existsByDedupKey("dedup-1"));
+	}
+
+	@Test
+	void existsByDedupKeyReturnsFalseForRejected() {
+		store.save(new LiveEvent("a", LiveEventType.FOLLOW, LiveEventSource.MANUAL,
+				LiveEventStatus.REJECTED, Map.of(), Instant.now(), "dedup-2"));
+		assertFalse(store.existsByDedupKey("dedup-2"));
+	}
+
+	@Test
+	void existsByDedupKeyReturnsFalseWhenMissing() {
+		assertFalse(store.existsByDedupKey("nonexistent"));
+	}
+
+	@Test
 	void clearRemovesAll() {
 		store.save(sampleEvent("a"));
 		store.save(sampleEvent("b"));

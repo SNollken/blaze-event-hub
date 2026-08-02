@@ -117,6 +117,17 @@ public class LiveEventStore {
 				.toList();
 	}
 
+	public boolean existsByDedupKey(String dedupKey) {
+		if (jdbc != null) {
+			Integer count = jdbc.queryForObject(
+					"SELECT COUNT(*) FROM live_events WHERE dedup_key = ? AND status != 'REJECTED'",
+					Integer.class, dedupKey);
+			return count != null && count > 0;
+		}
+		return events.values().stream()
+				.anyMatch(e -> dedupKey.equals(e.dedupKey()) && e.status() != LiveEventStatus.REJECTED);
+	}
+
 	public long count() {
 		if (jdbc != null) {
 			Long count = jdbc.queryForObject("SELECT COUNT(*) FROM live_events", Long.class);
