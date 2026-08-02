@@ -3,6 +3,7 @@ package com.nollen.blaze.oauth;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.List;
+import java.util.concurrent.locks.ReentrantLock;
 
 import com.nollen.blaze.common.ConfigurationMissingException;
 import com.nollen.blaze.common.OAuthException;
@@ -21,6 +22,8 @@ public class BlazeOAuthService {
 	private final TokenStore tokenStore;
 	private final OAuthProfileService profileService;
 	private final Clock clock;
+	// ponytail: lock local por instância; em multi-instância trocar por Redis/DistLock.
+	private final ReentrantLock refreshLock = new ReentrantLock();
 
 	public BlazeOAuthService(BlazeProperties properties, BlazeOAuthGateway gateway, OAuthStateStore stateStore,
 			TokenStore tokenStore, OAuthProfileService profileService, Clock clock) {
@@ -100,6 +103,26 @@ public class BlazeOAuthService {
 		TokenSnapshot current = tokenStore.current()
 				.filter(token -> !token.refreshTokenBlank())
 				.orElseThrow(() -> new ConfigurationMissingException("Nenhuma credencial de renovacao OAuth esta disponivel"));
+		// ponytail: lock local por instância; em multi-instância trocar por Redis/DistLock.
+		refreshLock.lock();
+		try {
+			// Re-check após adquirir o lock: outra thread pode ter renovado já.
+			TokenSnapshot latest = tokenStore.current()
+					.filter(token -> !token.refreshTokenBlank())
+					.orElseThrow(() -> new ConfigurationMissingException("Nenhuma credencial de renovacao OAuth esta disponivel"));
+			if (!current.refreshToken().equals(latest.refreshToken())) {
+				// já renovado por outra thread — reusa snapshot mais recente sem novo gateway call
+				OAuthProfileSyncResult sync = profileService.synchronizeCurrentUser();
+				return actionResponse("refreshed", false, false, latest, sync,
+						profileMessage(sync, "Sessao Blaze atualizada."));
+			}
+			return doRefresh(latest);
+		} finally {
+			refreshLock.unlock();
+		}
+	}
+
+	private OAuthActionResponse doRefresh(TokenSnapshot current) {
 		try {
 			OAuthTokenResponse response = gateway.refresh(new OAuthRefreshRequest(
 					properties.getClientId(),
@@ -109,15 +132,12 @@ public class BlazeOAuthService {
 			OAuthProfileSyncResult syncResult = profileService.synchronizeCurrentUser();
 			return actionResponse("refreshed", true, false, snapshot, syncResult,
 					profileMessage(syncResult, "Sessao Blaze atualizada."));
-		}
-		catch (OAuthException e) {
+		} catch (OAuthException e) {
 			throw e;
-		}
-		catch (ResourceAccessException e) {
+		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_REFRESH_UNAVAILABLE",
 					"Nao foi possivel conectar a Blaze para renovar a sessao. Verifique rede/firewall e tente novamente.");
-		}
-		catch (Exception e) {
+		} catch (Exception e) {
 			throw new OAuthException(502, "BLAZE_TOKEN_REFRESH_ERROR",
 					"Erro inesperado ao renovar a sessao Blaze.");
 		}

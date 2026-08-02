@@ -160,6 +160,23 @@ class BlazeOAuthServiceTests {
 	}
 
 	@Test
+	void concurrentRefreshCallsAreSerialized() throws Exception {
+		service.start();
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+
+		// Two threads call refresh simultaneously; the lock must serialize them
+		// so gateway.refresh is invoked exactly once.
+		Thread t1 = new Thread(() -> { try { service.refresh(); } catch (Exception ignored) {} });
+		Thread t2 = new Thread(() -> { try { service.refresh(); } catch (Exception ignored) {} });
+		t1.start();
+		t2.start();
+		t1.join(2000);
+		t2.join(2000);
+
+		assertThat(gateway.refreshCallCount).isEqualTo(1);
+	}
+
+	@Test
 	void refreshPreservesRefreshTokenWhenBlazeDoesNotReturnANewOne() {
 		service.start();
 		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
@@ -299,6 +316,7 @@ class BlazeOAuthServiceTests {
 		private boolean throwOAuthError = false;
 		private boolean throwNetworkError = false;
 		private String refreshTokenOnRefresh = "refresh-token-2";
+		private int refreshCallCount = 0;
 
 		void setThrowOAuthError() {
 			this.throwOAuthError = true;
@@ -335,6 +353,9 @@ class BlazeOAuthServiceTests {
 
 		@Override
 		public OAuthTokenResponse refresh(OAuthRefreshRequest request) {
+			refreshCallCount++;
+			// Widen the race window so concurrent callers are blocked on the lock.
+			try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
 			if (throwOAuthError) {
 				throw new OAuthException(400, "BLAZE_TOKEN_REFRESH_REJECTED", "Blaze rejected refresh");
 			}
