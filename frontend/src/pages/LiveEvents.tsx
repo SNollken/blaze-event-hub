@@ -2,7 +2,6 @@ import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
-import { Modal } from '../components/Modal';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -21,6 +20,8 @@ import {
   WifiOff,
   MessageSquare,
   Clock,
+  CheckCircle,
+  XCircle,
 } from 'lucide-react';
 
 export default function LiveEvents() {
@@ -119,6 +120,27 @@ export default function LiveEvents() {
           icon={<Radio size={18} />}
           color={status?.monitoredChannelConfigured ? 'success' : 'warning'}
           subtitle={status?.monitoredChannelConfigured ? 'Canal configurado' : 'Configurar canal'}
+        />
+        <StatsCard
+          title="Mensagens Vistas"
+          value={events?.messagesSeen ?? 0}
+          icon={<MessageSquare size={18} />}
+          color="accent"
+          subtitle={events?.runnerRunning ? 'Desde o ultimo inicio' : 'Runner parado'}
+        />
+        <StatsCard
+          title="Eventos Aceitos"
+          value={events?.acceptedEvents ?? 0}
+          icon={<CheckCircle size={18} />}
+          color="success"
+          subtitle={events?.runnerRunning ? 'Desdobrados pelo pipeline' : 'Runner parado'}
+        />
+        <StatsCard
+          title="Eventos Rejeitados"
+          value={events?.rejectedEvents ?? 0}
+          icon={<XCircle size={18} />}
+          color={events?.rejectedEvents && events.rejectedEvents > 0 ? 'warning' : 'neutral'}
+          subtitle={events?.runnerRunning ? 'Ignorados (welcome/unknown)' : 'Runner parado'}
         />
       </div>
 

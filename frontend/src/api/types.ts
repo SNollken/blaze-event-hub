@@ -31,7 +31,9 @@ export interface BlazeEventsStatusResponse {
   startedAt: string | null;
   lastEventReceivedAt?: string | null;
   eventCount?: number;
-  engineAvailable?: boolean;
+  messagesSeen: number;
+  acceptedEvents: number;
+  rejectedEvents: number;
 }
 
 export interface OAuthSessionResponse {

@@ -39,8 +39,10 @@ const responses: Record<string, unknown> = {
     sessionId: null,
     lastMessageType: null,
     startedAt: null,
-    engineAvailable: true,
     eventCount: 0,
+    messagesSeen: 12,
+    acceptedEvents: 10,
+    rejectedEvents: 2,
   },
   '/api/blaze/oauth/session': {
     connected: true,
