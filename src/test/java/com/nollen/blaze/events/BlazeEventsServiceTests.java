@@ -61,6 +61,19 @@ class BlazeEventsServiceTests {
 	}
 
 	@Test
+	void statusIncludesLastEventReceivedAt() {
+		service.simulate("channel.follow", "test");
+		BlazeEventsStatusExtended status = service.status();
+		assertThat(status.lastEventReceivedAt()).isNotNull();
+	}
+
+	@Test
+	void statusLastEventReceivedAtIsNullWhenEmpty() {
+		BlazeEventsStatusExtended status = service.status();
+		assertThat(status.lastEventReceivedAt()).isNull();
+	}
+
+	@Test
 	void statusIncludesPollingMetrics() {
 		// pipeline is null here: envelopes are seen but not dispatched
 		service.acceptEnvelope(new BlazeEventEnvelope(
