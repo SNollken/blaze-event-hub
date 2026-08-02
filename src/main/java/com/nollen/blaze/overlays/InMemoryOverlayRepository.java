@@ -195,7 +195,7 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 		return new ArrayList<>(overlays.values());
 	}
 
-	private static Instant toInstant(java.sql.Timestamp ts) {
+	private static Instant toInstant(Timestamp ts) {
 		return ts != null ? ts.toInstant() : Instant.now();
 	}
 }
