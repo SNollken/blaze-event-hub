@@ -14,20 +14,24 @@ import com.nollen.blaze.intake.LiveEventStatus;
 import com.nollen.blaze.intake.LiveEventType;
 import com.nollen.blaze.intake.LiveEventSource;
 import com.nollen.blaze.intake.LiveEventStore;
+import com.nollen.blaze.overlays.InMemoryOverlayRepository;
+import com.nollen.blaze.overlays.Overlay;
+import com.nollen.blaze.overlays.OverlayConfig;
+import com.nollen.blaze.overlays.OverlayProfile;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.context.annotation.Import;
-import org.springframework.transaction.annotation.Transactional;
 import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
+import org.springframework.transaction.annotation.Transactional;
 import org.testcontainers.containers.PostgreSQLContainer;
-import org.testcontainers.utility.DockerImageName;
 import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
+import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
 import java.util.Map;
@@ -48,12 +52,15 @@ import static org.junit.jupiter.api.Assertions.*;
  *
  * ponytail: validates standard-SQL UPDATE-then-INSERT upsert (H2→PostgreSQL
  * compatibility) — the original MERGE INTO ... KEY(id) was H2-only.
+ * Also validates Instant→Timestamp conversion (PostgreSQL driver rejects raw
+ * java.time.Instant in PreparedStatement.setObject, unlike H2).
  */
 @JdbcTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Testcontainers
 @Transactional
-@Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class, InMemoryGiveawayStore.class})
+@Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class,
+		InMemoryGiveawayStore.class, InMemoryOverlayRepository.class})
 class PostgresStoreIntegrationTests {
 
 	@Container
@@ -78,6 +85,7 @@ class PostgresStoreIntegrationTests {
 	@Autowired AlertStore alertStore;
 	@Autowired AlertRuleStore alertRuleStore;
 	@Autowired InMemoryGiveawayStore giveawayStore;
+	@Autowired InMemoryOverlayRepository overlayRepository;
 
 	@Test
 	void schemaInitializedAllTablesCreated() {
@@ -98,7 +106,6 @@ class PostgresStoreIntegrationTests {
 		assertTrue(found.isPresent());
 		assertEquals(LiveEventType.FOLLOW, found.get().type());
 
-		// Upsert — should UPDATE existing row, not insert duplicate
 		LiveEvent updated = new LiveEvent("pg-ev-1", LiveEventType.SUBSCRIPTION,
 				LiveEventSource.MANUAL, LiveEventStatus.ACCEPTED,
 				Map.of("amount", 10), Instant.now(), "dedup-2");
@@ -168,5 +175,42 @@ class PostgresStoreIntegrationTests {
 		assertEquals("Updated Giveaway", reFound.get().title());
 		assertEquals(GiveawayStatus.OPEN, reFound.get().status());
 		assertEquals(1, giveawayStore.count());
+	}
+
+	@Test
+	void overlayProfileSaveFindUpsertOnPostgres() {
+		OverlayProfile profile = new OverlayProfile("pg-prof-1", "Test Profile",
+				"A test profile", Instant.now(), Instant.now());
+		overlayRepository.saveProfile(profile);
+
+		Optional<OverlayProfile> found = overlayRepository.findProfile("pg-prof-1");
+		assertTrue(found.isPresent());
+		assertEquals("Test Profile", found.get().name());
+
+		OverlayProfile updated = new OverlayProfile("pg-prof-1", "Updated Profile",
+				"Updated desc", Instant.now(), Instant.now());
+		overlayRepository.saveProfile(updated);
+
+		Optional<OverlayProfile> reFound = overlayRepository.findProfile("pg-prof-1");
+		assertTrue(reFound.isPresent());
+		assertEquals("Updated Profile", reFound.get().name());
+		assertEquals(1, overlayRepository.countProfiles());
+	}
+
+	@Test
+	void overlaySaveFindOnPostgres() {
+		OverlayProfile profile = new OverlayProfile("pg-prof-2", "Profile 2",
+				"desc", Instant.now(), Instant.now());
+		overlayRepository.saveProfile(profile);
+
+		Overlay overlay = new Overlay("pg-ov-1", profile.id(), "Test Overlay",
+				"demo", "token-pg-ov-1", true, OverlayConfig.defaultConfig(),
+				java.util.List.of(), java.util.List.of(), Instant.now(), Instant.now());
+		overlayRepository.saveOverlay(overlay);
+
+		Optional<Overlay> found = overlayRepository.findOverlay("pg-ov-1");
+		assertTrue(found.isPresent());
+		assertEquals("Test Overlay", found.get().name());
+		assertEquals("demo", found.get().type());
 	}
 }
