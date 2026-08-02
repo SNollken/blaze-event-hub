@@ -42,13 +42,14 @@ public class BlazeEventsLogStore {
 
 	public void append(BlazeEventsLogEntry entry) {
 		if (jdbc != null) {
+			Timestamp receivedAt = Timestamp.from(entry.timestamp());
 			int updated = jdbc.update(
 				"UPDATE blaze_events_log SET received_at = ?, event_type = ?, source = ?, message = ?, raw_payload = ? WHERE id = ?",
-				entry.timestamp(), entry.eventType(), entry.source(), entry.message(), entry.data(), entry.id());
+				receivedAt, entry.eventType(), entry.source(), entry.message(), entry.data(), entry.id());
 			if (updated == 0) {
 				jdbc.update(
 					"INSERT INTO blaze_events_log (received_at, event_type, source, message, raw_payload, id) VALUES (?, ?, ?, ?, ?, ?)",
-					entry.timestamp(), entry.eventType(), entry.source(), entry.message(), entry.data(), entry.id());
+					receivedAt, entry.eventType(), entry.source(), entry.message(), entry.data(), entry.id());
 			}
 
 			return;

@@ -1,5 +1,6 @@
 package com.nollen.blaze.alert;
 
+import java.sql.Timestamp;
 import java.time.Instant;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -47,13 +48,14 @@ public class AlertStore {
 
 	public Alert save(Alert alert) {
 		if (jdbc != null) {
+			Timestamp triggeredAt = Timestamp.from(alert.triggeredAt());
 			int updated = jdbc.update(
 				"UPDATE alerts SET rule_id = ?, rule_name = ?, event_type = ?, triggered_at = ?, message = ?, acknowledged = ?, metadata = ? WHERE id = ?",
-				alert.ruleId(), alert.ruleName(), alert.eventType().id(), alert.triggeredAt(), alert.message(), alert.acknowledged(), JsonData.write(alert.metadata()), alert.id());
+				alert.ruleId(), alert.ruleName(), alert.eventType().id(), triggeredAt, alert.message(), alert.acknowledged(), JsonData.write(alert.metadata()), alert.id());
 			if (updated == 0) {
 				jdbc.update(
 					"INSERT INTO alerts (rule_id, rule_name, event_type, triggered_at, message, acknowledged, metadata, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
-					alert.ruleId(), alert.ruleName(), alert.eventType().id(), alert.triggeredAt(), alert.message(), alert.acknowledged(), JsonData.write(alert.metadata()), alert.id());
+					alert.ruleId(), alert.ruleName(), alert.eventType().id(), triggeredAt, alert.message(), alert.acknowledged(), JsonData.write(alert.metadata()), alert.id());
 			}
 
 			return alert;

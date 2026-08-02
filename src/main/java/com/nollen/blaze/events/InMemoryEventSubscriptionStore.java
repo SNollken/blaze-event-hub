@@ -1,5 +1,6 @@
 package com.nollen.blaze.events;
 
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -34,13 +35,14 @@ public class InMemoryEventSubscriptionStore {
 
 	public void save(EventSubscriptionSnapshot snapshot) {
 		if (jdbc != null) {
+			Timestamp createdAt = Timestamp.from(snapshot.createdAt());
 			int updated = jdbc.update(
 				"UPDATE event_subscriptions SET type = ?, version = ?, channel_id = ?, session_id = ?, created_at = ? WHERE id = ?",
-				snapshot.type().name(), snapshot.version(), snapshot.channelId(), snapshot.sessionId(), snapshot.createdAt(), snapshot.id());
+				snapshot.type().name(), snapshot.version(), snapshot.channelId(), snapshot.sessionId(), createdAt, snapshot.id());
 			if (updated == 0) {
 				jdbc.update(
 					"INSERT INTO event_subscriptions (type, version, channel_id, session_id, created_at, id) VALUES (?, ?, ?, ?, ?, ?)",
-					snapshot.type().name(), snapshot.version(), snapshot.channelId(), snapshot.sessionId(), snapshot.createdAt(), snapshot.id());
+				snapshot.type().name(), snapshot.version(), snapshot.channelId(), snapshot.sessionId(), createdAt, snapshot.id());
 			}
 
 			return;

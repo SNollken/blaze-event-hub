@@ -16,9 +16,11 @@ import com.nollen.blaze.intake.LiveEventSource;
 import com.nollen.blaze.intake.LiveEventStore;
 
 import org.junit.jupiter.api.Test;
-import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
-import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Import;
+import org.springframework.transaction.annotation.Transactional;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.jdbc.JdbcTest;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.test.context.DynamicPropertyRegistry;
 import org.springframework.test.context.DynamicPropertySource;
@@ -38,129 +40,133 @@ import static org.junit.jupiter.api.Assertions.*;
  * container (via Testcontainers + Podman). These cover the JDBC path that
  * unit tests skip (they use the no-arg in-memory constructor).
  *
- * ponytail: validates standard-SQL MERGE (H2→PostgreSQL compatibility) —
- * the original MERGE INTO ... KEY(id) was H2-only and would crash on PG.
+ * Uses @JdbcTest instead of @SpringBootTest to avoid the schema-init timing
+ * race: OverlayService.seedDevData() (@PostConstruct) accesses the DB before
+ * DataSourceInitializer applies schema.sql under @SpringBootTest. @JdbcTest
+ * only loads @Repository beans — no @Service, so no seed-on-startup — and
+ * DataSourceInitializer runs schema.sql before any test method.
+ *
+ * ponytail: validates standard-SQL UPDATE-then-INSERT upsert (H2→PostgreSQL
+ * compatibility) — the original MERGE INTO ... KEY(id) was H2-only.
  */
-// @Testcontainers
-// @SpringBootTest(properties = {
-// 		"spring.sql.init.mode=always",
-// 		"spring.sql.init.schema-locations=classpath:schema.sql",
-// 		"spring.jpa.open-in-view=false"
-// })
-// @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
-// class PostgresStoreIntegrationTests {
-// 
-// 	@Container
-// 	static final PostgreSQLContainer<?> PG =
-// 			new PostgreSQLContainer<>(DockerImageName.parse("postgres:15").asCompatibleSubstituteFor(
-// 					DockerImageName.parse("postgres")))
-// 					.withDatabaseName("testdb")
-// 					.withUsername("test")
-// 					.withPassword("test");
-// 
-// 	@DynamicPropertySource
-// 	static void configureProperties(DynamicPropertyRegistry registry) {
-// 		registry.add("spring.datasource.url", PG::getJdbcUrl);
-// 		registry.add("spring.datasource.username", PG::getUsername);
-// 		registry.add("spring.datasource.password", PG::getPassword);
-// 		registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
-// 		registry.add("spring.sql.init.mode", () -> "always");
-// 	}
-// 
-// 	@Autowired JdbcTemplate jdbc;
-// 	@Autowired LiveEventStore liveEventStore;
-// 	@Autowired AlertStore alertStore;
-// 	@Autowired AlertRuleStore alertRuleStore;
-// 	@Autowired InMemoryGiveawayStore giveawayStore;
-// 
-// 	@Test
-// 	void schemaInitializedAllTablesCreated() {
-// 		Integer tableCount = jdbc.queryForObject(
-// 				"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'", Integer.class);
-// 		assertNotNull(tableCount);
-// 		assertTrue(tableCount >= 12, "Expected >= 12 tables (schema.sql), got " + tableCount);
-// 	}
-// 
-// 	@Test
-// 	void liveEventStoreSaveFindUpsertOnPostgres() {
-// 		LiveEvent event = new LiveEvent("pg-ev-1", LiveEventType.FOLLOW,
-// 				LiveEventSource.MANUAL, LiveEventStatus.ACCEPTED,
-// 				Map.of("amount", 5), Instant.now(), "dedup-1");
-// 		liveEventStore.save(event);
-// 
-// 		Optional<LiveEvent> found = liveEventStore.findById("pg-ev-1");
-// 		assertTrue(found.isPresent());
-// 		assertEquals(LiveEventType.FOLLOW, found.get().type());
-// 
-// 		// Upsert (standard MERGE) — should UPDATE existing row, not insert duplicate
-// 		LiveEvent updated = new LiveEvent("pg-ev-1", LiveEventType.SUBSCRIPTION,
-// 				LiveEventSource.MANUAL, LiveEventStatus.ACCEPTED,
-// 				Map.of("amount", 10), Instant.now(), "dedup-2");
-// 		liveEventStore.save(updated);
-// 
-// 		Optional<LiveEvent> reFound = liveEventStore.findById("pg-ev-1");
-// 		assertTrue(reFound.isPresent());
-// 		assertEquals(LiveEventType.SUBSCRIPTION, reFound.get().type());
-// 		assertEquals("dedup-2", reFound.get().dedupKey());
-// 		assertEquals(1, liveEventStore.count(), "Upsert must not duplicate rows");
-// 	}
-// 
-// 	@Test
-// 	void alertStoreSaveFindUpsertOnPostgres() {
-// 		Alert alert = new Alert("pg-alert-1", "rule-1", "Test Rule",
-// 				BlazeEventType.CHANNEL_FOLLOW, Instant.now(),
-// 				"Test message", false, Map.of("key", "value"));
-// 		alertStore.save(alert);
-// 
-// 		Optional<Alert> found = alertStore.findById("pg-alert-1");
-// 		assertTrue(found.isPresent());
-// 		assertEquals("Test Rule", found.get().ruleName());
-// 
-// 		Alert updated = new Alert("pg-alert-1", "rule-1", "Updated Rule",
-// 				BlazeEventType.CHANNEL_FOLLOW, Instant.now(),
-// 				"Updated message", true, Map.of("key", "updated"));
-// 		alertStore.save(updated);
-// 
-// 		Optional<Alert> reFound = alertStore.findById("pg-alert-1");
-// 		assertTrue(reFound.isPresent());
-// 		assertEquals("Updated Rule", reFound.get().ruleName());
-// 		assertTrue(reFound.get().acknowledged());
-// 		assertEquals(1, alertStore.count());
-// 	}
-// 
-// 	@Test
-// 	void alertRuleStoreSaveFindOnPostgres() {
-// 		AlertRule rule = new AlertRule("pg-rule-1", "Donation Alert",
-// 				BlazeEventType.CHANNEL_CHAT_MESSAGE, AlertCondition.ALWAYS,
-// 				0, "template", true, 5000);
-// 		alertRuleStore.save(rule);
-// 
-// 		Optional<AlertRule> found = alertRuleStore.findById("pg-rule-1");
-// 		assertTrue(found.isPresent());
-// 		assertEquals("Donation Alert", found.get().name());
-// 		assertEquals(AlertCondition.ALWAYS, found.get().condition());
-// 	}
-// 
-// 	@Test
-// 	void giveawayStoreSaveFindUpsertOnPostgres() {
-// 		Giveaway giveaway = new Giveaway("pg-gw-1", "Test Giveaway",
-// 				"A test", GiveawayStatus.DRAFT, 0, 100,
-// 				Instant.now(), null, null, null, java.util.List.of());
-// 		giveawayStore.save(giveaway);
-// 
-// 		Optional<Giveaway> found = giveawayStore.findById("pg-gw-1");
-// 		assertTrue(found.isPresent());
-// 		assertEquals("Test Giveaway", found.get().title());
-// 
-// 		Giveaway updated = new Giveaway("pg-gw-1", "Updated Giveaway",
-// 				"Updated desc", GiveawayStatus.OPEN, 5, 100,
-// 				Instant.now(), Instant.now(), null, null, java.util.List.of());
-// 		giveawayStore.save(updated);
-// 
-// 		Optional<Giveaway> reFound = giveawayStore.findById("pg-gw-1");
-// 		assertTrue(reFound.isPresent());
-// 		assertEquals("Updated Giveaway", reFound.get().title());
-// 		assertEquals(GiveawayStatus.OPEN, reFound.get().status());
-// 		assertEquals(1, giveawayStore.count());
-// 	}
-// }
+@JdbcTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@Testcontainers
+@Transactional
+@Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class, InMemoryGiveawayStore.class})
+class PostgresStoreIntegrationTests {
+
+	@Container
+	static final PostgreSQLContainer<?> PG =
+			new PostgreSQLContainer<>(DockerImageName.parse("postgres:15")
+					.asCompatibleSubstituteFor(DockerImageName.parse("postgres")))
+					.withDatabaseName("testdb")
+					.withUsername("test")
+					.withPassword("test");
+
+	@DynamicPropertySource
+	static void configureProperties(DynamicPropertyRegistry registry) {
+		registry.add("spring.datasource.url", PG::getJdbcUrl);
+		registry.add("spring.datasource.username", PG::getUsername);
+		registry.add("spring.datasource.password", PG::getPassword);
+		registry.add("spring.datasource.driver-class-name", () -> "org.postgresql.Driver");
+		registry.add("spring.sql.init.mode", () -> "always");
+	}
+
+	@Autowired JdbcTemplate jdbc;
+	@Autowired LiveEventStore liveEventStore;
+	@Autowired AlertStore alertStore;
+	@Autowired AlertRuleStore alertRuleStore;
+	@Autowired InMemoryGiveawayStore giveawayStore;
+
+	@Test
+	void schemaInitializedAllTablesCreated() {
+		Integer tableCount = jdbc.queryForObject(
+				"SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public'", Integer.class);
+		assertNotNull(tableCount);
+		assertTrue(tableCount >= 12, "Expected >= 12 tables (schema.sql), got " + tableCount);
+	}
+
+	@Test
+	void liveEventStoreSaveFindUpsertOnPostgres() {
+		LiveEvent event = new LiveEvent("pg-ev-1", LiveEventType.FOLLOW,
+				LiveEventSource.MANUAL, LiveEventStatus.ACCEPTED,
+				Map.of("amount", 5), Instant.now(), "dedup-1");
+		liveEventStore.save(event);
+
+		Optional<LiveEvent> found = liveEventStore.findById("pg-ev-1");
+		assertTrue(found.isPresent());
+		assertEquals(LiveEventType.FOLLOW, found.get().type());
+
+		// Upsert — should UPDATE existing row, not insert duplicate
+		LiveEvent updated = new LiveEvent("pg-ev-1", LiveEventType.SUBSCRIPTION,
+				LiveEventSource.MANUAL, LiveEventStatus.ACCEPTED,
+				Map.of("amount", 10), Instant.now(), "dedup-2");
+		liveEventStore.save(updated);
+
+		Optional<LiveEvent> reFound = liveEventStore.findById("pg-ev-1");
+		assertTrue(reFound.isPresent());
+		assertEquals(LiveEventType.SUBSCRIPTION, reFound.get().type());
+		assertEquals("dedup-2", reFound.get().dedupKey());
+		assertEquals(1, liveEventStore.count(), "Upsert must not duplicate rows");
+	}
+
+	@Test
+	void alertStoreSaveFindUpsertOnPostgres() {
+		Alert alert = new Alert("pg-alert-1", "rule-1", "Test Rule",
+				BlazeEventType.CHANNEL_FOLLOW, Instant.now(),
+				"Test message", false, Map.of("key", "value"));
+		alertStore.save(alert);
+
+		Optional<Alert> found = alertStore.findById("pg-alert-1");
+		assertTrue(found.isPresent());
+		assertEquals("Test Rule", found.get().ruleName());
+
+		Alert updated = new Alert("pg-alert-1", "rule-1", "Updated Rule",
+				BlazeEventType.CHANNEL_FOLLOW, Instant.now(),
+				"Updated message", true, Map.of("key", "updated"));
+		alertStore.save(updated);
+
+		Optional<Alert> reFound = alertStore.findById("pg-alert-1");
+		assertTrue(reFound.isPresent());
+		assertEquals("Updated Rule", reFound.get().ruleName());
+		assertTrue(reFound.get().acknowledged());
+		assertEquals(1, alertStore.count());
+	}
+
+	@Test
+	void alertRuleStoreSaveFindOnPostgres() {
+		AlertRule rule = new AlertRule("pg-rule-1", "Donation Alert",
+				BlazeEventType.CHANNEL_CHAT_MESSAGE, AlertCondition.ALWAYS,
+				0, "template", true, 5000);
+		alertRuleStore.save(rule);
+
+		Optional<AlertRule> found = alertRuleStore.findById("pg-rule-1");
+		assertTrue(found.isPresent());
+		assertEquals("Donation Alert", found.get().name());
+		assertEquals(AlertCondition.ALWAYS, found.get().condition());
+	}
+
+	@Test
+	void giveawayStoreSaveFindUpsertOnPostgres() {
+		Giveaway giveaway = new Giveaway("pg-gw-1", "Test Giveaway",
+				"A test", GiveawayStatus.DRAFT, 0, 100,
+				Instant.now(), null, null, null, java.util.List.of());
+		giveawayStore.save(giveaway);
+
+		Optional<Giveaway> found = giveawayStore.findById("pg-gw-1");
+		assertTrue(found.isPresent());
+		assertEquals("Test Giveaway", found.get().title());
+
+		Giveaway updated = new Giveaway("pg-gw-1", "Updated Giveaway",
+				"Updated desc", GiveawayStatus.OPEN, 5, 100,
+				Instant.now(), Instant.now(), null, null, java.util.List.of());
+		giveawayStore.save(updated);
+
+		Optional<Giveaway> reFound = giveawayStore.findById("pg-gw-1");
+		assertTrue(reFound.isPresent());
+		assertEquals("Updated Giveaway", reFound.get().title());
+		assertEquals(GiveawayStatus.OPEN, reFound.get().status());
+		assertEquals(1, giveawayStore.count());
+	}
+}

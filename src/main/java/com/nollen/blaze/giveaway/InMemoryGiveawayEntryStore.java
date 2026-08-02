@@ -1,6 +1,7 @@
 package com.nollen.blaze.giveaway;
 
-import java.util.ArrayList;
+import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -37,13 +38,14 @@ public class InMemoryGiveawayEntryStore {
 
 	public GiveawayEntry save(GiveawayEntry entry) {
 		if (jdbc != null) {
+			Timestamp enteredAt = Timestamp.from(entry.enteredAt());
 			int updated = jdbc.update(
 				"UPDATE giveaway_entries SET giveaway_id = ?, participant_name = ?, entered_at = ?, selected = ?, eligible = ? WHERE id = ?",
-				entry.giveawayId(), entry.participantName(), entry.enteredAt(), entry.selected(), entry.eligible(), entry.id());
+				entry.giveawayId(), entry.participantName(), enteredAt, entry.selected(), entry.eligible(), entry.id());
 			if (updated == 0) {
 				jdbc.update(
 					"INSERT INTO giveaway_entries (giveaway_id, participant_name, entered_at, selected, eligible, id) VALUES (?, ?, ?, ?, ?, ?)",
-					entry.giveawayId(), entry.participantName(), entry.enteredAt(), entry.selected(), entry.eligible(), entry.id());
+					entry.giveawayId(), entry.participantName(), enteredAt, entry.selected(), entry.eligible(), entry.id());
 			}
 
 			return entry;

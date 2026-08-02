@@ -1,5 +1,6 @@
 package com.nollen.blaze.giveaway;
 
+import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -14,6 +15,8 @@ import org.springframework.stereotype.Repository;
 
 @Repository
 public class InMemoryGiveawayStore {
+
+	private static final Comparator<Giveaway> BY_TIME = Comparator.comparing(Giveaway::createdAt);
 
 	private final ConcurrentHashMap<String, Giveaway> giveaways = new ConcurrentHashMap<>();
 	private final JdbcTemplate jdbc;
@@ -41,13 +44,17 @@ public class InMemoryGiveawayStore {
 
 	public Giveaway save(Giveaway giveaway) {
 		if (jdbc != null) {
+			Timestamp createdAt = Timestamp.from(giveaway.createdAt());
+			Timestamp openedAt = giveaway.openedAt() != null ? Timestamp.from(giveaway.openedAt()) : null;
+			Timestamp closedAt = giveaway.closedAt() != null ? Timestamp.from(giveaway.closedAt()) : null;
+			Timestamp drawnAt = giveaway.drawnAt() != null ? Timestamp.from(giveaway.drawnAt()) : null;
 			int updated = jdbc.update(
-				"UPDATE giveaways SET title = ?, description = ?, status = ?, entry_count = ?, max_entries = ?, created_at = ?, opened_at = ?, closed_at = ?, drawn_at = ?, winner_ids = ? WHERE id = ?",
-				giveaway.title(), giveaway.description(), giveaway.status().name(), giveaway.entryCount(), giveaway.maxEntries(), giveaway.createdAt(), giveaway.openedAt(), giveaway.closedAt(), giveaway.drawnAt(), JsonData.write(giveaway.winnerIds()), giveaway.id());
+					"UPDATE giveaways SET title = ?, description = ?, status = ?, entry_count = ?, max_entries = ?, created_at = ?, opened_at = ?, closed_at = ?, drawn_at = ?, winner_ids = ? WHERE id = ?",
+					giveaway.title(), giveaway.description(), giveaway.status().name(), giveaway.entryCount(), giveaway.maxEntries(), createdAt, openedAt, closedAt, drawnAt, JsonData.write(giveaway.winnerIds()), giveaway.id());
 			if (updated == 0) {
 				jdbc.update(
 					"INSERT INTO giveaways (title, description, status, entry_count, max_entries, created_at, opened_at, closed_at, drawn_at, winner_ids, id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
-					giveaway.title(), giveaway.description(), giveaway.status().name(), giveaway.entryCount(), giveaway.maxEntries(), giveaway.createdAt(), giveaway.openedAt(), giveaway.closedAt(), giveaway.drawnAt(), JsonData.write(giveaway.winnerIds()), giveaway.id());
+					giveaway.title(), giveaway.description(), giveaway.status().name(), giveaway.entryCount(), giveaway.maxEntries(), createdAt, openedAt, closedAt, drawnAt, JsonData.write(giveaway.winnerIds()), giveaway.id());
 			}
 
 			return giveaway;
@@ -68,7 +75,7 @@ public class InMemoryGiveawayStore {
 			return jdbc.query("SELECT * FROM giveaways ORDER BY created_at", mapper);
 		}
 		return giveaways.values().stream()
-				.sorted(Comparator.comparing(Giveaway::createdAt))
+				.sorted(BY_TIME)
 				.toList();
 	}
 
