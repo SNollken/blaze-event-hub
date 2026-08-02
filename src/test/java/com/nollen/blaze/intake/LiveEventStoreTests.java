@@ -50,11 +50,35 @@ class LiveEventStoreTests {
 		store.save(new LiveEvent("a", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
 				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), null));
 		store.save(new LiveEvent("b", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
+				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), null));
+		store.save(new LiveEvent("c", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
 				LiveEventStatus.DUPLICATE, Map.of(), Instant.now(), null));
 
-		assertEquals(1, store.countByStatus(LiveEventStatus.ACCEPTED));
+		assertEquals(2, store.countByStatus(LiveEventStatus.ACCEPTED));
 		assertEquals(1, store.countByStatus(LiveEventStatus.DUPLICATE));
 		assertEquals(0, store.countByStatus(LiveEventStatus.REJECTED));
+	}
+
+	@Test
+	void countByStatusGroupedReturnsCountsPerStatus() {
+		store.save(new LiveEvent("a", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
+				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), null));
+		store.save(new LiveEvent("b", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
+				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), null));
+		store.save(new LiveEvent("c", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
+				LiveEventStatus.DUPLICATE, Map.of(), Instant.now(), null));
+
+		Map<LiveEventStatus, Long> counts = store.countByStatusGrouped();
+		assertEquals(2, counts.getOrDefault(LiveEventStatus.ACCEPTED, 0L));
+		assertEquals(1, counts.getOrDefault(LiveEventStatus.DUPLICATE, 0L));
+		assertEquals(0, counts.getOrDefault(LiveEventStatus.REJECTED, 0L));
+	}
+
+	@Test
+	void existsByDedupKeyFindsNonRejected() {
+		store.save(new LiveEvent("a", LiveEventType.FOLLOW, LiveEventSource.MANUAL,
+				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), "dedup-1"));
+		assertTrue(store.existsByDedupKey("dedup-1"));
 	}
 
 	@Test
@@ -66,13 +90,6 @@ class LiveEventStoreTests {
 
 		assertEquals(1, store.findByType(LiveEventType.FOLLOW).size());
 		assertEquals(1, store.findByType(LiveEventType.SUBSCRIPTION).size());
-	}
-
-	@Test
-	void existsByDedupKeyFindsNonRejected() {
-		store.save(new LiveEvent("a", LiveEventType.FOLLOW, LiveEventSource.MANUAL,
-				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), "dedup-1"));
-		assertTrue(store.existsByDedupKey("dedup-1"));
 	}
 
 	@Test

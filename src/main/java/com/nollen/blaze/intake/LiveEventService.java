@@ -64,15 +64,16 @@ public class LiveEventService {
 	}
 
 	public LiveEventStats stats() {
+		Map<LiveEventStatus, Long> counts = store.countByStatusGrouped();
 		return new LiveEventStats(
 				store.count(),
-				store.countByStatus(LiveEventStatus.ACCEPTED),
-				store.countByStatus(LiveEventStatus.DUPLICATE),
-				store.countByStatus(LiveEventStatus.REJECTED),
-				store.countByStatus(LiveEventStatus.NORMALIZED),
-				store.countByStatus(LiveEventStatus.DISPATCH_PENDING),
-				store.countByStatus(LiveEventStatus.DISPATCHED_PLACEHOLDER),
-				store.countByStatus(LiveEventStatus.FAILED));
+				counts.getOrDefault(LiveEventStatus.ACCEPTED, 0L),
+				counts.getOrDefault(LiveEventStatus.DUPLICATE, 0L),
+				counts.getOrDefault(LiveEventStatus.REJECTED, 0L),
+				counts.getOrDefault(LiveEventStatus.NORMALIZED, 0L),
+				counts.getOrDefault(LiveEventStatus.DISPATCH_PENDING, 0L),
+				counts.getOrDefault(LiveEventStatus.DISPATCHED_PLACEHOLDER, 0L),
+				counts.getOrDefault(LiveEventStatus.FAILED, 0L));
 	}
 
 	public LiveEvent create(LiveEventType type, LiveEventSource source, Map<String, Object> payload, String dedupKey) {

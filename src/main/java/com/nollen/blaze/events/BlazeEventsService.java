@@ -38,11 +38,7 @@ public class BlazeEventsService {
 	}
 
 	public BlazeEventsStatusExtended status() {
-		Instant lastReceived = null;
-		List<BlazeEventsLogEntry> all = logStore.listAll();
-		if (!all.isEmpty()) {
-			lastReceived = all.get(all.size() - 1).timestamp();
-		}
+		Instant lastReceived = logStore.findLastTimestamp();
 		return BlazeEventsStatusExtended.from(runner, lastReceived, logStore.count());
 	}
 

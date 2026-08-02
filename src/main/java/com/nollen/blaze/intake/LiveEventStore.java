@@ -4,8 +4,10 @@ import java.util.ArrayList;
 import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.stream.Collectors;
 
 import com.nollen.blaze.common.JsonData;
 
@@ -142,6 +144,22 @@ public class LiveEventStore {
 			return count == null ? 0 : count;
 		}
 		return events.values().stream().filter(e -> e.status() == status).count();
+	}
+
+	public Map<LiveEventStatus, Long> countByStatusGrouped() {
+		if (jdbc != null) {
+			return jdbc.query(
+					"SELECT status, COUNT(*) FROM live_events GROUP BY status",
+					(rs, rowNum) -> Map.entry(
+							LiveEventStatus.valueOf(rs.getString("status")),
+							rs.getLong(2)))
+					.stream()
+					.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+		}
+		return events.values().stream()
+				.collect(Collectors.groupingBy(
+						LiveEvent::status,
+						Collectors.counting()));
 	}
 
 	public void clear() {

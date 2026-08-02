@@ -1,5 +1,6 @@
 package com.nollen.blaze.events;
 
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
@@ -105,5 +106,16 @@ public class BlazeEventsLogStore {
 			return count == null ? 0 : count;
 		}
 		return entries.size();
+	}
+
+	public Instant findLastTimestamp() {
+		if (jdbc != null) {
+			Timestamp ts = jdbc.queryForObject("SELECT MAX(received_at) FROM blaze_events_log", Timestamp.class);
+			return ts != null ? ts.toInstant() : null;
+		}
+		return entries.stream()
+				.map(BlazeEventsLogEntry::timestamp)
+				.max(Instant::compareTo)
+				.orElse(null);
 	}
 }

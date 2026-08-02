@@ -50,4 +50,16 @@ class BlazeEventsLogStoreTests {
 		store.clear();
 		assertThat(store.count()).isEqualTo(0);
 	}
+
+	@Test
+	void findLastTimestampReturnsLatest() {
+		store.append(new BlazeEventsLogEntry("1", Instant.ofEpochSecond(100), "chat", "simulate", "msg1", null));
+		store.append(new BlazeEventsLogEntry("2", Instant.ofEpochSecond(200), "chat", "simulate", "msg2", null));
+		assertThat(store.findLastTimestamp()).isEqualTo(Instant.ofEpochSecond(200));
+	}
+
+	@Test
+	void findLastTimestampReturnsNullWhenEmpty() {
+		assertThat(store.findLastTimestamp()).isNull();
+	}
 }
