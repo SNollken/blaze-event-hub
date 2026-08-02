@@ -1,75 +1,97 @@
 package com.nollen.blaze.intake;
 
+import static org.assertj.core.api.Assertions.assertThat;
+
+import java.util.List;
 import java.util.Map;
 
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-
-import static org.junit.jupiter.api.Assertions.*;
 
 class PayloadSanitizerTests {
 
-	private PayloadSanitizer sanitizer;
+	private final PayloadSanitizer sanitizer = new PayloadSanitizer();
 
-	@BeforeEach
-	void setUp() {
-		sanitizer = new PayloadSanitizer();
+	@Test
+	void nullPayloadReturnsEmptyMap() {
+		assertThat(sanitizer.sanitize(null)).isEqualTo(Map.of());
 	}
 
 	@Test
-	void sanitizesScriptTag() {
-		Map<String, Object> payload = Map.of("message", "Hello <script>alert('xss')</script> world");
+	void topLevelScriptTagIsStripped() {
+		Map<String, Object> payload = Map.of("message", "<script>alert(1)</script>hello");
 		Map<String, Object> result = sanitizer.sanitize(payload);
-		assertFalse(result.get("message").toString().contains("<script>"));
+		assertThat(result.get("message")).isEqualTo("hello");
 	}
 
 	@Test
-	void sanitizesEventHandlers() {
-		Map<String, Object> payload = Map.of("message", "Hello onclick=alert(1) world");
-		Map<String, Object> result = sanitizer.sanitize(payload);
-		assertFalse(result.get("message").toString().contains("onclick="));
-	}
-
-	@Test
-	void sanitizesJavascriptUri() {
+	void javascriptProtocolIsStripped() {
 		Map<String, Object> payload = Map.of("url", "javascript:alert(1)");
 		Map<String, Object> result = sanitizer.sanitize(payload);
-		assertFalse(result.get("url").toString().contains("javascript:"));
+		assertThat(result.get("url")).isEqualTo("alert(1)");
 	}
 
 	@Test
-	void truncatesLongStrings() {
-		String longStr = "a".repeat(3000);
-		Map<String, Object> payload = Map.of("message", longStr);
+	void nestedMapStringsAreSanitized() {
+		Map<String, Object> payload = Map.of(
+				"outer", Map.of("inner", "<script>alert(1)</script>bad"));
 		Map<String, Object> result = sanitizer.sanitize(payload);
-		assertTrue(result.get("message").toString().length() <= 2000);
+		assertThat(result.get("outer")).isInstanceOf(Map.class);
+		Map<?, ?> inner = (Map<?, ?>) result.get("outer");
+		assertThat(inner.get("inner")).isEqualTo("bad");
 	}
 
 	@Test
-	void handlesNullPayload() {
-		Map<String, Object> result = sanitizer.sanitize(null);
-		assertNotNull(result);
-		assertTrue(result.isEmpty());
-	}
-
-	@Test
-	void preservesNormalPayload() {
-		Map<String, Object> payload = Map.of("username", "testuser", "amount", 10.0);
+	void nestedListStringsAreSanitized() {
+		Map<String, Object> payload = Map.of(
+				"tags", List.of("<script>evil</script>clean", "ok"));
 		Map<String, Object> result = sanitizer.sanitize(payload);
-		assertEquals("testuser", result.get("username"));
-		assertEquals(10.0, result.get("amount"));
+		List<?> tags = (List<?>) result.get("tags");
+		assertThat(tags).hasSize(2);
+		assertThat(tags.get(0)).isEqualTo("clean");
+		assertThat(tags.get(1)).isEqualTo("ok");
 	}
 
 	@Test
-	void detectsOversizePayload() {
-		String hugeString = "x".repeat(20000);
-		Map<String, Object> payload = Map.of("data", hugeString);
-		assertTrue(sanitizer.isOversize(payload));
+	void deeplyNestedXSSIsSanitized() {
+		Map<String, Object> payload = Map.of(
+				"data", Map.of(
+						"user", Map.of("name", "javascript:alert(1)name")));
+		Map<String, Object> result = sanitizer.sanitize(payload);
+		Map<?, ?> data = (Map<?, ?>) result.get("data");
+		Map<?, ?> user = (Map<?, ?>) data.get("user");
+		assertThat(user.get("name")).isEqualTo("alert(1)name");
 	}
 
 	@Test
-	void doesNotFlagNormalPayloadAsOversize() {
-		Map<String, Object> payload = Map.of("message", "Hello world");
-		assertFalse(sanitizer.isOversize(payload));
+	void nonStringValueTypesArePreserved() {
+		Map<String, Object> payload = Map.of(
+				"amount", 100,
+				"active", true,
+				"ratio", 3.14,
+				"name", "clean");
+		Map<String, Object> result = sanitizer.sanitize(payload);
+		assertThat(result.get("amount")).isEqualTo(100);
+		assertThat(result.get("active")).isEqualTo(true);
+		assertThat(result.get("ratio")).isEqualTo(3.14);
+		assertThat(result.get("name")).isEqualTo("clean");
+	}
+
+	@Test
+	void nullValueBecomesEmpty() {
+		Map<String, Object> payload = new java.util.LinkedHashMap<>();
+		payload.put("key", null);
+		Map<String, Object> result = sanitizer.sanitize(payload);
+		assertThat(result.get("key")).isEqualTo("");
+	}
+
+	@Test
+	void oversizePayloadDetected() {
+		String largeValue = "x".repeat(11_000);
+		assertThat(sanitizer.isOversize(Map.of("data", largeValue))).isTrue();
+	}
+
+	@Test
+	void smallPayloadNotOversize() {
+		assertThat(sanitizer.isOversize(Map.of("data", "small"))).isFalse();
 	}
 }

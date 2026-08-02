@@ -1,5 +1,8 @@
 package com.nollen.blaze.intake;
 
+import java.util.ArrayList;
+import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Component;
@@ -14,12 +17,9 @@ public class PayloadSanitizer {
 		if (payload == null) {
 			return Map.of();
 		}
-		Map<String, Object> cleaned = new java.util.LinkedHashMap<>(payload);
+		Map<String, Object> cleaned = new LinkedHashMap<>(payload);
 		for (Map.Entry<String, Object> entry : cleaned.entrySet()) {
-			Object value = entry.getValue();
-			if (value instanceof String str) {
-				entry.setValue(sanitizeString(str));
-			}
+			entry.setValue(sanitizeValue(entry.getValue()));
 		}
 		return Map.copyOf(cleaned);
 	}
@@ -36,6 +36,35 @@ public class PayloadSanitizer {
 		}
 	}
 
+	/**
+	 * Recursively sanitizes any value: strings are cleaned, nested maps and
+	 * lists are traversed so XSS payloads buried in nested structures are
+	 * neutralized before storage in LiveEvent payloads.
+	 */
+	private Object sanitizeValue(Object value) {
+		if (value == null) {
+			return "";
+		}
+		if (value instanceof String str) {
+			return sanitizeString(str);
+		}
+		if (value instanceof Map) {
+			Map<String, Object> nested = new LinkedHashMap<>();
+			for (Map.Entry<?, ?> entry : ((Map<?, ?>) value).entrySet()) {
+				nested.put(String.valueOf(entry.getKey()), sanitizeValue(entry.getValue()));
+			}
+			return nested;
+		}
+		if (value instanceof List) {
+			List<Object> sanitized = new ArrayList<>();
+			for (Object item : (List<?>) value) {
+				sanitized.add(sanitizeValue(item));
+			}
+			return sanitized;
+		}
+		return value;
+	}
+
 	private String sanitizeString(String value) {
 		if (value == null) {
 			return "";
@@ -47,14 +76,14 @@ public class PayloadSanitizer {
 		return stripXss(trimmed);
 	}
 
-	private String stripXss(String value) {
+	private static String stripXss(String value) {
 		return value
 				// Neutralize HTML numeric character references FIRST: &#106;avascript: -> harmless
 				.replaceAll("&#", "&amp;#")
 				.replaceAll("(?is)<script[^>]*>.*?</script>", "")
 				.replaceAll("(?is)<script[^>]*/?>", "")
 				.replaceAll("(?i)<iframe[^>]*>.*?</iframe>", "")
-				.replaceAll("(?is)<iframe[^>]*/?>", "")
+				.replaceAll("(?i)<iframe[^>]*/?>", "")
 				.replaceAll("(?is)<object[^>]*>.*?</object>", "")
 				.replaceAll("(?is)<embed[^>]*/?>", "")
 				.replaceAll("(?i)javascript\\s*:", "")
