@@ -27,6 +27,7 @@ management:
 nollen:
   security:
     api-key: ${NOLLEN_API_KEY:dev-local-key}
+    rate-limit-per-minute: ${NOLLEN_RATE_LIMIT_PER_MINUTE:30}
   blaze:
     client-id: ${BLAZE_CLIENT_ID:}
     client-secret: ${BLAZE_CLIENT_SECRET:}
