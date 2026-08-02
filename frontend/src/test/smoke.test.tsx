@@ -5,6 +5,7 @@ import App from '../App';
 import { Modal } from '../components/Modal';
 import { Header } from '../components/Header';
 import { DataTable } from '../components/DataTable';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 
 function renderRoute(path: string) {
   return render(
@@ -76,5 +77,19 @@ describe('frontend smoke', () => {
   it('datatable mostra estado vazio', () => {
     render(<DataTable columns={[{ key: 'name', header: 'Nome' }]} data={[]} emptyMessage="Nada aqui." />);
     expect(screen.getByText('Nada aqui.')).toBeInTheDocument();
+  });
+
+  it('error boundary mostra botao de recarregar', () => {
+    const Boom = () => {
+      throw new Error('boom');
+    };
+    render(
+      <ErrorBoundary>
+        <Boom />
+      </ErrorBoundary>,
+    );
+    const btn = screen.getByLabelText('Recarregar pagina');
+    expect(btn).toBeInTheDocument();
+    expect(() => btn.click()).not.toThrow();
   });
 });

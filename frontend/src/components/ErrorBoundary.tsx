@@ -20,7 +20,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
       return (
         <div className="empty-state" style={{ minHeight: '100vh' }}>
           <strong>Algo falhou ao carregar esta tela.</strong>
-          <span>Recarregue a pagina ou verifique o backend.</span>
+          <span>Verifique o backend e tente novamente.</span>
+          <button
+            className="btn btn-primary"
+            onClick={() => window.location.reload()}
+            aria-label="Recarregar pagina"
+          >
+            Recarregar
+          </button>
         </div>
       );
     }
