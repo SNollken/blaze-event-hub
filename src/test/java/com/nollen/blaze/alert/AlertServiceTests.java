@@ -2,6 +2,9 @@ package com.nollen.blaze.alert;
 
 import java.util.List;
 import java.util.Map;
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 
 import com.nollen.blaze.common.IdGenerator;
 import com.nollen.blaze.common.NotFoundException;
@@ -18,12 +21,13 @@ class AlertServiceTests {
 	private AlertService service;
 	private AlertStore alertStore;
 	private AlertRuleStore ruleStore;
+	private final Clock clock = Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC);
 
 	@BeforeEach
 	void setUp() {
 		alertStore = new AlertStore();
 		ruleStore = new AlertRuleStore();
-		service = new AlertService(alertStore, ruleStore, new AlertNotifier(), new IdGenerator());
+		service = new AlertService(clock, alertStore, ruleStore, new AlertNotifier(), new IdGenerator());
 	}
 
 	@Test
@@ -99,7 +103,7 @@ class AlertServiceTests {
 		ruleStore.save(enabledRule);
 		ruleStore.save(disabledRule);
 
-		service = new AlertService(alertStore, ruleStore, new AlertNotifier(), new IdGenerator());
+		service = new AlertService(clock, alertStore, ruleStore, new AlertNotifier(), new IdGenerator());
 
 		service.evaluateEvent(new EvaluateEventRequest(BlazeEventType.CHANNEL_FOLLOW, Map.of()));
 
@@ -116,7 +120,7 @@ class AlertServiceTests {
 		AlertRuleStore singleStore = new AlertRuleStore();
 		singleStore.save(new AlertRule(rule.id(), rule.name(), rule.eventType(), rule.condition(),
 				rule.threshold(), rule.template(), false, rule.cooldownMs()));
-		service = new AlertService(alertStore, singleStore, new AlertNotifier(), new IdGenerator());
+		service = new AlertService(clock, alertStore, singleStore, new AlertNotifier(), new IdGenerator());
 
 		List<Alert> result = service.evaluateEvent(new EvaluateEventRequest(BlazeEventType.CHANNEL_FOLLOW, Map.of()));
 		assertThat(result).isEmpty();

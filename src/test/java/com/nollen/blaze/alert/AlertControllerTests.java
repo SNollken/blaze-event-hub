@@ -114,7 +114,7 @@ class AlertControllerTests {
 		String ruleId = objectMapper.readTree(responseBody).get("id").asText();
 
 		mockMvc.perform(delete("/api/alerts/rules/{id}", ruleId))
-				.andExpect(status().isOk());
+				.andExpect(status().isNoContent());
 
 		mockMvc.perform(get("/api/alerts/rules"))
 				.andExpect(status().isOk())

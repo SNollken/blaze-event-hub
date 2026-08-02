@@ -1,6 +1,8 @@
 package com.nollen.blaze.blaze;
 
 import java.time.Instant;
+import java.time.Clock;
+import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
 
@@ -44,7 +46,8 @@ class BlazeApiClientTests {
 				Instant.now().plusSeconds(3600), List.of("users.read"), Instant.now()));
 		RestClient.Builder builder = RestClient.builder();
 		server = MockRestServiceServer.bindTo(builder).build();
-		client = new BlazeApiClient(properties, tokenStore, new BlazeApiHeaders(properties), builder);
+		client = new BlazeApiClient(properties, tokenStore,
+				new BlazeApiHeaders(properties, Clock.systemUTC()), builder);
 	}
 
 	@Test

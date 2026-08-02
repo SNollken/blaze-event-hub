@@ -277,7 +277,7 @@ class BlazeOAuthServiceTests {
 	}
 
 	@Test
-	void tokenExchangeFailureDoesNotDiscardValidState() {
+	void tokenExchangeFailureConsumesState() {
 		service.start();
 		String state = gateway.lastGeneratedState;
 		gateway.setThrowOAuthError();
@@ -286,7 +286,7 @@ class BlazeOAuthServiceTests {
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("Blaze rejected code exchange");
 
-		assertThat(stateStore.find(state)).isPresent();
+		assertThat(stateStore.find(state)).isEmpty();
 	}
 
 	private static class FakeOAuthGateway implements BlazeOAuthGateway {
