@@ -126,6 +126,20 @@ class AlertServiceTests {
 		assertThat(result).isEmpty();
 	}
 
+	@Test
+	void cooldownPreventsReTriggerWithinWindow() {
+		AlertRule rule = new AlertRule(new IdGenerator().newId(), "CooldownRule",
+				BlazeEventType.CHANNEL_FOLLOW, AlertCondition.ALWAYS, 0, null, true, 60_000);
+		ruleStore.save(rule);
+
+		List<Alert> first = service.evaluateEvent(new EvaluateEventRequest(BlazeEventType.CHANNEL_FOLLOW, Map.of()));
+		assertThat(first).hasSize(1);
+
+		// Same event within cooldown window — should be suppressed via batch lookup
+		List<Alert> second = service.evaluateEvent(new EvaluateEventRequest(BlazeEventType.CHANNEL_FOLLOW, Map.of()));
+		assertThat(second).isEmpty();
+	}
+
 	private AlertRule createRule(String name, BlazeEventType type, AlertCondition condition, double threshold) {
 		return new AlertRule(new IdGenerator().newId(), name, type, condition, threshold, null, true, 0);
 	}

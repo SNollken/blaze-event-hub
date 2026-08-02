@@ -2,9 +2,12 @@ package com.nollen.blaze.alert;
 
 import java.time.Instant;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.stream.Collectors;
 
 import com.nollen.blaze.common.JsonData;
 import com.nollen.blaze.events.BlazeEventType;
@@ -110,6 +113,32 @@ public class AlertStore {
 				.filter(a -> a.ruleId() != null && a.ruleId().equals(ruleId))
 				.sorted(BY_TIME)
 				.findFirst();
+	}
+
+	public Map<String, Optional<Alert>> findLastByRuleIds(List<String> ruleIds) {
+		Map<String, Optional<Alert>> result = new HashMap<>();
+		for (String id : ruleIds) {
+			result.put(id, Optional.empty());
+		}
+		if (jdbc != null && !ruleIds.isEmpty()) {
+			String placeholders = ruleIds.stream().map(r -> "?").collect(Collectors.joining(","));
+			List<Alert> rows = jdbc.query(
+					"SELECT * FROM alerts WHERE rule_id IN (" + placeholders + ") ORDER BY triggered_at DESC",
+					mapper, ruleIds.toArray());
+			for (Alert alert : rows) {
+				if (alert.ruleId() != null && result.get(alert.ruleId()).isEmpty()) {
+					result.put(alert.ruleId(), Optional.of(alert));
+				}
+			}
+			return result;
+		}
+		for (String id : ruleIds) {
+			result.put(id, alerts.stream()
+					.filter(a -> id.equals(a.ruleId()))
+					.sorted(BY_TIME)
+					.findFirst());
+		}
+		return result;
 	}
 
 

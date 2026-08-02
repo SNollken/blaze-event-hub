@@ -3,6 +3,7 @@ package com.nollen.blaze.alert;
 import java.time.Clock;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 
 import com.nollen.blaze.common.IdGenerator;
@@ -66,11 +67,18 @@ public class AlertService {
 		List<AlertRule> enabledRules = ruleStore.findAll().stream()
 				.filter(AlertRule::enabled)
 				.toList();
+		List<String> cooldownRuleIds = enabledRules.stream()
+				.filter(r -> r.cooldownMs() > 0)
+				.map(AlertRule::id)
+				.toList();
+		Map<String, Optional<Alert>> lastByRule = cooldownRuleIds.isEmpty()
+				? Map.of()
+				: alertStore.findLastByRuleIds(cooldownRuleIds);
 		List<Alert> triggered = new ArrayList<>();
 		for (AlertRule rule : enabledRules) {
 			if (AlertEvaluator.matches(rule, request.eventType(), request.payload())) {
 				if (rule.cooldownMs() > 0) {
-					Optional<Alert> lastTriggered = alertStore.findLastByRuleId(rule.id());
+					Optional<Alert> lastTriggered = lastByRule.getOrDefault(rule.id(), Optional.empty());
 					if (lastTriggered.isPresent()
 							&& clock.instant().isBefore(lastTriggered.get().triggeredAt().plusMillis(rule.cooldownMs()))) {
 						continue;
