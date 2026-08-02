@@ -9,7 +9,10 @@ public record BlazeEventsStatusExtended(
 		String lastMessageType,
 		Instant startedAt,
 		Instant lastEventReceivedAt,
-		long eventCount) {
+		long eventCount,
+		long messagesSeen,
+		long acceptedEvents,
+		long rejectedEvents) {
 
 	public static BlazeEventsStatusExtended from(BlazeEventsRunner runner, Instant lastEventReceivedAt, long eventCount) {
 		BlazeEventsStatusResponse base = runner.status();
@@ -20,6 +23,9 @@ public record BlazeEventsStatusExtended(
 				base.lastMessageType(),
 				base.startedAt(),
 				lastEventReceivedAt,
-				eventCount);
+				eventCount,
+				base.messagesSeen(),
+				base.acceptedEvents(),
+				base.rejectedEvents());
 	}
 }

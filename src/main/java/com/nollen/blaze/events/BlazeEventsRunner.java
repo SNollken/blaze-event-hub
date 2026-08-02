@@ -3,6 +3,7 @@ package com.nollen.blaze.events;
 import java.time.Clock;
 import java.time.Instant;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.concurrent.atomic.AtomicReference;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -19,6 +20,9 @@ public class BlazeEventsRunner {
 	private final AtomicBoolean running = new AtomicBoolean(false);
 	private final AtomicReference<String> sessionId = new AtomicReference<>();
 	private final AtomicReference<String> lastMessageType = new AtomicReference<>();
+	private final AtomicLong messagesSeen = new AtomicLong();
+	private final AtomicLong acceptedEvents = new AtomicLong();
+	private final AtomicLong rejectedEvents = new AtomicLong();
 	private volatile Instant startedAt;
 
 	public BlazeEventsRunner(BlazeEventsClient client, Clock clock) {
@@ -44,19 +48,45 @@ public class BlazeEventsRunner {
 			client.stop();
 			sessionId.set(null);
 			startedAt = null;
+			resetCounters();
 		}
+	}
+
+	private void resetCounters() {
+		messagesSeen.set(0);
+		acceptedEvents.set(0);
+		rejectedEvents.set(0);
+	}
+
+	public long messagesSeen() {
+		return messagesSeen.get();
+	}
+
+	public long acceptedEvents() {
+		return acceptedEvents.get();
+	}
+
+	public long rejectedEvents() {
+		return rejectedEvents.get();
 	}
 
 	public void acceptEnvelope(BlazeEventEnvelope envelope) {
 		if (envelope == null) {
 			return;
 		}
+		messagesSeen.incrementAndGet();
 		lastMessageType.set(envelope.messageType());
 		if (SESSION_WELCOME.equals(envelope.messageType()) && envelope.sessionId() != null) {
 			sessionId.set(envelope.sessionId());
 		}
 		if (pipeline != null) {
-			pipeline.acceptEnvelope(envelope);
+			boolean dispatched = pipeline.acceptEnvelope(envelope);
+			if (dispatched) {
+				acceptedEvents.incrementAndGet();
+			}
+			else {
+				rejectedEvents.incrementAndGet();
+			}
 		}
 	}
 
@@ -70,6 +100,9 @@ public class BlazeEventsRunner {
 				client.isRunning(),
 				sessionId.get(),
 				lastMessageType.get(),
-				startedAt);
+				startedAt,
+				messagesSeen.get(),
+				acceptedEvents.get(),
+				rejectedEvents.get());
 	}
 }

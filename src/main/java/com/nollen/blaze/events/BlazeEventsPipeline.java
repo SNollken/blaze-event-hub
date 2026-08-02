@@ -33,17 +33,26 @@ public class BlazeEventsPipeline {
 		this.liveEventService = liveEventService;
 	}
 
-	public void acceptEnvelope(BlazeEventEnvelope envelope) {
+	public boolean acceptEnvelope(BlazeEventEnvelope envelope) {
 		if (envelope == null) {
-			return;
+			return false;
 		}
 		BlazeEventType eventType = resolveBlazeEventType(envelope.subscriptionType(), envelope.messageType());
+		if (eventType == null) {
+			// Non-subscription messages (session_welcome etc.) are logged but not dispatched.
+			logEntry(
+					envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
+					envelope.messageType() != null ? envelope.messageType() : "unknown",
+					"Event received: " + (envelope.messageType() != null ? envelope.messageType() : "unknown"));
+			return false;
+		}
 		Map<String, Object> payload = envelope.payload() == null ? Map.of() : new HashMap<>(envelope.payload());
 		dispatch(eventType, payload, "blaze:" + (envelope.sessionId() != null ? envelope.sessionId() : idGenerator.newId()));
 		logEntry(
 				envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
 				envelope.messageType() != null ? envelope.messageType() : "unknown",
 				"Event received: " + (envelope.messageType() != null ? envelope.messageType() : "unknown"));
+		return true;
 	}
 
 	public BlazeEventsLogEntry simulate(String eventType, String message) {

@@ -77,4 +77,36 @@ class BlazeEventsRunnerTests {
 		assertThat(runner.status().runnerRunning()).isFalse();
 		assertThat(client.isRunning()).isFalse();
 	}
+
+	@Test
+	void countersTrackMessagesAndAcceptedEvents() {
+		NoopBlazeEventsClient client = new NoopBlazeEventsClient();
+		BlazeEventsRunner runner = new BlazeEventsRunner(client, clock);
+
+		runner.acceptEnvelope(new BlazeEventEnvelope(
+				Map.of("messageType", "session_welcome"),
+				Map.of("session", Map.of("id", "s1"))));
+		runner.acceptEnvelope(new BlazeEventEnvelope(
+				Map.of("messageType", "new_future_event"),
+				Map.of()));
+		// pipeline is null in this test: envelopes are seen but not dispatched
+		assertThat(runner.status().messagesSeen()).isEqualTo(2);
+		assertThat(runner.status().acceptedEvents()).isZero();
+		assertThat(runner.status().rejectedEvents()).isZero();
+	}
+
+	@Test
+	void stopResetsCounters() {
+		NoopBlazeEventsClient client = new NoopBlazeEventsClient();
+		BlazeEventsRunner runner = new BlazeEventsRunner(client, clock);
+
+		runner.start();
+		runner.acceptEnvelope(new BlazeEventEnvelope(Map.of("messageType", "x"), Map.of()));
+		assertThat(runner.status().messagesSeen()).isEqualTo(1);
+
+		runner.stop();
+		assertThat(runner.status().messagesSeen()).isZero();
+		assertThat(runner.status().acceptedEvents()).isZero();
+		assertThat(runner.status().rejectedEvents()).isZero();
+	}
 }

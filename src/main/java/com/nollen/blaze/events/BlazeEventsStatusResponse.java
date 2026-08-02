@@ -7,5 +7,8 @@ public record BlazeEventsStatusResponse(
 		boolean clientRunning,
 		String sessionId,
 		String lastMessageType,
-		Instant startedAt) {
+		Instant startedAt,
+		long messagesSeen,
+		long acceptedEvents,
+		long rejectedEvents) {
 }

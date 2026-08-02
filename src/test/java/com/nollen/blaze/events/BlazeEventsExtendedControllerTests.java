@@ -27,13 +27,35 @@ class BlazeEventsExtendedControllerTests {
 	@Autowired
 	private MockMvc mockMvc;
 
+	@Autowired
+	private BlazeEventsRunner runner;
+
 	@Test
 	void getEventsStatusReturnsExtendedFields() throws Exception {
 		mockMvc.perform(get("/api/blaze/events/status"))
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.runnerRunning").value(false))
 				.andExpect(jsonPath("$.clientRunning").value(false))
-				.andExpect(jsonPath("$.eventCount").exists());
+				.andExpect(jsonPath("$.eventCount").exists())
+				.andExpect(jsonPath("$.messagesSeen").value(0))
+				.andExpect(jsonPath("$.acceptedEvents").value(0))
+				.andExpect(jsonPath("$.rejectedEvents").value(0));
+	}
+
+	@Test
+	void acceptEnvelopeUpdatesPollingMetrics() throws Exception {
+		runner.acceptEnvelope(new BlazeEventEnvelope(
+				java.util.Map.of("messageType", "channel.follow", "subscriptionType", "channel.follow"),
+				java.util.Map.of("username", "poll-metric-user")));
+		runner.acceptEnvelope(new BlazeEventEnvelope(
+				java.util.Map.of("messageType", "session_welcome"),
+				java.util.Map.of("session", java.util.Map.of("id", "s-poll"))));
+
+		mockMvc.perform(get("/api/blaze/events/status"))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.messagesSeen").value(2))
+				.andExpect(jsonPath("$.acceptedEvents").value(1))
+				.andExpect(jsonPath("$.rejectedEvents").value(1));
 	}
 
 	@Test

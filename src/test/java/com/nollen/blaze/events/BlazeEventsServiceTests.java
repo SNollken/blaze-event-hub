@@ -61,6 +61,31 @@ class BlazeEventsServiceTests {
 	}
 
 	@Test
+	void statusIncludesPollingMetrics() {
+		// pipeline is null here: envelopes are seen but not dispatched
+		service.acceptEnvelope(new BlazeEventEnvelope(
+				java.util.Map.of("messageType", "channel.follow"), java.util.Map.of()));
+		service.acceptEnvelope(new BlazeEventEnvelope(
+				java.util.Map.of("messageType", "session_welcome"), java.util.Map.of()));
+		BlazeEventsStatusExtended status = service.status();
+		assertThat(status.messagesSeen()).isEqualTo(2);
+		assertThat(status.acceptedEvents()).isZero();
+		assertThat(status.rejectedEvents()).isZero();
+	}
+
+	@Test
+	void statusCountersResetOnStop() {
+		service.start();
+		service.acceptEnvelope(new BlazeEventEnvelope(
+				java.util.Map.of("messageType", "channel.follow"), java.util.Map.of()));
+		service.stop();
+		BlazeEventsStatusExtended status = service.status();
+		assertThat(status.messagesSeen()).isZero();
+		assertThat(status.acceptedEvents()).isZero();
+		assertThat(status.rejectedEvents()).isZero();
+	}
+
+	@Test
 	void getLogFiltersByEventType() {
 		service.simulate("channel.chat.message", "msg1");
 		service.simulate("channel.follow", "msg2");
