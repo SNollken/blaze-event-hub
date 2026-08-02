@@ -32,6 +32,13 @@ describe('frontend smoke', () => {
     expect((await screen.findAllByText('Eventos ao Vivo')).length).toBeGreaterThan(0);
   });
 
+  it('exibe metricas de polling na pagina de eventos', async () => {
+    renderRoute('/events');
+    expect(await screen.findByText('Mensagens Vistas')).toBeInTheDocument();
+    expect(await screen.findByText('Eventos Aceitos')).toBeInTheDocument();
+    expect(await screen.findByText('Eventos Rejeitados')).toBeInTheDocument();
+  });
+
   it('renderiza blaze channel', async () => {
     renderRoute('/blaze');
     expect((await screen.findAllByText('Blaze Channel')).length).toBeGreaterThan(0);
