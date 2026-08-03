@@ -1,6 +1,7 @@
 package com.nollen.blaze.events;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -16,13 +17,17 @@ public class InMemoryEventSubscriptionStore {
 
 	private final ConcurrentHashMap<String, EventSubscriptionSnapshot> subscriptions = new ConcurrentHashMap<>();
 	private final JdbcTemplate jdbc;
-	private final RowMapper<EventSubscriptionSnapshot> mapper = (rs, rowNum) -> new EventSubscriptionSnapshot(
-			rs.getString("id"),
-			BlazeEventType.from(rs.getString("type")),
-			rs.getString("version"),
-			rs.getString("channel_id"),
-			rs.getString("session_id"),
-			rs.getTimestamp("created_at").toInstant());
+	private final RowMapper<EventSubscriptionSnapshot> mapper = (rs, rowNum) -> {
+		Timestamp ts = rs.getTimestamp("created_at");
+		Instant instant = ts != null ? ts.toInstant() : Instant.EPOCH;
+		return new EventSubscriptionSnapshot(
+				rs.getString("id"),
+				BlazeEventType.from(rs.getString("type")),
+				rs.getString("version"),
+				rs.getString("channel_id"),
+				rs.getString("session_id"),
+				instant);
+	};
 
 	public InMemoryEventSubscriptionStore() {
 		this.jdbc = null;

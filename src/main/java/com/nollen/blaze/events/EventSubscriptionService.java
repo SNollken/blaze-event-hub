@@ -8,6 +8,7 @@ import com.nollen.blaze.common.ConfigurationMissingException;
 import com.nollen.blaze.common.IdGenerator;
 
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
 @Service
@@ -25,6 +26,10 @@ public class EventSubscriptionService {
 		this.clock = clock;
 	}
 
+	// ponytail: transactional so delete-then-save is atomic — if the save
+	// fails (DB error), the delete rolls back and the old subscription is
+	// not silently lost. Same pattern as InMemoryGiveawayEntryStore.replaceAllForGiveaway.
+	@Transactional
 	public List<EventSubscriptionSnapshot> sync(EventSubscriptionRequest request) {
 		if (request == null) {
 			throw new IllegalArgumentException("Blaze Events subscription request is required");

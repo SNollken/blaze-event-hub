@@ -6,6 +6,8 @@ import com.nollen.blaze.alert.AlertRule;
 import com.nollen.blaze.alert.AlertRuleStore;
 import com.nollen.blaze.alert.AlertStore;
 import com.nollen.blaze.events.BlazeEventType;
+import com.nollen.blaze.events.EventSubscriptionSnapshot;
+import com.nollen.blaze.events.InMemoryEventSubscriptionStore;
 import com.nollen.blaze.giveaway.Giveaway;
 import com.nollen.blaze.giveaway.GiveawayStatus;
 import com.nollen.blaze.giveaway.InMemoryGiveawayStore;
@@ -64,7 +66,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 @Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class,
 		InMemoryGiveawayStore.class, InMemoryOverlayRepository.class,
-		InMemoryRuntimeOverlayConfigStore.class})
+		InMemoryRuntimeOverlayConfigStore.class, InMemoryEventSubscriptionStore.class})
 class PostgresStoreIntegrationTests {
 
 	@Container
@@ -91,6 +93,7 @@ class PostgresStoreIntegrationTests {
 	@Autowired InMemoryGiveawayStore giveawayStore;
 	@Autowired InMemoryOverlayRepository overlayRepository;
 	@Autowired InMemoryRuntimeOverlayConfigStore runtimeOverlayConfigStore;
+	@Autowired InMemoryEventSubscriptionStore subscriptionStore;
 
 	@Test
 	void schemaInitializedAllTablesCreated() {
@@ -239,5 +242,23 @@ class PostgresStoreIntegrationTests {
 		assertFalse(reFound.get().enabled());
 		assertEquals(5000, reFound.get().refreshIntervalMs());
 		assertEquals(1, runtimeOverlayConfigStore.count());
+	}
+
+	@Test
+	void eventSubscriptionSaveFindUpsertOnPostgres() {
+		EventSubscriptionSnapshot snapshot = new EventSubscriptionSnapshot(
+				"pg-sub-1", BlazeEventType.CHANNEL_CHAT_MESSAGE, "1", "channel-pg", "session-pg", Instant.now());
+		subscriptionStore.save(snapshot);
+
+		assertTrue(subscriptionStore.findByChannelIdAndType("channel-pg", BlazeEventType.CHANNEL_CHAT_MESSAGE).isPresent());
+		assertEquals(1, subscriptionStore.list().size());
+
+		EventSubscriptionSnapshot updated = new EventSubscriptionSnapshot(
+				"pg-sub-1", BlazeEventType.CHANNEL_FOLLOW, "2", "channel-pg", "session-pg-2", Instant.now());
+		subscriptionStore.save(updated);
+
+		assertEquals(1, subscriptionStore.list().size());
+		assertEquals(BlazeEventType.CHANNEL_FOLLOW, subscriptionStore.list().getFirst().type());
+		assertEquals("session-pg-2", subscriptionStore.list().getFirst().sessionId());
 	}
 }
