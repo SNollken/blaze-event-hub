@@ -1,5 +1,6 @@
 target/
 data/
+node_modules/
 *.tsbuildinfo
 .MIMO_*.md
 ANALISE_PROFUNDA_*.md
