@@ -18,6 +18,9 @@ import com.nollen.blaze.overlays.InMemoryOverlayRepository;
 import com.nollen.blaze.overlays.Overlay;
 import com.nollen.blaze.overlays.OverlayConfig;
 import com.nollen.blaze.overlays.OverlayProfile;
+import com.nollen.blaze.overlays.runtime.InMemoryRuntimeOverlayConfigStore;
+import com.nollen.blaze.overlays.runtime.RuntimeOverlayConfig;
+import com.nollen.blaze.overlays.runtime.RuntimeOverlayType;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -60,7 +63,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 @Transactional
 @Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class,
-		InMemoryGiveawayStore.class, InMemoryOverlayRepository.class})
+		InMemoryGiveawayStore.class, InMemoryOverlayRepository.class,
+		InMemoryRuntimeOverlayConfigStore.class})
 class PostgresStoreIntegrationTests {
 
 	@Container
@@ -86,6 +90,7 @@ class PostgresStoreIntegrationTests {
 	@Autowired AlertRuleStore alertRuleStore;
 	@Autowired InMemoryGiveawayStore giveawayStore;
 	@Autowired InMemoryOverlayRepository overlayRepository;
+	@Autowired InMemoryRuntimeOverlayConfigStore runtimeOverlayConfigStore;
 
 	@Test
 	void schemaInitializedAllTablesCreated() {
@@ -212,5 +217,27 @@ class PostgresStoreIntegrationTests {
 		assertTrue(found.isPresent());
 		assertEquals("Test Overlay", found.get().name());
 		assertEquals("demo", found.get().type());
+	}
+
+	@Test
+	void runtimeOverlayConfigSaveFindUpsertOnPostgres() {
+		RuntimeOverlayConfig config = RuntimeOverlayConfig.defaults(RuntimeOverlayType.ALERT).withId("pg-rt-1");
+		runtimeOverlayConfigStore.save(config);
+
+		Optional<RuntimeOverlayConfig> found = runtimeOverlayConfigStore.findById("pg-rt-1");
+		assertTrue(found.isPresent());
+		assertEquals(RuntimeOverlayType.ALERT, found.get().type());
+		assertEquals("Alert Overlay", found.get().name());
+
+		RuntimeOverlayConfig updated = new RuntimeOverlayConfig("pg-rt-1", RuntimeOverlayType.ALERT,
+				"Updated Overlay", false, 5000, ".x {}", 10, 20, 800, 400, 0.5);
+		runtimeOverlayConfigStore.save(updated);
+
+		Optional<RuntimeOverlayConfig> reFound = runtimeOverlayConfigStore.findById("pg-rt-1");
+		assertTrue(reFound.isPresent());
+		assertEquals("Updated Overlay", reFound.get().name());
+		assertFalse(reFound.get().enabled());
+		assertEquals(5000, reFound.get().refreshIntervalMs());
+		assertEquals(1, runtimeOverlayConfigStore.count());
 	}
 }
