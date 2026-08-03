@@ -2,9 +2,14 @@ package com.nollen.blaze.alert;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.nollen.blaze.events.BlazeEventType;
 
 public final class AlertEvaluator {
+
+	private static final Logger log = LoggerFactory.getLogger(AlertEvaluator.class);
 
 	private AlertEvaluator() {
 	}
@@ -52,6 +57,7 @@ public final class AlertEvaluator {
 			return Double.parseDouble(value.toString());
 		}
 		catch (NumberFormatException e) {
+			log.warn("Unparseable value '{}' for alert threshold, treating as 0: {}", value, e.getMessage());
 			return 0;
 		}
 	}

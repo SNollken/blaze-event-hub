@@ -19,27 +19,23 @@ public class LiveEventDeduplicator {
 		this.store = store;
 	}
 
-	// ponytail: LinkedHashMap LRU is read+write from the event intake path under
-	// concurrency (REST create + WebSocket dispatch). Access is synchronized on the
-	// map instance itself (DB call kept outside the lock) so the cache stays correct
-	// without serializing the slow existsByDedupKey query.
+	// ponytail: cache check + DB query are now atomic (was TOCTOU: cache miss then DB read
+	// outside lock allowed concurrent duplicates). The DB query is a fast indexed COUNT;
+	// if it ever becomes slow, escalate to a UNIQUE constraint on dedup_key in the store.
 	public boolean isDuplicate(String dedupKey) {
 		if (dedupKey == null || dedupKey.isBlank()) {
 			return false;
 		}
-		boolean known;
 		synchronized (knownDuplicates) {
-			known = Boolean.TRUE.equals(knownDuplicates.get(dedupKey));
-		}
-		if (known) {
-			return true;
-		}
-		boolean duplicate = store.existsByDedupKey(dedupKey);
-		if (duplicate) {
-			synchronized (knownDuplicates) {
+			boolean known = Boolean.TRUE.equals(knownDuplicates.get(dedupKey));
+			if (known) {
+				return true;
+			}
+			boolean duplicate = store.existsByDedupKey(dedupKey);
+			if (duplicate) {
 				knownDuplicates.put(dedupKey, Boolean.TRUE);
 			}
+			return duplicate;
 		}
-		return duplicate;
 	}
 }

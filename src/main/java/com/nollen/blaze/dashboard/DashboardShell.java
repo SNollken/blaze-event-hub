@@ -1,6 +1,7 @@
 package com.nollen.blaze.dashboard;
 
 import java.io.IOException;
+import java.io.InputStream;
 import java.nio.charset.StandardCharsets;
 
 import org.springframework.core.io.ClassPathResource;
@@ -21,8 +22,8 @@ public class DashboardShell {
 	}
 
 	private String loadDashboard() {
-		try {
-			return StreamUtils.copyToString(dashboard.getInputStream(), StandardCharsets.UTF_8);
+		try (InputStream in = dashboard.getInputStream()) {
+			return StreamUtils.copyToString(in, StandardCharsets.UTF_8);
 		}
 		catch (IOException ex) {
 			throw new IllegalStateException("Dashboard shell file not found", ex);

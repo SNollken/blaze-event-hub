@@ -57,4 +57,12 @@ class LiveEventNormalizerTests {
 		assertNotNull(result);
 		assertTrue(result.isEmpty());
 	}
+
+	@Test
+	void unparseableAmountNormalizesToZero() {
+		// ponytail: non-numeric amount is coerced to 0.0 instead of crashing
+		Map<String, Object> payload = Map.of("amount", "not-a-number");
+		Map<String, Object> result = normalizer.normalize(LiveEventType.DONATION, LiveEventSource.MANUAL, payload);
+		assertEquals(0.0, result.get("amount"));
+	}
 }

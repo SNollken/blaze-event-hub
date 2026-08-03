@@ -13,11 +13,14 @@ import com.nollen.blaze.intake.LiveEventService;
 import com.nollen.blaze.intake.LiveEventSource;
 import com.nollen.blaze.intake.LiveEventType;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class BlazeEventsPipeline {
 
+	private static final Logger log = LoggerFactory.getLogger(BlazeEventsPipeline.class);
 	private final BlazeEventsLogStore logStore;
 	private final IdGenerator idGenerator;
 	private final Clock clock;
@@ -108,8 +111,8 @@ public class BlazeEventsPipeline {
 			try {
 				return BlazeEventType.from(candidate);
 			}
-			catch (IllegalArgumentException ignored) {
-				// Non-subscription messages such as session_welcome are logged but not dispatched.
+			catch (IllegalArgumentException e) {
+				log.debug("Unrecognized Blaze event type '{}' (subscriptionType={}, messageType={}) — not dispatched", candidate, subscriptionType, messageType, e.getMessage());
 			}
 		}
 		return null;

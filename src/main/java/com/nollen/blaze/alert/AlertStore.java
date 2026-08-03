@@ -32,7 +32,7 @@ public class AlertStore {
 			rs.getString("rule_id"),
 			rs.getString("rule_name"),
 			BlazeEventType.from(rs.getString("event_type")),
-			rs.getTimestamp("triggered_at").toInstant(),
+			rs.getTimestamp("triggered_at") != null ? rs.getTimestamp("triggered_at").toInstant() : Instant.EPOCH,
 			rs.getString("message"),
 			rs.getBoolean("acknowledged"),
 			JsonData.readMap(rs.getString("metadata")));

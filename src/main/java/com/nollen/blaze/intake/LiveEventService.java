@@ -76,7 +76,11 @@ public class LiveEventService {
 				counts.getOrDefault(LiveEventStatus.FAILED, 0L));
 	}
 
-	public LiveEvent create(LiveEventType type, LiveEventSource source, Map<String, Object> payload, String dedupKey) {
+	// ponytail: synchronized to close the TOCTOU window between isDuplicate() and store.save().
+	// Without it, concurrent calls with the same dedupKey both see "not duplicate" and both save.
+	// Coarse-grained (like GiveawayService.enterGiveaway) — acceptable for the event intake path.
+	// Upgrade path: DB-level UNIQUE constraint on dedup_key when switching to real concurrency.
+	public synchronized LiveEvent create(LiveEventType type, LiveEventSource source, Map<String, Object> payload, String dedupKey) {
 		Instant now = Instant.now(clock);
 		String id = idGenerator.newId();
 		String effectiveDedupKey = dedupKey != null && !dedupKey.isBlank() ? dedupKey : null;

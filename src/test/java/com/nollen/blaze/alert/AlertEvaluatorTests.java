@@ -85,4 +85,11 @@ class AlertEvaluatorTests {
 		assertThat(message).contains("MIN_AMOUNT");
 		assertThat(message).contains("100.0");
 	}
+
+	@Test
+	void minAmountConditionWithUnparseableAmountReturnsNoMatch() {
+		// ponytail: non-numeric amount is coerced to 0.0 — should NOT match threshold 100
+		AlertRule rule = new AlertRule("r1", "Gift Rule", BlazeEventType.CHANNEL_SUBSCRIPTION_GIFT, AlertCondition.MIN_AMOUNT, 100.0, null, true, 0);
+		assertThat(AlertEvaluator.matches(rule, BlazeEventType.CHANNEL_SUBSCRIPTION_GIFT, Map.of("amount", "not-a-number"))).isFalse();
+	}
 }

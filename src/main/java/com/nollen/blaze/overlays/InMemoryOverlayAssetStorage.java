@@ -23,7 +23,12 @@ public class InMemoryOverlayAssetStorage implements OverlayAssetStorage {
 		if (blob == null) {
 			return null;
 		}
-		return blob.getBytes(1, (int) blob.length());
+		try {
+			return blob.getBytes(1, (int) blob.length());
+		}
+		finally {
+			blob.free();
+		}
 	};
 
 	public InMemoryOverlayAssetStorage() {

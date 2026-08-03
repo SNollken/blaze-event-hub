@@ -11,6 +11,7 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 
 import static org.junit.jupiter.api.Assertions.*;
+import static org.assertj.core.api.Assertions.assertThat;
 
 class LiveEventServiceTests {
 
@@ -114,5 +115,44 @@ class LiveEventServiceTests {
 		LiveEvent event = service.create(LiveEventType.CHAT_MESSAGE, LiveEventSource.MANUAL, payload, null);
 
 		assertFalse(event.payload().get("message").toString().contains("<script>"));
+	}
+
+	@Test
+	void concurrentCreateWithSameDedupKeyProducesOneAcceptedOneDuplicate() throws Exception {
+		// ponytail: slows existsByDedupKey to widen the TOCTOU race window.
+		// With synchronized create(), only one thread can be in the check-then-save
+		// critical section at a time, so the second sees the first's saved event.
+		LiveEventStore slowStore = new LiveEventStore() {
+			@Override
+			public boolean existsByDedupKey(String dedupKey) {
+				try { Thread.sleep(200); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+				return super.existsByDedupKey(dedupKey);
+			}
+		};
+		LiveEventService slowService = new LiveEventService(
+				slowStore, new LiveEventNormalizer(), new LiveEventDeduplicator(slowStore),
+				new PayloadSanitizer(), new IdGenerator(),
+				Clock.fixed(Instant.ofEpochSecond(1_000_000), ZoneOffset.UTC));
+
+		java.util.concurrent.ExecutorService executor = java.util.concurrent.Executors.newFixedThreadPool(2);
+		java.util.concurrent.CountDownLatch start = new java.util.concurrent.CountDownLatch(1);
+		java.util.List<LiveEvent> results = java.util.Collections.synchronizedList(new java.util.ArrayList<>());
+
+		java.util.concurrent.Callable<LiveEvent> task = () -> {
+			start.await();
+			return slowService.create(LiveEventType.FOLLOW, LiveEventSource.MANUAL, Map.of(), "race-key");
+		};
+
+		java.util.concurrent.Future<LiveEvent> f1 = executor.submit(task);
+		java.util.concurrent.Future<LiveEvent> f2 = executor.submit(task);
+		start.countDown();
+		results.add(f1.get());
+		results.add(f2.get());
+		executor.shutdown();
+
+		// One ACCEPTED (first thread), one DUPLICATE (second sees first's save).
+		assertThat(results).hasSize(2);
+		assertThat(results.stream().map(e -> e.status()).toList())
+				.containsExactlyInAnyOrder(LiveEventStatus.ACCEPTED, LiveEventStatus.DUPLICATE);
 	}
 }

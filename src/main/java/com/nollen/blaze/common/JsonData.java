@@ -3,12 +3,16 @@ package com.nollen.blaze.common;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 public final class JsonData {
 
+	private static final Logger log = LoggerFactory.getLogger(JsonData.class);
 	private static final ObjectMapper MAPPER = new ObjectMapper().findAndRegisterModules();
 	private static final TypeReference<Map<String, Object>> MAP_TYPE = new TypeReference<>() {
 	};
@@ -35,6 +39,7 @@ public final class JsonData {
 			return MAPPER.readValue(json, MAP_TYPE);
 		}
 		catch (JsonProcessingException ex) {
+			log.warn("Corrupted JSON in column, returning empty map: {}", ex.getMessage());
 			return Map.of();
 		}
 	}
@@ -47,6 +52,7 @@ public final class JsonData {
 			return MAPPER.readValue(json, STRING_LIST_TYPE);
 		}
 		catch (JsonProcessingException ex) {
+			log.warn("Corrupted JSON in column, returning empty list: {}", ex.getMessage());
 			return List.of();
 		}
 	}
@@ -59,6 +65,7 @@ public final class JsonData {
 			return MAPPER.readValue(json, type);
 		}
 		catch (JsonProcessingException ex) {
+			log.warn("Corrupted JSON in column, returning fallback: {}", ex.getMessage());
 			return fallback;
 		}
 	}

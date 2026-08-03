@@ -2,10 +2,15 @@ package com.nollen.blaze.intake;
 
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
 import org.springframework.stereotype.Component;
 
 @Component
 public class LiveEventNormalizer {
+
+	private static final Logger log = LoggerFactory.getLogger(LiveEventNormalizer.class);
 
 	public Map<String, Object> normalize(LiveEventType type, LiveEventSource source, Map<String, Object> payload) {
 		if (payload == null) {
@@ -73,6 +78,7 @@ public class LiveEventNormalizer {
 			try {
 				return Double.parseDouble(str.trim());
 			} catch (NumberFormatException e) {
+				log.warn("Unparseable amount value '{}', normalizing to 0.0: {}", str, e.getMessage());
 				return 0.0;
 			}
 		}
