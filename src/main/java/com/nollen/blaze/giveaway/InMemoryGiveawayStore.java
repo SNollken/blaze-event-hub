@@ -1,6 +1,7 @@
 package com.nollen.blaze.giveaway;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
@@ -27,7 +28,7 @@ public class InMemoryGiveawayStore {
 			GiveawayStatus.valueOf(rs.getString("status")),
 			rs.getInt("entry_count"),
 			rs.getInt("max_entries"),
-			rs.getTimestamp("created_at").toInstant(),
+			rs.getTimestamp("created_at") != null ? rs.getTimestamp("created_at").toInstant() : Instant.EPOCH,
 			rs.getTimestamp("opened_at") == null ? null : rs.getTimestamp("opened_at").toInstant(),
 			rs.getTimestamp("closed_at") == null ? null : rs.getTimestamp("closed_at").toInstant(),
 			rs.getTimestamp("drawn_at") == null ? null : rs.getTimestamp("drawn_at").toInstant(),

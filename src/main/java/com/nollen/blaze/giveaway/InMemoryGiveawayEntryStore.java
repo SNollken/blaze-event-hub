@@ -1,6 +1,7 @@
 package com.nollen.blaze.giveaway;
 
 import java.sql.Timestamp;
+import java.time.Instant;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -22,7 +23,7 @@ public class InMemoryGiveawayEntryStore {
 			rs.getString("id"),
 			rs.getString("giveaway_id"),
 			rs.getString("participant_name"),
-			rs.getTimestamp("entered_at").toInstant(),
+			rs.getTimestamp("entered_at") != null ? rs.getTimestamp("entered_at").toInstant() : Instant.EPOCH,
 			rs.getBoolean("selected"),
 			rs.getBoolean("eligible"));
 
