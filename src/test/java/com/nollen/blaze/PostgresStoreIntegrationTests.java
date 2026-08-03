@@ -5,6 +5,10 @@ import com.nollen.blaze.alert.AlertCondition;
 import com.nollen.blaze.alert.AlertRule;
 import com.nollen.blaze.alert.AlertRuleStore;
 import com.nollen.blaze.alert.AlertStore;
+import com.nollen.blaze.channel.BlazeChannelConfig;
+import com.nollen.blaze.channel.BlazeChannelConfigStore;
+import com.nollen.blaze.events.BlazeEventsLogEntry;
+import com.nollen.blaze.events.BlazeEventsLogStore;
 import com.nollen.blaze.events.BlazeEventType;
 import com.nollen.blaze.events.EventSubscriptionSnapshot;
 import com.nollen.blaze.events.InMemoryEventSubscriptionStore;
@@ -69,7 +73,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @Transactional
 @Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class,
 		InMemoryGiveawayStore.class, InMemoryGiveawayEntryStore.class, InMemoryOverlayRepository.class,
-		InMemoryRuntimeOverlayConfigStore.class, InMemoryEventSubscriptionStore.class})
+		InMemoryRuntimeOverlayConfigStore.class, InMemoryEventSubscriptionStore.class,
+		BlazeChannelConfigStore.class, BlazeEventsLogStore.class})
 class PostgresStoreIntegrationTests {
 
 	@Container
@@ -98,6 +103,8 @@ class PostgresStoreIntegrationTests {
 	@Autowired InMemoryOverlayRepository overlayRepository;
 	@Autowired InMemoryRuntimeOverlayConfigStore runtimeOverlayConfigStore;
 	@Autowired InMemoryEventSubscriptionStore subscriptionStore;
+	@Autowired BlazeChannelConfigStore channelConfigStore;
+	@Autowired BlazeEventsLogStore eventsLogStore;
 
 	@Test
 	void schemaInitializedAllTablesCreated() {
@@ -302,5 +309,69 @@ class PostgresStoreIntegrationTests {
 		List<GiveawayEntry> after = entryStore.findByGiveawayId("pg-gw-1");
 		assertEquals(2, after.size());
 		assertTrue(after.stream().allMatch(GiveawayEntry::selected));
+	}
+
+	@Test
+	void blazeChannelConfigSaveFindUpsertOnPostgres() {
+		BlazeChannelConfig config = new BlazeChannelConfig("pg-ch-1", "Test Channel", "ch-123", "blaze", true);
+		channelConfigStore.save(config);
+
+		BlazeChannelConfig found = channelConfigStore.findById("pg-ch-1");
+		assertNotNull(found);
+		assertEquals("Test Channel", found.name());
+		assertEquals("ch-123", found.channelId());
+		assertEquals("blaze", found.platform());
+		assertTrue(found.monitored());
+
+		// Upsert (same id) — UPDATE-then-INSERT path
+		BlazeChannelConfig updated = new BlazeChannelConfig("pg-ch-1", "Updated Channel", "ch-456", "blaze", false);
+		channelConfigStore.save(updated);
+
+		BlazeChannelConfig reFound = channelConfigStore.findById("pg-ch-1");
+		assertNotNull(reFound);
+		assertEquals("Updated Channel", reFound.name());
+		assertEquals("ch-456", reFound.channelId());
+		assertFalse(reFound.monitored());
+		assertEquals(1, channelConfigStore.count());
+	}
+
+	@Test
+	void blazeChannelConfigDefaultsPlatformWhenNull() {
+		// Compact constructor defaults null/blank platform to "blaze"
+		BlazeChannelConfig config = new BlazeChannelConfig("pg-ch-2", "No Platform", "ch-789", null, false);
+		channelConfigStore.save(config);
+
+		BlazeChannelConfig found = channelConfigStore.findById("pg-ch-2");
+		assertNotNull(found);
+		assertEquals("blaze", found.platform());
+	}
+
+	@Test
+	void blazeEventsLogStoreAppendFindTimestampsOnPostgres() {
+		eventsLogStore.clear(); // clean slate — PostgresStoreIntegrationTests is @Transactional, rolled back per test
+
+		// Use fixed epoch seconds (no nanos) to avoid PG microsecond truncation mismatch
+		Instant now = Instant.ofEpochSecond(1_000_000);
+		eventsLogStore.append(new BlazeEventsLogEntry("pg-log-1", now, "chat", "simulate", "msg1", null));
+		eventsLogStore.append(new BlazeEventsLogEntry("pg-log-2", now.plusSeconds(10), "follow", "system", "msg2", "{\"key\":\"val\"}"));
+
+		assertEquals(2, eventsLogStore.count());
+
+		List<BlazeEventsLogEntry> all = eventsLogStore.listAll();
+		assertEquals(2, all.size());
+
+		// Filter by event type
+		List<BlazeEventsLogEntry> byType = eventsLogStore.list("chat", null, 10);
+		assertEquals(1, byType.size());
+		assertEquals("chat", byType.getFirst().eventType());
+
+		// Filter by source — case-insensitive
+		List<BlazeEventsLogEntry> bySource = eventsLogStore.list(null, "simulate", 10);
+		assertEquals(1, bySource.size());
+
+		// Last timestamp — validates MAX(received_at) query with PG Timestamp
+		Instant last = eventsLogStore.findLastTimestamp();
+		assertNotNull(last);
+		assertEquals(now.plusSeconds(10), last);
 	}
 }
