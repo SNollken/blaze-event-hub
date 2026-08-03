@@ -181,6 +181,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'events.startError': 'Error starting events',
     'events.stopSuccess': 'Events Socket stopped',
     'events.stopError': 'Error stopping events',
+    'events.errorPrefix': 'ERROR:',
 
     // Alerts
     'alerts.title': 'Alerts',
@@ -473,6 +474,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'events.startError': 'Erro ao iniciar events',
     'events.stopSuccess': 'Events Socket parado',
     'events.stopError': 'Erro ao parar events',
+    'events.errorPrefix': 'ERRO:',
 
     // Alerts
     'alerts.title': 'Alertas',

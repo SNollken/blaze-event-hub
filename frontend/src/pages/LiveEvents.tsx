@@ -54,7 +54,7 @@ export default function LiveEvents() {
       addToast('success', t('events.startSuccess'));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : t('events.startError');
-      addLog(`ERRO: ${msg}`);
+      addLog(`${t('events.errorPrefix')} ${msg}`);
       addToast('error', msg);
     } finally {
       setStarting(false);
@@ -71,7 +71,7 @@ export default function LiveEvents() {
       addToast('success', t('events.stopSuccess'));
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : t('events.stopError');
-      addLog(`ERRO: ${msg}`);
+      addLog(`${t('events.errorPrefix')} ${msg}`);
       addToast('error', msg);
     } finally {
       setStopping(false);
@@ -215,7 +215,7 @@ export default function LiveEvents() {
             logs.map((log, i) => (
               <div key={i} className="log-line">
                 <span className="timestamp">{log.time}</span>
-                <span style={{ color: log.message.startsWith('ERRO') ? 'var(--error)' : 'var(--text-secondary)' }}>
+                <span style={{ color: log.message.startsWith(t('events.errorPrefix')) ? 'var(--error)' : 'var(--text-secondary)' }}>
                   {log.message}
                 </span>
               </div>
