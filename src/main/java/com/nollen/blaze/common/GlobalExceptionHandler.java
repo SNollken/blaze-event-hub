@@ -16,6 +16,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -80,6 +81,11 @@ public class GlobalExceptionHandler {
 		return error(status == null ? HttpStatus.BAD_REQUEST : status, ex.getErrorCode(),
 				(ex.getHttpStatus() == 401 ? ex.getMessage() + " Verifique se o Client ID, Client Secret e Redirect URI do .env pertencem ao mesmo app Blaze e se a Redirect URI esta cadastrada exatamente no console." : ex.getMessage()),
 				request);
+	}
+
+	@ExceptionHandler(NoResourceFoundException.class)
+	ResponseEntity<ApiErrorResponse> handleNoResource(NoResourceFoundException ex, HttpServletRequest request) {
+		return error(HttpStatus.NOT_FOUND, "NOT_FOUND", "Resource not found", request);
 	}
 
 	@ExceptionHandler(Exception.class)

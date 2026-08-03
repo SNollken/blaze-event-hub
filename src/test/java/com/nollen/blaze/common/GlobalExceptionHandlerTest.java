@@ -8,6 +8,9 @@ import jakarta.servlet.http.HttpServletRequest;
 
 import org.junit.jupiter.api.Test;
 
+import org.springframework.http.HttpMethod;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
+
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -82,5 +85,15 @@ class GlobalExceptionHandlerTest {
 	void blankMessageReturnsSafeDefault() {
 		var response = handler.handleNotFound(new NotFoundException(null), mockRequest("/api/test"));
 		assertThat(response.getBody().message()).isEqualTo("Request failed");
+	}
+
+	@Test
+	void handleNoResourceReturns404() {
+		var response = handler.handleNoResource(
+				new NoResourceFoundException(HttpMethod.GET, "/overlay/abc/def"), mockRequest("/overlay/abc/def"));
+		assertThat(response.getStatusCode().value()).isEqualTo(404);
+		assertThat(response.getBody().code()).isEqualTo("NOT_FOUND");
+		assertThat(response.getBody().message()).isEqualTo("Resource not found");
+		assertThat(response.getBody().path()).isEqualTo("/overlay/abc/def");
 	}
 }
