@@ -1,11 +1,12 @@
 import { lazy, Suspense } from 'react';
 import { Routes, Route } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
+import { t } from './i18n';
 
 const NotFound = () => (
   <div style={{ padding: '2rem', textAlign: 'center' }}>
     <h2>404</h2>
-    <p>Pagina nao encontrada.</p>
+    <p>{t('app.notFound')}</p>
   </div>
 );
 

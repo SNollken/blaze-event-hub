@@ -18,7 +18,7 @@ function renderRoute(path: string) {
 describe('frontend smoke', () => {
   it('renderiza dashboard', async () => {
     renderRoute('/');
-    expect((await screen.findAllByText('Visao Geral')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Visão Geral')).length).toBeGreaterThan(0);
   });
 
   it('mostra cards do dashboard', async () => {
@@ -95,7 +95,7 @@ describe('frontend smoke', () => {
         <Boom />
       </ErrorBoundary>,
     );
-    const btn = screen.getByLabelText('Recarregar pagina');
+    const btn = screen.getByLabelText('Recarregar página');
     expect(btn).toBeInTheDocument();
     expect(() => btn.click()).not.toThrow();
   });

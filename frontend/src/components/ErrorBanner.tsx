@@ -1,4 +1,5 @@
 import { AlertCircle } from 'lucide-react';
+import { t } from '../i18n';
 
 /** Minimal inline error banner with optional retry. */
 export function ErrorBanner({ error, onRetry }: { error: string | null; onRetry?: () => void }) {
@@ -22,7 +23,7 @@ export function ErrorBanner({ error, onRetry }: { error: string | null; onRetry?
 			<span style={{ flex: 1 }}>{error}</span>
 			{onRetry && (
 				<button className="btn btn-secondary btn-sm" onClick={onRetry}>
-					Tentar novamente
+					{t('error.retry')}
 				</button>
 			)}
 		</div>

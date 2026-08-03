@@ -1,7 +1,8 @@
 import { usePolling } from '../hooks/usePolling';
 import { getStatus } from '../api/client';
 import { StatusDot } from './Badge';
-import { RefreshCw } from 'lucide-react';
+import { RefreshCw, Globe } from 'lucide-react';
+import { t, setLocale, getLocale } from '../i18n';
 
 interface HeaderProps {
   title: string;
@@ -11,7 +12,6 @@ interface HeaderProps {
 
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const { data: status, reload } = usePolling(() => getStatus(), 15000);
-
   const isOnline = !!status;
 
   return (
@@ -35,9 +35,19 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {actions}
-        <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? 'Online' : 'Offline'} />
-        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title="Atualizar status" aria-label="Atualizar status">
+        <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? t('common.connected') : t('common.disconnected')} />
+        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title={t('header.refresh')} aria-label={t('header.refresh')}>
           <RefreshCw size={14} />
+        </button>
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={() => setLocale(getLocale() === 'pt-BR' ? 'en' : 'pt-BR')}
+          title={getLocale() === 'pt-BR' ? t('header.langSwitch') : t('header.langSwitch')}
+          aria-label={getLocale() === 'pt-BR' ? t('header.langSwitch') : t('header.langSwitch')}
+          style={{ minWidth: 60 }}
+        >
+          <Globe size={14} />
+          <span style={{ fontSize: 11, fontWeight: 600 }}>{getLocale() === 'pt-BR' ? 'PT-BR' : 'EN'}</span>
         </button>
       </div>
     </header>

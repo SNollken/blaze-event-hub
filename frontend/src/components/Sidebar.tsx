@@ -8,14 +8,15 @@ import {
   Layers,
   Flame,
 } from 'lucide-react';
+import { t } from '../i18n';
 
 const navItems = [
-  { to: '/', label: 'Visao Geral', icon: LayoutDashboard },
-  { to: '/events', label: 'Eventos ao Vivo', icon: Radio },
-  { to: '/blaze', label: 'Blaze Channel', icon: RadioTower },
-  { to: '/alerts', label: 'Alertas', icon: Bell },
-  { to: '/giveaways', label: 'Sorteios', icon: Gift },
-  { to: '/overlays', label: 'Overlays', icon: Layers },
+  { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
+  { to: '/events', labelKey: 'nav.events', icon: Radio },
+  { to: '/blaze', labelKey: 'nav.blaze', icon: RadioTower },
+  { to: '/alerts', labelKey: 'nav.alerts', icon: Bell },
+  { to: '/giveaways', labelKey: 'nav.giveaways', icon: Gift },
+  { to: '/overlays', labelKey: 'nav.overlays', icon: Layers },
 ];
 
 export function Sidebar() {
@@ -57,9 +58,9 @@ export function Sidebar() {
         </div>
         <div>
           <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
-            NollenBlaze
+            {t('app.title')}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Painel de Controle</div>
+          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('sidebar.controlPanel')}</div>
         </div>
       </div>
 
@@ -87,7 +88,7 @@ export function Sidebar() {
             {({ isActive }) => (
               <>
                 <item.icon size={16} style={{ color: isActive ? 'var(--primary)' : 'var(--text-muted)' }} />
-                <span>{item.label}</span>
+                <span>{t(item.labelKey)}</span>
                 {isActive && (
                   <div
                     style={{
@@ -115,7 +116,7 @@ export function Sidebar() {
           textAlign: 'center',
         }}
       >
-        NollenBlaze v0.1
+        {t('app.title')} v0.1
       </div>
     </aside>
   );

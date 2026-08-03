@@ -7,6 +7,7 @@ import { DataTable, Column } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
+import { t } from '../i18n';
 import {
   closeGiveaway,
   createGiveaway,
@@ -30,12 +31,12 @@ const statusColors: Record<GiveawayStatus, 'success' | 'warning' | 'error' | 'ne
 };
 
 const statusLabels: Record<GiveawayStatus, string> = {
-  DRAFT: 'Rascunho',
-  OPEN: 'Aberto',
-  CLOSED: 'Fechado',
-  DRAWING: 'Sorteando',
-  COMPLETED: 'Finalizado',
-  CANCELLED: 'Cancelado',
+  DRAFT: t('giveaways.statusDraft'),
+  OPEN: t('giveaways.statusOpen'),
+  CLOSED: t('giveaways.statusClosed'),
+  DRAWING: t('giveaways.statusDrawing'),
+  COMPLETED: t('giveaways.statusCompleted'),
+  CANCELLED: t('giveaways.statusCancelled'),
 };
 
 export default function Giveaways() {
@@ -68,7 +69,7 @@ export default function Giveaways() {
         setSelectedResults(refreshed);
       }
     } catch (error) {
-      addToast('error', error instanceof Error ? error.message : 'Erro ao executar acao');
+      addToast('error', error instanceof Error ? error.message : t('giveaways.actionError'));
     } finally {
       if (actionKey) setActionLoading(null);
     }
@@ -82,12 +83,12 @@ export default function Giveaways() {
         description: createForm.description.trim(),
         maxEntries: createForm.maxEntries,
       });
-      addToast('success', 'Sorteio criado');
+      addToast('success', t('giveaways.createSuccess'));
       setShowCreateModal(false);
       setCreateForm({ title: '', description: '', maxEntries: 100 });
       await reloadAll();
     } catch (error) {
-      addToast('error', error instanceof Error ? error.message : 'Erro ao criar sorteio');
+      addToast('error', error instanceof Error ? error.message : t('giveaways.createError'));
     } finally {
       setActionLoading(null);
     }
@@ -102,12 +103,12 @@ export default function Giveaways() {
   const visibleGiveaways = giveaways || [];
 
   const giveawayColumns: Column<Giveaway>[] = [
-    { key: 'title', header: 'Nome', sortable: true },
-    { key: 'status', header: 'Status', render: (g) => <Badge variant={statusColors[g.status]} dot>{statusLabels[g.status]}</Badge> },
-    { key: 'entryCount', header: 'Participantes', sortable: true },
-    { key: 'maxEntries', header: 'Limite' },
+    { key: 'title', header: t('common.name'), sortable: true },
+    { key: 'status', header: t('common.status'), render: (g) => <Badge variant={statusColors[g.status]} dot>{statusLabels[g.status]}</Badge> },
+    { key: 'entryCount', header: t('giveaways.participants'), sortable: true },
+    { key: 'maxEntries', header: t('common.limit') },
     {
-      key: 'createdAt', header: 'Criado em',
+      key: 'createdAt', header: t('giveaways.colCreated'),
       render: (g) => <span className="mono" style={{ fontSize: 12 }}>{new Date(g.createdAt).toLocaleString('pt-BR')}</span>,
     },
     {
@@ -115,70 +116,70 @@ export default function Giveaways() {
       render: (g) => (
         <div className="flex gap-xs flex-wrap">
           {g.status === 'DRAFT' && (
-            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Abrir sorteio ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => openGiveaway(g.id), 'Sorteio aberto', 'open')}>
+            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`${t('giveaways.openGiveaway')} ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => openGiveaway(g.id), t('giveaways.openSuccess'), 'open')}>
               <Play size={12} />
             </button>
           )}
           {g.status === 'OPEN' && (
-            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Fechar sorteio ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => closeGiveaway(g.id), 'Sorteio fechado', 'close')}>
+            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`${t('giveaways.closeGiveaway')} ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => closeGiveaway(g.id), t('giveaways.closeSuccess'), 'close')}>
               <X size={12} />
             </button>
           )}
           {g.status === 'CLOSED' && (
-            <button className="btn btn-accent btn-sm btn-icon" aria-label={`Sortear ganhador de ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => drawGiveaway(g.id, 1), 'Sorteio realizado', 'draw')}>
+            <button className="btn btn-accent btn-sm btn-icon" aria-label={`${t('giveaways.drawWinner')} ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => drawGiveaway(g.id, 1), t('giveaways.drawSuccess'), 'draw')}>
               <Shuffle size={12} />
             </button>
           )}
-          <button className="btn btn-secondary btn-sm" onClick={() => openDetails(g)} disabled={actionLoading !== null}>Ver</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => openDetails(g)} disabled={actionLoading !== null}>{t('common.view')}</button>
         </div>
       ),
     },
   ];
 
   return (
-    <Layout title="Sorteios" subtitle="Gerenciar sorteios e participantes via API real">
+    <Layout title={t('giveaways.title')} subtitle={t('giveaways.subtitle')}>
       {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <StatsCard title="Sorteios Abertos" value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" subtitle={`${stats?.totalGiveaways ?? 0} total`} />
-        <StatsCard title="Participantes" value={stats?.totalEntries ?? 0} icon={<Users size={18} />} color="primary" />
-        <StatsCard title="Finalizados" value={stats?.completedCount ?? 0} icon={<Trophy size={18} />} color="success" />
+        <StatsCard title={t('giveaways.openGiveaways')} value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" subtitle={`${stats?.totalGiveaways ?? 0} ${t('common.total')}`} />
+        <StatsCard title={t('giveaways.participants')} value={stats?.totalEntries ?? 0} icon={<Users size={18} />} color="primary" />
+        <StatsCard title={t('giveaways.completed')} value={stats?.completedCount ?? 0} icon={<Trophy size={18} />} color="success" />
       </div>
 
       <div className="section-header">
-        <span className="section-title">Sorteios</span>
+        <span className="section-title">{t('giveaways.title')}</span>
         <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)} disabled={actionLoading !== null}>
           <Plus size={14} />
-          Novo Sorteio
+          {t('giveaways.newGiveaway')}
         </button>
       </div>
 
       {loading && !giveaways ? <div className="skeleton-list" /> : (
-        <DataTable columns={giveawayColumns} data={visibleGiveaways} filterable filterKeys={['title', 'status']} emptyMessage="Nenhum sorteio criado." />
+        <DataTable columns={giveawayColumns} data={visibleGiveaways} filterable filterKeys={['title', 'status']} emptyMessage={t('giveaways.empty')} />
       )}
 
       <Modal
         open={showCreateModal}
         onClose={() => setShowCreateModal(false)}
-        title="Novo Sorteio"
+        title={t('giveaways.newGiveaway')}
         footer={
           <>
-            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)} disabled={actionLoading !== null}>Cancelar</button>
+            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)} disabled={actionLoading !== null}>{t('common.cancel')}</button>
             <button className="btn btn-accent" onClick={createNewGiveaway} disabled={!createForm.title.trim() || actionLoading !== null}>
-              {actionLoading === 'create' ? 'Criando...' : 'Criar Sorteio'}
+              {actionLoading === 'create' ? t('giveaways.creating') : t('giveaways.createGiveaway')}
             </button>
           </>
         }
       >
         <div>
-          <label htmlFor="giveaway-title">Nome do Sorteio</label>
-          <input id="giveaway-title" className="input" value={createForm.title} onChange={(event) => setCreateForm({ ...createForm, title: event.target.value })} placeholder="Ex: Sorteio de Inscritos" />
+          <label htmlFor="giveaway-title">{t('giveaways.giveawayNameLabel')}</label>
+          <input id="giveaway-title" className="input" value={createForm.title} onChange={(event) => setCreateForm({ ...createForm, title: event.target.value })} placeholder={t('giveaways.giveawayNamePlaceholder')} />
         </div>
         <div>
-          <label htmlFor="giveaway-description">Descricao</label>
-          <input id="giveaway-description" className="input" value={createForm.description} onChange={(event) => setCreateForm({ ...createForm, description: event.target.value })} placeholder="Opcional" />
+          <label htmlFor="giveaway-description">{t('giveaways.descriptionLabel')}</label>
+          <input id="giveaway-description" className="input" value={createForm.description} onChange={(event) => setCreateForm({ ...createForm, description: event.target.value })} placeholder={t('common.optional')} />
         </div>
         <div>
-          <label htmlFor="giveaway-max">Limite de participantes</label>
+          <label htmlFor="giveaway-max">{t('giveaways.maxEntriesLabel')}</label>
           <input id="giveaway-max" className="input" type="number" min={1} value={createForm.maxEntries} onChange={(event) => setCreateForm({ ...createForm, maxEntries: Number(event.target.value) })} />
         </div>
       </Modal>
@@ -191,36 +192,36 @@ export default function Giveaways() {
           setParticipantName('');
         }}
         title={selectedGiveaway?.title || ''}
-        footer={<button className="btn btn-secondary" onClick={() => setSelectedGiveaway(null)} disabled={actionLoading !== null}>Fechar</button>}
+        footer={<button className="btn btn-secondary" onClick={() => setSelectedGiveaway(null)} disabled={actionLoading !== null}>{t('common.close')}</button>}
       >
         {selectedGiveaway && (
           <>
             <div className="flex items-center justify-between flex-wrap gap-sm">
               <Badge variant={statusColors[selectedGiveaway.status]} dot>{statusLabels[selectedGiveaway.status]}</Badge>
               <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
-                {selectedGiveaway.entryCount}/{selectedGiveaway.maxEntries} participantes
+                {selectedGiveaway.entryCount}/{selectedGiveaway.maxEntries} {t('giveaways.participants')}
               </span>
             </div>
             {selectedGiveaway.status === 'OPEN' && (
               <div>
-                <label htmlFor="participant-name">Adicionar participante</label>
+                <label htmlFor="participant-name">{t('giveaways.addParticipantLabel')}</label>
                 <div className="flex gap-sm">
-                  <input id="participant-name" className="input" value={participantName} onChange={(event) => setParticipantName(event.target.value)} placeholder="Nome do participante" />
+                  <input id="participant-name" className="input" value={participantName} onChange={(event) => setParticipantName(event.target.value)} placeholder={t('giveaways.participantNamePlaceholder')} />
                   <button
                     className="btn btn-primary"
                     disabled={!participantName.trim() || actionLoading !== null}
                     onClick={() => runAction(async () => {
                       await enterGiveaway(selectedGiveaway.id, participantName.trim());
                       setParticipantName('');
-                    }, 'Participante adicionado', 'enter')}
+                    }, t('giveaways.enterSuccess'), 'enter')}
                   >
-                    {actionLoading === 'enter' ? 'Entrando...' : 'Entrar'}
+                    {actionLoading === 'enter' ? t('giveaways.entering') : t('giveaways.enterButton')}
                   </button>
                 </div>
               </div>
             )}
             <div>
-              <div className="section-title" style={{ marginBottom: 8 }}>Ganhadores</div>
+              <div className="section-title" style={{ marginBottom: 8 }}>{t('giveaways.winners')}</div>
               {selectedResults?.winners.length ? (
                 <div className="log-panel">
                   {selectedResults.winners.map((winner) => (
@@ -232,7 +233,7 @@ export default function Giveaways() {
                   ))}
                 </div>
               ) : (
-                <div className="empty-state" style={{ padding: 24 }}>Nenhum ganhador sorteado ainda.</div>
+                <div className="empty-state" style={{ padding: 24 }}>{t('giveaways.noWinners')}</div>
               )}
             </div>
           </>

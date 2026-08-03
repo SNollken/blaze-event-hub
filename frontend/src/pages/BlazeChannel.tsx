@@ -5,6 +5,7 @@ import { Badge, StatusDot } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
+import { t } from '../i18n';
 import {
   getStatus,
   getSetupStatus,
@@ -34,7 +35,6 @@ export default function BlazeChannel() {
   const { data: oauth, loading: oauthLoading, error: oauthError, reload: reloadOAuth } = usePolling(fetchOAuth, 12000);
 
   const firstError = statusError || setupError || oauthError;
-
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const handleStartOAuth = async () => {
@@ -42,9 +42,9 @@ export default function BlazeChannel() {
     try {
       const res = await startOAuth();
       window.open(res.authorizationUrl, '_blank', 'noopener,noreferrer');
-      addToast('success', 'Pagina de autenticacao aberta');
+      addToast('success', t('blaze.connectSuccess'));
     } catch (e: unknown) {
-      addToast('error', e instanceof Error ? e.message : 'Erro ao iniciar OAuth');
+      addToast('error', e instanceof Error ? e.message : t('blaze.connectError'));
     } finally {
       setActionLoading(null);
     }
@@ -54,9 +54,9 @@ export default function BlazeChannel() {
     setActionLoading('refresh');
     try {
       await refreshOAuth();
-      addToast('success', 'Sessao renovada com sucesso');
+      addToast('success', t('blaze.refreshSuccess'));
     } catch (e: unknown) {
-      addToast('error', e instanceof Error ? e.message : 'Erro ao renovar sessao');
+      addToast('error', e instanceof Error ? e.message : t('blaze.refreshError'));
     } finally {
       setActionLoading(null);
     }
@@ -66,9 +66,9 @@ export default function BlazeChannel() {
     setActionLoading('disconnect');
     try {
       await disconnectOAuth();
-      addToast('success', 'Conta desconectada');
+      addToast('success', t('blaze.disconnectSuccess'));
     } catch (e: unknown) {
-      addToast('error', e instanceof Error ? e.message : 'Erro ao desconectar');
+      addToast('error', e instanceof Error ? e.message : t('blaze.disconnectError'));
     } finally {
       setActionLoading(null);
     }
@@ -80,9 +80,9 @@ export default function BlazeChannel() {
       await reloadSetup();
       await reloadOAuth();
       await reloadStatus();
-      addToast('success', 'Status atualizado');
+      addToast('success', t('blaze.syncSuccess'));
     } catch (e: unknown) {
-      addToast('error', e instanceof Error ? e.message : 'Erro ao sincronizar status');
+      addToast('error', e instanceof Error ? e.message : t('blaze.syncError'));
     } finally {
       setActionLoading(null);
     }
@@ -91,9 +91,9 @@ export default function BlazeChannel() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      addToast('success', 'Copiado para area de transferencia');
+      addToast('success', t('blaze.copySuccess'));
     } catch {
-      addToast('error', 'Nao foi possivel copiar para a area de transferencia');
+      addToast('error', t('blaze.copyError'));
     }
   };
 
@@ -103,12 +103,12 @@ export default function BlazeChannel() {
 
   return (
     <Layout
-      title="Blaze Channel"
-      subtitle="Configuracao da integracao com a Blaze"
+      title={t('nav.blaze')}
+      subtitle={t('blaze.subtitle')}
       headerActions={
         <button className="btn btn-secondary btn-sm" onClick={handleSync} disabled={actionLoading === 'sync'}>
           <RefreshCw size={14} className={actionLoading === 'sync' ? 'spin' : ''} />
-          Sincronizar
+          {t('blaze.sync')}
         </button>
       }
     >
@@ -117,29 +117,29 @@ export default function BlazeChannel() {
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard
-          title="Conexao Blaze"
-          value={oauthLoading ? 'Carregando...' : isConnected ? 'Conectado' : 'Desconectado'}
+          title={t('blaze.oauthConnection')}
+          value={oauthLoading ? t('common.loading') : isConnected ? t('common.connected') : t('common.disconnected')}
           icon={<Key size={18} />}
           color={isConnected ? 'success' : 'warning'}
-          subtitle={oauthLoading ? '' : oauth?.profile?.displayName || 'Sem conta'}
+          subtitle={oauthLoading ? '' : oauth?.profile?.displayName || t('blaze.noAccount')}
         />
         <StatsCard
-          title="Token"
-          value={oauthLoading ? 'Carregando...' : isTokenPresent ? 'Presente' : 'Ausente'}
+          title={t('blaze.token')}
+          value={oauthLoading ? t('common.loading') : isTokenPresent ? t('common.present') : t('common.absent')}
           icon={<Shield size={18} />}
           color={isTokenPresent ? 'success' : 'error'}
-          subtitle={oauthLoading ? '' : oauth?.tokenExpiredOrUnknown ? 'Expirado' : 'Valido'}
+          subtitle={oauthLoading ? '' : oauth?.tokenExpiredOrUnknown ? t('common.expired') : t('common.valid')}
         />
         <StatsCard
-          title="Events Config"
-          value={statusLoading ? 'Carregando...' : status?.socketConfigured ? 'Pronto' : 'Nao configurado'}
+          title={t('blaze.eventsConfig')}
+          value={statusLoading ? t('common.loading') : status?.socketConfigured ? t('common.ready') : t('common.notConfigured')}
           icon={<Radio size={18} />}
           color={statusLoading ? 'neutral' : status?.socketConfigured ? 'success' : 'neutral'}
           subtitle={statusLoading ? '' : setup?.monitoredChannel || ''}
         />
         <StatsCard
-          title="Canal Monitorado"
-          value={setupLoading ? 'Carregando...' : status?.monitoredChannelConfigured ? 'Configurado' : 'Nao configurado'}
+          title={t('blaze.monitoredChannel')}
+          value={setupLoading ? t('common.loading') : status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
           icon={<Radio size={18} />}
           color={setupLoading ? 'neutral' : status?.monitoredChannelConfigured ? 'success' : 'neutral'}
           subtitle={setupLoading ? '' : setup?.monitoredChannel || ''}
@@ -149,7 +149,7 @@ export default function BlazeChannel() {
       {/* Setup checklist */}
       <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
         <div className="section-header" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>Checklist de Configuracao</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('blaze.checklist')}</h3>
         </div>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
           {setup?.checklist?.map((item, i) => (
@@ -186,7 +186,7 @@ export default function BlazeChannel() {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
         {/* OAuth controls */}
         <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Autenticacao OAuth</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.oauthAuth')}</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
             {!isConnected ? (
               <button
@@ -195,17 +195,17 @@ export default function BlazeChannel() {
                 disabled={!isOAuthReady || actionLoading === 'oauth-start'}
               >
                 <Key size={14} />
-                {actionLoading === 'oauth-start' ? 'Abrindo...' : 'Conectar com a Blaze'}
+                {actionLoading === 'oauth-start' ? t('blaze.connecting') : t('blaze.connect')}
               </button>
             ) : (
               <>
                 <button className="btn btn-secondary" onClick={handleRefresh} disabled={actionLoading === 'refresh'}>
                   <RefreshCw size={14} />
-                  {actionLoading === 'refresh' ? 'Renovando...' : 'Renovar Sessao'}
+                  {actionLoading === 'refresh' ? t('blaze.refreshing') : t('blaze.refresh')}
                 </button>
                 <button className="btn btn-danger" onClick={handleDisconnect} disabled={actionLoading === 'disconnect'}>
                   <XCircle size={14} />
-                  {actionLoading === 'disconnect' ? 'Desconectando...' : 'Desconectar Conta'}
+                  {actionLoading === 'disconnect' ? t('blaze.disconnecting') : t('blaze.disconnect')}
                 </button>
               </>
             )}
@@ -213,7 +213,7 @@ export default function BlazeChannel() {
             {setup?.nextSteps && setup.nextSteps.length > 0 && (
               <div style={{ marginTop: 8 }}>
                 <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6 }}>
-                  Proximos passos:
+                  {t('blaze.nextSteps')}
                 </div>
                 {setup.nextSteps.map((step, i) => (
                   <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '3px 0' }}>
@@ -227,12 +227,12 @@ export default function BlazeChannel() {
 
         {/* Account info */}
         <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Conta Conectada</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.connectedAccount')}</h3>
           {oauth?.profile ? (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {oauth.profile.avatarUrl && (
-                  <img src={oauth.profile.avatarUrl} alt={oauth.profile.displayName ? `${oauth.profile.displayName} avatar` : ''} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                  <img src={oauth.profile.avatarUrl} alt={oauth.profile.displayName ? `${oauth.profile.displayName} ${t('common.avatar')}` : ''} style={{ width: 40, height: 40, borderRadius: '50%' }} />
                 )}
                 <div>
                   <div style={{ fontWeight: 600 }}>{oauth.profile.displayName}</div>
@@ -240,15 +240,15 @@ export default function BlazeChannel() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <div>Scopes: {oauth.scopes?.join(', ') || 'nenhum'}</div>
+                <div>{t('blaze.scopes')} {oauth.scopes?.join(', ') || 'nenhum'}</div>
                 {oauth.lastProfileSyncAt && (
-                  <div>Ultimo sync: {new Date(oauth.lastProfileSyncAt).toLocaleString('pt-BR')}</div>
+                  <div>{t('blaze.lastSync')} {new Date(oauth.lastProfileSyncAt).toLocaleString('pt-BR')}</div>
                 )}
               </div>
             </div>
           ) : (
             <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
-              Nenhuma conta conectada. Use o botao ao lado para autenticar.
+              {t('blaze.noAccount')}
             </div>
           )}
         </div>
@@ -256,10 +256,10 @@ export default function BlazeChannel() {
 
       {/* Redirect URI & Docs */}
       <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Redirect URI e Documentacao</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.redirectUri')}</h3>
         <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div>
-            <label>Redirect URI</label>
+            <label>{t('blaze.redirectUriLabel')}</label>
             <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
               <code
                 className="mono"
@@ -276,16 +276,16 @@ export default function BlazeChannel() {
                   whiteSpace: 'nowrap',
                 }}
               >
-                {setup?.redirectUri || 'Nao configurado'}
+                {setup?.redirectUri || t('common.notConfigured')}
               </code>
               {setup?.redirectUri && (
                 <button
                   className="copy-btn"
-                  aria-label="Copiar Redirect URI"
+                  aria-label={t('blaze.copyUri')}
                   onClick={() => copyToClipboard(setup.redirectUri!)}
                 >
                   <Copy size={12} />
-                  Copiar
+                  {t('common.copy')}
                 </button>
               )}
             </div>
@@ -293,7 +293,7 @@ export default function BlazeChannel() {
 
           {setup?.docsLinks && setup.docsLinks.length > 0 && (
             <div>
-              <label>Links Uteis</label>
+              <label>{t('blaze.links')}</label>
               <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
                 {setup.docsLinks.map((link, i) => (
                   <a
@@ -317,14 +317,14 @@ export default function BlazeChannel() {
       {/* Scopes */}
       {setup?.recommendedScopes && setup.recommendedScopes.length > 0 && (
         <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>Scopes Recomendados</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.recommendedScopes')}</h3>
           <div className="data-table-wrapper">
             <table className="data-table">
               <thead>
                 <tr>
-                  <th>Scope</th>
-                  <th>Descricao</th>
-                  <th>Recomendado</th>
+                  <th>{t('table.scope')}</th>
+                  <th>{t('table.description')}</th>
+                  <th>{t('table.recommended')}</th>
                 </tr>
               </thead>
               <tbody>
@@ -333,9 +333,7 @@ export default function BlazeChannel() {
                     <td><code className="mono">{s.scope}</code></td>
                     <td>{s.description}</td>
                     <td>
-                      <Badge variant={s.recommended ? 'success' : 'neutral'}>
-                        {s.recommended ? 'Recomendado' : 'Opcional'}
-                      </Badge>
+                      <Badge variant={s.recommended ? 'success' : 'neutral'}>{s.recommended ? t('common.recommended') : t('common.optional')}</Badge>
                     </td>
                   </tr>
                 ))}

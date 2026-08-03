@@ -1,5 +1,6 @@
 import { useState, useMemo, ReactNode } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
+import { t } from '../i18n';
 
 export interface Column<T = unknown> {
   key: string;
@@ -29,9 +30,9 @@ export function DataTable<T>({
   columns,
   data,
   filterable = false,
-  filterPlaceholder = 'Filtrar...',
+  filterPlaceholder = t('table.filter'),
   filterKeys,
-  emptyMessage = 'Nenhum registro encontrado.',
+  emptyMessage = t('table.empty'),
   onRowClick,
 }: DataTableProps<T>) {
   const [filter, setFilter] = useState('');

@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
+import { t } from '../i18n';
 
 export interface ToastMessage {
   id: number;
@@ -23,7 +24,7 @@ export function addToast(type: ToastMessage['type'], text: string) {
 }
 
 function removeToast(id: number) {
-  toasts = toasts.filter((t) => t.id !== id);
+  toasts = toasts.filter((message) => message.id !== id);
   notify();
 }
 
@@ -39,7 +40,7 @@ export function ToastContainer() {
   listenerRef.current = setItems;
 
   useEffect(() => {
-    const listener = (t: ToastMessage[]) => listenerRef.current(t);
+    const listener = (toastList: ToastMessage[]) => listenerRef.current(toastList);
     listeners.push(listener);
     return () => {
       const idx = listeners.indexOf(listener);
@@ -49,13 +50,13 @@ export function ToastContainer() {
 
   return (
     <div className="toast-container" role="log" aria-live="polite">
-      {items.map((t) => (
-        <div key={t.id} className={`toast toast-${t.type}`}>
-          {icons[t.type]}
-          <span style={{ flex: 1 }}>{t.text}</span>
+      {items.map((item) => (
+        <div key={item.id} className={`toast toast-${item.type}`}>
+          {icons[item.type]}
+          <span style={{ flex: 1 }}>{item.text}</span>
           <button
-            aria-label="Fechar notificacao"
-            onClick={() => removeToast(t.id)}
+            aria-label={t('toast.close')}
+            onClick={() => removeToast(item.id)}
             style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
           >
             <X size={14} />
@@ -65,4 +66,3 @@ export function ToastContainer() {
     </div>
   );
 }
-

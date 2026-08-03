@@ -1,4 +1,5 @@
 import { Component, ReactNode } from 'react';
+import { t } from '../i18n';
 
 interface ErrorBoundaryProps {
   children: ReactNode;
@@ -19,14 +20,14 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
     if (this.state.failed) {
       return (
         <div className="empty-state" style={{ minHeight: '100vh' }}>
-          <strong>Algo falhou ao carregar esta tela.</strong>
-          <span>Verifique o backend e tente novamente.</span>
+          <strong>{t('error.failed')}</strong>
+          <span>{t('error.checkBackend')}</span>
           <button
             className="btn btn-primary"
             onClick={() => window.location.reload()}
-            aria-label="Recarregar pagina"
+            aria-label={t('error.reloadAria')}
           >
-            Recarregar
+            {t('error.reload')}
           </button>
         </div>
       );

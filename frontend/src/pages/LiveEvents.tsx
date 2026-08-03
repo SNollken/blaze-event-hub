@@ -5,6 +5,7 @@ import { Badge } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
+import { t } from '../i18n';
 import {
   getStatus,
   getEventsStatus,
@@ -49,10 +50,10 @@ export default function LiveEvents() {
       await startEvents();
       await reloadEvents();
       await reloadStatus();
-      addLog('Events iniciado com sucesso');
-      addToast('success', 'Events Socket iniciado');
+      addLog(t('events.startSuccess'));
+      addToast('success', t('events.startSuccess'));
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Erro ao iniciar events';
+      const msg = e instanceof Error ? e.message : t('events.startError');
       addLog(`ERRO: ${msg}`);
       addToast('error', msg);
     } finally {
@@ -66,10 +67,10 @@ export default function LiveEvents() {
       await stopEvents();
       await reloadEvents();
       await reloadStatus();
-      addLog('Events parado');
-      addToast('success', 'Events Socket parado');
+      addLog(t('events.stopSuccess'));
+      addToast('success', t('events.stopSuccess'));
     } catch (e: unknown) {
-      const msg = e instanceof Error ? e.message : 'Erro ao parar events';
+      const msg = e instanceof Error ? e.message : t('events.stopError');
       addLog(`ERRO: ${msg}`);
       addToast('error', msg);
     } finally {
@@ -81,18 +82,18 @@ export default function LiveEvents() {
 
   return (
     <Layout
-      title="Eventos ao Vivo"
-      subtitle="Intake de eventos da Blaze"
+      title={t('events.title')}
+      subtitle={t('events.subtitle')}
       headerActions={
         isRunning ? (
           <button className="btn btn-danger btn-sm" onClick={handleStop} disabled={stopping}>
             <Square size={14} />
-            {stopping ? 'Parando...' : 'Parar Events'}
+            {stopping ? t('events.stopping') : t('events.stop')}
           </button>
         ) : (
           <button className="btn btn-accent btn-sm" onClick={handleStart} disabled={starting}>
             <Play size={14} />
-            {starting ? 'Iniciando...' : 'Iniciar Events'}
+            {starting ? t('events.starting') : t('events.start')}
           </button>
         )
       }
@@ -101,99 +102,99 @@ export default function LiveEvents() {
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard
-          title="Runner"
-          value={eventsLoading ? 'Carregando...' : events?.runnerRunning ? 'Rodando' : 'Parado'}
+          title={t('events.runner')}
+          value={eventsLoading ? t('common.loading') : events?.runnerRunning ? t('common.running') : t('common.stopped')}
           icon={<Radio size={18} />}
           color={eventsLoading ? 'neutral' : events?.runnerRunning ? 'success' : 'neutral'}
         />
         <StatsCard
-          title="Cliente Socket"
-          value={eventsLoading ? 'Carregando...' : events?.clientRunning ? 'Conectado' : 'Desconectado'}
+          title={t('events.socketClient')}
+          value={eventsLoading ? t('common.loading') : events?.clientRunning ? t('common.connected') : t('common.disconnected')}
           icon={events?.clientRunning ? <Wifi size={18} /> : <WifiOff size={18} />}
           color={eventsLoading ? 'neutral' : events?.clientRunning ? 'success' : 'error'}
         />
         <StatsCard
-          title="Ultima Mensagem"
-          value={eventsLoading ? 'Carregando...' : (events?.lastMessageType || '-')}
+          title={t('events.lastMessage')}
+          value={eventsLoading ? t('common.loading') : (events?.lastMessageType || '-')}
           icon={<MessageSquare size={18} />}
           color="accent"
         />
         <StatsCard
-          title="Monitorado"
-          value={statusLoading ? 'Carregando...' : status?.monitoredChannelConfigured ? 'Sim' : 'Nao'}
+          title={t('events.monitored')}
+          value={statusLoading ? t('common.loading') : status?.monitoredChannelConfigured ? t('common.yes') : t('common.no')}
           icon={<Radio size={18} />}
           color={statusLoading ? 'neutral' : status?.monitoredChannelConfigured ? 'success' : 'warning'}
-          subtitle={statusLoading ? '' : status?.monitoredChannelConfigured ? 'Canal configurado' : 'Configurar canal'}
+          subtitle={statusLoading ? '' : status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
         />
         <StatsCard
-          title="Mensagens Vistas"
-          value={eventsLoading ? 'Carregando...' : (events?.messagesSeen ?? 0)}
+          title={t('events.messagesSeen')}
+          value={eventsLoading ? t('common.loading') : (events?.messagesSeen ?? 0)}
           icon={<MessageSquare size={18} />}
           color="accent"
-          subtitle={eventsLoading ? '' : events?.runnerRunning ? 'Desde o ultimo inicio' : 'Runner parado'}
+          subtitle={eventsLoading ? '' : events?.runnerRunning ? t('events.sinceStart') : t('events.stopped')}
         />
         <StatsCard
-          title="Eventos Aceitos"
-          value={eventsLoading ? 'Carregando...' : (events?.acceptedEvents ?? 0)}
+          title={t('events.acceptedEvents')}
+          value={eventsLoading ? t('common.loading') : (events?.acceptedEvents ?? 0)}
           icon={<CheckCircle size={18} />}
           color="success"
-          subtitle={eventsLoading ? '' : events?.runnerRunning ? 'Desdobrados pelo pipeline' : 'Runner parado'}
+          subtitle={eventsLoading ? '' : events?.runnerRunning ? t('events.processed') : t('events.stopped')}
         />
         <StatsCard
-          title="Eventos Rejeitados"
-          value={eventsLoading ? 'Carregando...' : (events?.rejectedEvents ?? 0)}
+          title={t('events.rejectedEvents')}
+          value={eventsLoading ? t('common.loading') : (events?.rejectedEvents ?? 0)}
           icon={<XCircle size={18} />}
           color={eventsLoading ? 'neutral' : events?.rejectedEvents && events.rejectedEvents > 0 ? 'warning' : 'neutral'}
-          subtitle={eventsLoading ? '' : events?.runnerRunning ? 'Ignorados (welcome/unknown)' : 'Runner parado'}
+          subtitle={eventsLoading ? '' : events?.runnerRunning ? t('events.ignored') : t('events.stopped')}
         />
       </div>
 
       {/* Event status details */}
       <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
         <div className="section-header" style={{ marginBottom: 0 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>Status do Events Engine</h3>
+          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('events.engineStatus')}</h3>
           <button className="btn btn-secondary btn-sm" onClick={() => { void reloadEvents(); void reloadStatus(); }}>
             <RefreshCw size={14} />
-            Atualizar
+            {t('common.refresh')}
           </button>
         </div>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Runner Status</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.runnerStatus')}</div>
             <Badge variant={events?.runnerRunning ? 'success' : 'neutral'} dot>
-              {events?.runnerRunning ? 'Rodando' : 'Parado'}
+              {events?.runnerRunning ? t('common.running') : t('common.stopped')}
             </Badge>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Cliente Status</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.clientStatus')}</div>
             <Badge variant={events?.clientRunning ? 'success' : 'error'} dot>
-              {events?.clientRunning ? 'Conectado' : 'Desconectado'}
+              {events?.clientRunning ? t('common.connected') : t('common.disconnected')}
             </Badge>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Session ID</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.sessionId')}</div>
             <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              {events?.sessionId || 'N/A'}
+              {events?.sessionId || t('common.na')}
             </span>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Iniciado em</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.startedAt')}</div>
             <span style={{ fontSize: 13 }}>
               {events?.startedAt
                 ? new Date(events.startedAt).toLocaleString('pt-BR')
-                : 'N/A'}
+                : t('common.na')}
             </span>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Ultimo Tipo</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.lastType')}</div>
             <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-              {events?.lastMessageType || 'N/A'}
+              {events?.lastMessageType || t('common.na')}
             </span>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>Canal</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.channel')}</div>
             <span style={{ fontSize: 13 }}>
-              {status?.monitoredChannelConfigured ? 'Configurado' : 'Nao configurado'}
+              {status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
             </span>
           </div>
         </div>
@@ -202,13 +203,13 @@ export default function LiveEvents() {
       {/* Log */}
       <div className="glass-card" style={{ padding: 20 }}>
         <div className="section-header" style={{ marginBottom: 12 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>Log de Eventos</h3>
-          <Badge variant="neutral">{logs.length} entradas</Badge>
+          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('events.log')}</h3>
+          <Badge variant="neutral">{logs.length} {t('events.entries')}</Badge>
         </div>
         <div className="log-panel">
           {logs.length === 0 ? (
             <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>
-              Nenhum log ainda. Inicie o Events Engine para comecar a receber eventos.
+              {t('events.emptyLog')}
             </div>
           ) : (
             logs.map((log, i) => (
