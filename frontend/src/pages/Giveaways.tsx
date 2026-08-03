@@ -45,6 +45,7 @@ export default function Giveaways() {
   const { data: stats, error: statsError, reload: reloadStats } = usePolling(fetchStats, 15000);
 
   const pollError = giveawaysError || statsError;
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedGiveaway, setSelectedGiveaway] = useState<Giveaway | null>(null);
@@ -56,7 +57,8 @@ export default function Giveaways() {
     await Promise.all([reloadGiveaways(), reloadStats()]);
   };
 
-  const runAction = async (action: () => Promise<unknown>, success: string) => {
+  const runAction = async (action: () => Promise<unknown>, success: string, actionKey?: string) => {
+    if (actionKey) setActionLoading(actionKey);
     try {
       await action();
       addToast('success', success);
@@ -67,19 +69,28 @@ export default function Giveaways() {
       }
     } catch (error) {
       addToast('error', error instanceof Error ? error.message : 'Erro ao executar acao');
+    } finally {
+      if (actionKey) setActionLoading(null);
     }
   };
 
   const createNewGiveaway = async () => {
-    await runAction(async () => {
+    setActionLoading('create');
+    try {
       await createGiveaway({
         title: createForm.title.trim(),
         description: createForm.description.trim(),
         maxEntries: createForm.maxEntries,
       });
+      addToast('success', 'Sorteio criado');
       setShowCreateModal(false);
       setCreateForm({ title: '', description: '', maxEntries: 100 });
-    }, 'Sorteio criado');
+      await reloadAll();
+    } catch (error) {
+      addToast('error', error instanceof Error ? error.message : 'Erro ao criar sorteio');
+    } finally {
+      setActionLoading(null);
+    }
   };
 
   const openDetails = async (giveaway: Giveaway) => {
@@ -104,21 +115,21 @@ export default function Giveaways() {
       render: (g) => (
         <div className="flex gap-xs flex-wrap">
           {g.status === 'DRAFT' && (
-            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Abrir sorteio ${g.title}`} onClick={() => runAction(() => openGiveaway(g.id), 'Sorteio aberto')}>
+            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Abrir sorteio ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => openGiveaway(g.id), 'Sorteio aberto', 'open')}>
               <Play size={12} />
             </button>
           )}
           {g.status === 'OPEN' && (
-            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Fechar sorteio ${g.title}`} onClick={() => runAction(() => closeGiveaway(g.id), 'Sorteio fechado')}>
+            <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Fechar sorteio ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => closeGiveaway(g.id), 'Sorteio fechado', 'close')}>
               <X size={12} />
             </button>
           )}
           {g.status === 'CLOSED' && (
-            <button className="btn btn-accent btn-sm btn-icon" aria-label={`Sortear ganhador de ${g.title}`} onClick={() => runAction(() => drawGiveaway(g.id, 1), 'Sorteio realizado')}>
+            <button className="btn btn-accent btn-sm btn-icon" aria-label={`Sortear ganhador de ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => drawGiveaway(g.id, 1), 'Sorteio realizado', 'draw')}>
               <Shuffle size={12} />
             </button>
           )}
-          <button className="btn btn-secondary btn-sm" onClick={() => openDetails(g)}>Ver</button>
+          <button className="btn btn-secondary btn-sm" onClick={() => openDetails(g)} disabled={actionLoading !== null}>Ver</button>
         </div>
       ),
     },
@@ -135,7 +146,7 @@ export default function Giveaways() {
 
       <div className="section-header">
         <span className="section-title">Sorteios</span>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)} disabled={actionLoading !== null}>
           <Plus size={14} />
           Novo Sorteio
         </button>
@@ -151,8 +162,10 @@ export default function Giveaways() {
         title="Novo Sorteio"
         footer={
           <>
-            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
-            <button className="btn btn-accent" onClick={createNewGiveaway} disabled={!createForm.title.trim()}>Criar Sorteio</button>
+            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)} disabled={actionLoading !== null}>Cancelar</button>
+            <button className="btn btn-accent" onClick={createNewGiveaway} disabled={!createForm.title.trim() || actionLoading !== null}>
+              {actionLoading === 'create' ? 'Criando...' : 'Criar Sorteio'}
+            </button>
           </>
         }
       >
@@ -178,7 +191,7 @@ export default function Giveaways() {
           setParticipantName('');
         }}
         title={selectedGiveaway?.title || ''}
-        footer={<button className="btn btn-secondary" onClick={() => setSelectedGiveaway(null)}>Fechar</button>}
+        footer={<button className="btn btn-secondary" onClick={() => setSelectedGiveaway(null)} disabled={actionLoading !== null}>Fechar</button>}
       >
         {selectedGiveaway && (
           <>
@@ -195,13 +208,13 @@ export default function Giveaways() {
                   <input id="participant-name" className="input" value={participantName} onChange={(event) => setParticipantName(event.target.value)} placeholder="Nome do participante" />
                   <button
                     className="btn btn-primary"
-                    disabled={!participantName.trim()}
+                    disabled={!participantName.trim() || actionLoading !== null}
                     onClick={() => runAction(async () => {
                       await enterGiveaway(selectedGiveaway.id, participantName.trim());
                       setParticipantName('');
-                    }, 'Participante adicionado')}
+                    }, 'Participante adicionado', 'enter')}
                   >
-                    Entrar
+                    {actionLoading === 'enter' ? 'Entrando...' : 'Entrar'}
                   </button>
                 </div>
               </div>
@@ -211,7 +224,7 @@ export default function Giveaways() {
               {selectedResults?.winners.length ? (
                 <div className="log-panel">
                   {selectedResults.winners.map((winner) => (
-                    <div className="log-line" key={winner.entryId}>
+                    <div key={winner.entryId} className="log-line">
                       <Crown size={14} style={{ color: 'var(--accent)' }} />
                       <span>{winner.participantName}</span>
                       <span className="timestamp">{new Date(winner.enteredAt).toLocaleString('pt-BR')}</span>

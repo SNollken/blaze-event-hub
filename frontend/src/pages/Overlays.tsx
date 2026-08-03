@@ -30,6 +30,7 @@ import {
 export default function Overlays() {
   const fetchProfiles = useCallback(() => getOverlayProfiles(), []);
   const { data: profiles, loading: profilesLoading, error: profilesError, reload: reloadProfiles } = usePolling(fetchProfiles, 20000);
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -50,6 +51,7 @@ export default function Overlays() {
   };
 
   const handleCreateProfile = async (name: string, description: string) => {
+    setActionLoading('create-profile');
     try {
       await createOverlayProfile({ name, description: description || undefined });
       addToast('success', 'Perfil criado com sucesso');
@@ -58,10 +60,13 @@ export default function Overlays() {
       reloadProfiles();
     } catch (e: unknown) {
       addToast('error', e instanceof Error ? e.message : 'Erro ao criar perfil');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDeleteProfile = async (id: string) => {
+    setActionLoading('delete-profile');
     try {
       await deleteOverlayProfile(id);
       addToast('success', 'Perfil removido');
@@ -72,16 +77,21 @@ export default function Overlays() {
       reloadProfiles();
     } catch (e: unknown) {
       addToast('error', e instanceof Error ? e.message : 'Erro ao remover perfil');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const handleDeleteOverlay = async (id: string) => {
+    setActionLoading('delete-overlay');
     try {
       await deleteOverlay(id);
       addToast('success', 'Overlay removido');
       setOverlays(overlays.filter((o) => o.id !== id));
     } catch (e: unknown) {
       addToast('error', e instanceof Error ? e.message : 'Erro ao remover overlay');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -106,10 +116,10 @@ export default function Overlays() {
       key: 'actions', header: '', width: 100,
       render: (p) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn btn-primary btn-sm btn-icon" aria-label={`Ver overlays de ${p.name}`} onClick={() => loadOverlays(p.id)}>
+          <button className="btn btn-primary btn-sm btn-icon" aria-label={`Ver overlays de ${p.name}`} onClick={() => loadOverlays(p.id)} disabled={actionLoading !== null}>
             <Eye size={12} />
           </button>
-          <button className="btn btn-danger btn-sm btn-icon" aria-label={`Remover perfil ${p.name}`} onClick={() => handleDeleteProfile(p.id)}>
+          <button className="btn btn-danger btn-sm btn-icon" aria-label={`Remover perfil ${p.name}`} onClick={() => handleDeleteProfile(p.id)} disabled={actionLoading !== null}>
             <Trash2 size={12} />
           </button>
         </div>
@@ -148,10 +158,10 @@ export default function Overlays() {
       key: 'actions', header: '', width: 80,
       render: (o) => (
         <div style={{ display: 'flex', gap: 4 }}>
-          <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Ver detalhes da overlay ${o.name}`} onClick={() => setSelectedOverlay(o)}>
+          <button className="btn btn-secondary btn-sm btn-icon" aria-label={`Ver detalhes da overlay ${o.name}`} onClick={() => setSelectedOverlay(o)} disabled={actionLoading !== null}>
             <Settings size={12} />
           </button>
-          <button className="btn btn-danger btn-sm btn-icon" aria-label={`Remover overlay ${o.name}`} onClick={() => handleDeleteOverlay(o.id)}>
+          <button className="btn btn-danger btn-sm btn-icon" aria-label={`Remover overlay ${o.name}`} onClick={() => handleDeleteOverlay(o.id)} disabled={actionLoading !== null}>
             <Trash2 size={12} />
           </button>
         </div>
@@ -182,18 +192,22 @@ export default function Overlays() {
       {/* Profiles */}
       <div className="section-header">
         <span className="section-title">Perfis de Overlay</span>
-        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateProfileModal(true)}>
+        <button className="btn btn-primary btn-sm" onClick={() => setShowCreateProfileModal(true)} disabled={actionLoading !== null}>
           <Plus size={14} />
           Novo Perfil
         </button>
       </div>
-      <DataTable
-        columns={profileColumns}
-        data={profiles || []}
-        filterable
-        filterKeys={['name']}
-        emptyMessage="Nenhum perfil criado."
-      />
+      {profilesLoading && !profiles ? (
+        <div className="skeleton-list" />
+      ) : (
+        <DataTable
+          columns={profileColumns}
+          data={profiles || []}
+          filterable
+          filterKeys={['name']}
+          emptyMessage="Nenhum perfil criado."
+        />
+      )}
 
       {/* Overlays for selected profile */}
       {selectedProfileId && (
@@ -203,7 +217,7 @@ export default function Overlays() {
               Overlays do Perfil
               <Badge variant="neutral" style={{ marginLeft: 8 } as React.CSSProperties}>{overlays.length}</Badge>
             </span>
-            <button className="btn btn-secondary btn-sm" onClick={() => loadOverlays(selectedProfileId)}>
+            <button className="btn btn-secondary btn-sm" onClick={() => loadOverlays(selectedProfileId)} disabled={actionLoading !== null}>
               <RefreshCw size={14} />
               Atualizar
             </button>
@@ -225,13 +239,15 @@ export default function Overlays() {
         title="Novo Perfil de Overlay"
         footer={
           <>
-            <button className="btn btn-secondary" onClick={() => setShowCreateProfileModal(false)}>Cancelar</button>
+            <button className="btn btn-secondary" onClick={() => setShowCreateProfileModal(false)} disabled={actionLoading !== null}>Cancelar</button>
             <button className="btn btn-primary" onClick={() => {
               if (profileName.trim()) {
                 handleCreateProfile(profileName.trim(), profileDescription.trim());
                 setShowCreateProfileModal(false);
               }
-            }}>Criar Perfil</button>
+            }} disabled={actionLoading !== null || !profileName.trim()}>
+              {actionLoading === 'create-profile' ? 'Criando...' : 'Criar Perfil'}
+            </button>
           </>
         }
       >
@@ -251,7 +267,7 @@ export default function Overlays() {
         onClose={() => setSelectedOverlay(null)}
         title={selectedOverlay?.name || ''}
         footer={
-          <button className="btn btn-secondary" onClick={() => setSelectedOverlay(null)}>Fechar</button>
+          <button className="btn btn-secondary" onClick={() => setSelectedOverlay(null)} disabled={actionLoading !== null}>Fechar</button>
         }
       >
         {selectedOverlay && (

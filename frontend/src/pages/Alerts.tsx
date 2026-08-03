@@ -50,6 +50,7 @@ export default function Alerts() {
   const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = usePolling(fetchStats, 15000);
 
   const pollError = rulesError || historyError || activeError || statsError;
+  const [actionLoading, setActionLoading] = useState<string | null>(null);
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'rules' | 'history'>('rules');
@@ -68,6 +69,7 @@ export default function Alerts() {
   };
 
   const createRule = async () => {
+    setActionLoading('create-rule');
     try {
       await createAlertRule({
         ...form,
@@ -80,16 +82,21 @@ export default function Alerts() {
       await reloadAll();
     } catch (error) {
       addToast('error', error instanceof Error ? error.message : 'Erro ao criar regra');
+    } finally {
+      setActionLoading(null);
     }
   };
 
   const simulateEvent = async () => {
+    setActionLoading('simulate');
     try {
       await simulateBlazeEvent(form.eventType, `Evento simulado para ${form.eventType}`);
       addToast('success', 'Evento simulado enviado');
       await reloadAll();
     } catch (error) {
       addToast('error', error instanceof Error ? error.message : 'Erro ao simular evento');
+    } finally {
+      setActionLoading(null);
     }
   };
 
@@ -105,13 +112,17 @@ export default function Alerts() {
         <button
           className="btn btn-danger btn-sm btn-icon"
           aria-label={`Remover regra ${r.name}`}
+          disabled={actionLoading !== null}
           onClick={async () => {
+            setActionLoading('delete-rule');
             try {
               await deleteAlertRule(r.id);
               addToast('success', 'Regra removida');
               await reloadAll();
             } catch (error) {
               addToast('error', error instanceof Error ? error.message : 'Erro ao remover regra');
+            } finally {
+              setActionLoading(null);
             }
           }}
         >
@@ -139,13 +150,17 @@ export default function Alerts() {
         <button
           className="btn btn-secondary btn-sm btn-icon"
           aria-label={`Reconhecer alerta ${a.ruleName}`}
+          disabled={actionLoading !== null}
           onClick={async () => {
+            setActionLoading('ack-alert');
             try {
               await acknowledgeAlert(a.id);
               addToast('success', 'Alerta reconhecido');
               await reloadAll();
             } catch (error) {
               addToast('error', error instanceof Error ? error.message : 'Erro ao reconhecer alerta');
+            } finally {
+              setActionLoading(null);
             }
           }}
         >
@@ -173,11 +188,11 @@ export default function Alerts() {
           <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>Historico</button>
         </div>
         <div className="flex gap-sm">
-          <button className="btn btn-secondary btn-sm" onClick={simulateEvent}>
+          <button className="btn btn-secondary btn-sm" onClick={simulateEvent} disabled={actionLoading !== null}>
             <Play size={14} />
-            Simular Evento
+            {actionLoading === 'simulate' ? 'Simulando...' : 'Simular Evento'}
           </button>
-          <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)}>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)} disabled={actionLoading !== null}>
             <Plus size={14} />
             Nova Regra
           </button>
@@ -200,8 +215,10 @@ export default function Alerts() {
         title="Nova Regra de Alerta"
         footer={
           <>
-            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)}>Cancelar</button>
-            <button className="btn btn-primary" onClick={createRule} disabled={!form.name.trim()}>Criar Regra</button>
+            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)} disabled={actionLoading !== null}>Cancelar</button>
+            <button className="btn btn-primary" onClick={createRule} disabled={!form.name.trim() || actionLoading !== null}>
+              {actionLoading === 'create-rule' ? 'Criando...' : 'Criar Regra'}
+            </button>
           </>
         }
       >
