@@ -123,33 +123,6 @@ class RuntimeOverlayConfigControllerTests {
 	}
 
 	@Test
-	void alertOverlayHtmlEndpoint() throws Exception {
-		mockMvc.perform(get("/overlay/alerts"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-				.andExpect(content().string(containsString("overlay-container")))
-				.andExpect(content().string(containsString("alert")));
-	}
-
-	@Test
-	void giveawayOverlayHtmlEndpoint() throws Exception {
-		mockMvc.perform(get("/overlay/giveaways"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-				.andExpect(content().string(containsString("overlay-container")))
-				.andExpect(content().string(containsString("giveaway")));
-	}
-
-	@Test
-	void eventsOverlayHtmlEndpoint() throws Exception {
-		mockMvc.perform(get("/overlay/events"))
-				.andExpect(status().isOk())
-				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-				.andExpect(content().string(containsString("overlay-container")))
-				.andExpect(content().string(containsString("events")));
-	}
-
-	@Test
 	void overlaysDashboardEndpoint() throws Exception {
 		mockMvc.perform(get("/overlays-dashboard"))
 				.andExpect(status().isOk())

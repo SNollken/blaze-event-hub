@@ -18,7 +18,7 @@ import org.springframework.web.filter.OncePerRequestFilter;
  * e Permissions-Policy. Cache-Control: no-store para chamadas API.
  *
  * CSP permite 'unsafe-inline' para scripts/estilos — necessario pelas overlays do
- * runtime OBS que geram HTML inline (OverlayContentService).
+ * runtime OBS que geram HTML inline (overlay-runtime.html/js estatico).
  */
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)

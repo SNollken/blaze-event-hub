@@ -1,11 +1,7 @@
 package com.nollen.blaze.overlays.runtime;
 
 import java.util.List;
-import java.util.Map;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.CopyOnWriteArrayList;
-import java.util.function.Consumer;
 
 import org.springframework.stereotype.Service;
 
@@ -15,7 +11,6 @@ import com.nollen.blaze.common.NotFoundException;
 public class RuntimeOverlayConfigService {
 
 	private final RuntimeOverlayConfigStore store;
-	private final Map<RuntimeOverlayType, CopyOnWriteArrayList<Consumer<RuntimeOverlayEvent>>> listeners = new ConcurrentHashMap<>();
 
 	public RuntimeOverlayConfigService(RuntimeOverlayConfigStore store) {
 		this.store = store;
@@ -77,26 +72,6 @@ public class RuntimeOverlayConfigService {
 	public void delete(String id) {
 		getById(id);
 		store.deleteById(id);
-	}
-
-	public void addListener(RuntimeOverlayType type, Consumer<RuntimeOverlayEvent> listener) {
-		listeners.computeIfAbsent(type, k -> new CopyOnWriteArrayList<>()).add(listener);
-	}
-
-	public void removeListener(RuntimeOverlayType type, Consumer<RuntimeOverlayEvent> listener) {
-		List<Consumer<RuntimeOverlayEvent>> list = listeners.get(type);
-		if (list != null) {
-			list.remove(listener);
-		}
-	}
-
-	public void fireEvent(RuntimeOverlayEvent event) {
-		List<Consumer<RuntimeOverlayEvent>> list = listeners.get(event.type());
-		if (list != null) {
-			for (Consumer<RuntimeOverlayEvent> listener : list) {
-				listener.accept(event);
-			}
-		}
 	}
 
 	private String generateId() {
