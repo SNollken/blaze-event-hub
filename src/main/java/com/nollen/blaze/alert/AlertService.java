@@ -63,7 +63,11 @@ public class AlertService {
 				snapshots);
 	}
 
-	public List<Alert> evaluateEvent(EvaluateEventRequest request) {
+	// ponytail: synchronized so the cooldown check-then-save cannot interleave between
+	// concurrent calls (REST /api/alerts/evaluate vs event pipeline dispatch). Coarse
+	// (whole method) like GiveawayService.enterGiveaway; switch to per-rule locks if
+	// alert volume grows and contention becomes measurable.
+	public synchronized List<Alert> evaluateEvent(EvaluateEventRequest request) {
 		List<AlertRule> enabledRules = ruleStore.findAll().stream()
 				.filter(AlertRule::enabled)
 				.toList();

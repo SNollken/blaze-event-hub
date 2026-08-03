@@ -140,6 +140,42 @@ class AlertServiceTests {
 		assertThat(second).isEmpty();
 	}
 
+	@Test
+	void concurrentEvaluateRespectsCooldownUnderLock() throws Exception {
+		// Regression: evaluateEvent snapshots the cooldown map before the save loop.
+		// Without synchronization, two concurrent calls both read an empty snapshot and
+		// both fire (cooldown bypassed). A slow first save widens the race window so the
+		// bug reproduces deterministically.
+		AlertRule rule = new AlertRule(new IdGenerator().newId(), "CooldownRule",
+				BlazeEventType.CHANNEL_FOLLOW, AlertCondition.ALWAYS, 0, null, true, 60_000);
+		ruleStore.save(rule);
+
+		java.util.concurrent.atomic.AtomicInteger saves = new java.util.concurrent.atomic.AtomicInteger();
+		AlertStore slowStore = new AlertStore() {
+			@Override
+			public Alert save(Alert alert) {
+				int n = saves.incrementAndGet();
+				if (n == 1) {
+					try { Thread.sleep(400); } catch (InterruptedException e) { Thread.currentThread().interrupt(); }
+				}
+				return super.save(alert);
+			}
+		};
+		service = new AlertService(clock, slowStore, ruleStore, new AlertNotifier(), new IdGenerator());
+
+		EvaluateEventRequest req = new EvaluateEventRequest(BlazeEventType.CHANNEL_FOLLOW, Map.of());
+		Thread t1 = new Thread(() -> service.evaluateEvent(req));
+		Thread t2 = new Thread(() -> service.evaluateEvent(req));
+		t1.start();
+		t2.start();
+		t1.join(2000);
+		t2.join(2000);
+
+		// First call saves; second must be suppressed by the cooldown it just created.
+		assertThat(saves.get()).as("only one alert should be created despite concurrency").isEqualTo(1);
+		assertThat(slowStore.count()).isEqualTo(1);
+	}
+
 	private AlertRule createRule(String name, BlazeEventType type, AlertCondition condition, double threshold) {
 		return new AlertRule(new IdGenerator().newId(), name, type, condition, threshold, null, true, 0);
 	}
