@@ -4,6 +4,7 @@ import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -43,10 +44,12 @@ export default function Alerts() {
   const fetchActive = useCallback(() => getActiveAlerts(), []);
   const fetchStats = useCallback(() => getAlertStats(), []);
 
-  const { data: rules, loading: rulesLoading, reload: reloadRules } = usePolling(fetchRules, 15000);
-  const { data: history, loading: historyLoading, reload: reloadHistory } = usePolling(fetchHistory, 12000);
-  const { data: activeAlerts, reload: reloadActive } = usePolling(fetchActive, 10000);
-  const { data: stats, reload: reloadStats } = usePolling(fetchStats, 15000);
+  const { data: rules, loading: rulesLoading, error: rulesError, reload: reloadRules } = usePolling(fetchRules, 15000);
+  const { data: history, loading: historyLoading, error: historyError, reload: reloadHistory } = usePolling(fetchHistory, 12000);
+  const { data: activeAlerts, loading: activeLoading, error: activeError, reload: reloadActive } = usePolling(fetchActive, 10000);
+  const { data: stats, loading: statsLoading, error: statsError, reload: reloadStats } = usePolling(fetchStats, 15000);
+
+  const pollError = rulesError || historyError || activeError || statsError;
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'rules' | 'history'>('rules');
@@ -157,10 +160,11 @@ export default function Alerts() {
 
   return (
     <Layout title="Alertas" subtitle="Regras, disparos e historico conectados ao backend">
+      {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
-        <StatsCard title="Regras Ativas" value={stats?.enabledRules ?? 0} icon={<Bell size={18} />} color="primary" subtitle={`${stats?.totalRules ?? 0} total`} />
-        <StatsCard title="Alertas Pendentes" value={activeAlerts?.length ?? 0} icon={<BellRing size={18} />} color="warning" subtitle={`${stats?.totalAlerts ?? 0} historico`} />
-        <StatsCard title="Reconhecidos" value={stats?.acknowledgedAlerts ?? 0} icon={<Check size={18} />} color="success" />
+        <StatsCard title="Regras Ativas" value={statsLoading ? 'Carregando...' : (stats?.enabledRules ?? 0)} icon={<Bell size={18} />} color="primary" subtitle={statsLoading ? '' : `${stats?.totalRules ?? 0} total`} />
+        <StatsCard title="Alertas Pendentes" value={activeLoading ? 'Carregando...' : (activeAlerts?.length ?? 0)} icon={<BellRing size={18} />} color="warning" subtitle={activeLoading ? '' : `${stats?.totalAlerts ?? 0} historico`} />
+        <StatsCard title="Reconhecidos" value={statsLoading ? 'Carregando...' : (stats?.acknowledgedAlerts ?? 0)} icon={<Check size={18} />} color="success" />
       </div>
 
       <div className="section-header">

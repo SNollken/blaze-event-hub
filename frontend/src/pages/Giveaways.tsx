@@ -4,6 +4,7 @@ import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -40,8 +41,10 @@ const statusLabels: Record<GiveawayStatus, string> = {
 export default function Giveaways() {
   const fetchGiveaways = useCallback(() => getGiveaways(), []);
   const fetchStats = useCallback(() => getGiveawayStats(), []);
-  const { data: giveaways, loading, reload: reloadGiveaways } = usePolling(fetchGiveaways, 12000);
-  const { data: stats, reload: reloadStats } = usePolling(fetchStats, 15000);
+  const { data: giveaways, loading, error: giveawaysError, reload: reloadGiveaways } = usePolling(fetchGiveaways, 12000);
+  const { data: stats, error: statsError, reload: reloadStats } = usePolling(fetchStats, 15000);
+
+  const pollError = giveawaysError || statsError;
 
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedGiveaway, setSelectedGiveaway] = useState<Giveaway | null>(null);
@@ -123,6 +126,7 @@ export default function Giveaways() {
 
   return (
     <Layout title="Sorteios" subtitle="Gerenciar sorteios e participantes via API real">
+      {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard title="Sorteios Abertos" value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" subtitle={`${stats?.totalGiveaways ?? 0} total`} />
         <StatsCard title="Participantes" value={stats?.totalEntries ?? 0} icon={<Users size={18} />} color="primary" />

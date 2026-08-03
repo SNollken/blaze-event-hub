@@ -4,6 +4,7 @@ import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -28,7 +29,7 @@ import {
 
 export default function Overlays() {
   const fetchProfiles = useCallback(() => getOverlayProfiles(), []);
-  const { data: profiles, loading: profilesLoading, reload: reloadProfiles } = usePolling(fetchProfiles, 20000);
+  const { data: profiles, loading: profilesLoading, error: profilesError, reload: reloadProfiles } = usePolling(fetchProfiles, 20000);
 
   const [overlays, setOverlays] = useState<Overlay[]>([]);
   const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
@@ -159,6 +160,7 @@ export default function Overlays() {
 
   return (
     <Layout title="Overlays" subtitle="Configuracao de overlays para OBS">
+      {profilesError && <ErrorBanner error={profilesError} onRetry={reloadProfiles} />}
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard
