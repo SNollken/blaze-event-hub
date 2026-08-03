@@ -47,7 +47,13 @@ public class BlazeEventsPipeline {
 			return false;
 		}
 		Map<String, Object> payload = envelope.payload() == null ? Map.of() : new HashMap<>(envelope.payload());
-		dispatch(eventType, payload, "blaze:" + (envelope.sessionId() != null ? envelope.sessionId() : idGenerator.newId()));
+		// ponytail: dedupKey includes messageType so distinct event types in the same
+		// Blaze session (follow, chat, subscribe...) are not collapsed into one ACCEPTED.
+		// True per-message deduplication needs a unique messageId, which the envelope does
+		// not expose; messageType is the finest identity available. Revisit when the
+		// feed includes a stable per-message id.
+		String messageType = envelope.messageType() != null ? envelope.messageType() : "unknown";
+		dispatch(eventType, payload, "blaze:" + (envelope.sessionId() != null ? envelope.sessionId() : idGenerator.newId()) + ":" + messageType);
 		logEntry(
 				envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
 				envelope.messageType() != null ? envelope.messageType() : "unknown",
