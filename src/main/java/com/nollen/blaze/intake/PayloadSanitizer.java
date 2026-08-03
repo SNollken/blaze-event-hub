@@ -39,7 +39,7 @@ public class PayloadSanitizer {
 			// ponytail: payload.toString() failed (e.g. a defector object); do not block intake,
 			// but log so size-protection bypass is diagnosable. Upgrade path: compute size via
 			// a defensive deep-walk instead of toString().
-			log.warn("Falha ao estimar tamanho do payload (aceitando como nao-oversize): {}", e.toString());
+			log.warn("Failed to estimate payload size (accepting as not-oversize): {}", e.toString());
 			return false;
 		}
 	}

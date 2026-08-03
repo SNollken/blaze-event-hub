@@ -23,7 +23,7 @@ public class BlazeApiHeaders {
 
 	public HttpHeaders authenticatedHeaders(TokenSnapshot token) {
 		if (token.expiresAt() != null && clock.instant().isAfter(token.expiresAt())) {
-			throw new OAuthException(401, "TOKEN_EXPIRED", "Token expirado. Faca refresh.");
+			throw new OAuthException(401, "TOKEN_EXPIRED", "Token expired. Please refresh.");
 		}
 		HttpHeaders headers = new HttpHeaders();
 		headers.setBearerAuth(token.accessToken());

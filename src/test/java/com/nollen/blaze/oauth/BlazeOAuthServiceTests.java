@@ -93,7 +93,7 @@ class BlazeOAuthServiceTests {
 		service.start();
 		assertThatThrownBy(() -> service.callback("code-1", "wrong-state", null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("Autorizacao OAuth expirada");
+				.hasMessageContaining("OAuth authorization expired");
 	}
 
 	@Test
@@ -102,14 +102,14 @@ class BlazeOAuthServiceTests {
 
 		assertThatThrownBy(() -> service.callback("", gateway.lastGeneratedState, null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("callback incompleto");
+				.hasMessageContaining("callback incomplete");
 	}
 
 	@Test
 	void callbackRejectsMissingState() {
 		assertThatThrownBy(() -> service.callback("code-1", null, null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("callback incompleto");
+				.hasMessageContaining("callback incomplete");
 	}
 
 	@Test
@@ -262,7 +262,7 @@ class BlazeOAuthServiceTests {
 
 		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null))
 				.isInstanceOf(OAuthException.class)
-				.hasMessageContaining("conectar a Blaze");
+				.hasMessageContaining("connect to Blaze");
 	}
 
 	@Test

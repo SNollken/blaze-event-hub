@@ -30,12 +30,12 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
 					String body = res.getBody() != null ? new String(res.getBody().readAllBytes()) : "";
 					throw new OAuthException(res.getStatusCode().value(), "BLAZE_AUTH_URL_REJECTED",
-							"Blaze rejeitou a geracao da URL de autorizacao: " + truncate(body, 200));
+							"Blaze rejected authorization URL generation: " + truncate(body, 200));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
 					String body = res.getBody() != null ? new String(res.getBody().readAllBytes()) : "";
 					throw new OAuthException(res.getStatusCode().value(), "BLAZE_AUTH_URL_ERROR",
-							"Blaze retornou erro interno ao gerar URL: " + truncate(body, 200));
+							"Blaze returned an internal error generating the URL: " + truncate(body, 200));
 				})
 				.body(GenerateAuthUrlResponse.class);
 		if (response == null) {
@@ -66,15 +66,15 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 					int status = res.getStatusCode().value();
 					if (status == 401) {
 						throw new OAuthException(401, "BLAZE_TOKEN_EXCHANGE_REJECTED",
-								"Blaze rejeitou as credenciais. Verifique Client Secret e Redirect URI.");
+								"Blaze rejected the credentials. Verify the Client Secret and Redirect URI.");
 					}
 					throw new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
-							"Blaze rejeitou a troca do codigo por token: " + truncate(responseBody, 200));
+							"Blaze rejected the code exchange for a token: " + truncate(responseBody, 200));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
 					String responseBody = res.getBody() != null ? new String(res.getBody().readAllBytes()) : "";
 					throw new OAuthException(502, "BLAZE_TOKEN_SERVER_ERROR",
-							"Blaze retornou erro interno durante troca de token: " + truncate(responseBody, 200));
+							"Blaze returned an internal error during token exchange: " + truncate(responseBody, 200));
 				})
 				.body(OAuthTokenResponse.class);
 	}
@@ -96,12 +96,12 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 				.onStatus(HttpStatusCode::is4xxClientError, (req, res) -> {
 					String responseBody = res.getBody() != null ? new String(res.getBody().readAllBytes()) : "";
 					throw new OAuthException(400, "BLAZE_TOKEN_REFRESH_REJECTED",
-							"Blaze rejeitou a renovacao do token: " + truncate(responseBody, 200));
+							"Blaze rejected the token refresh: " + truncate(responseBody, 200));
 				})
 				.onStatus(HttpStatusCode::is5xxServerError, (req, res) -> {
 					String responseBody = res.getBody() != null ? new String(res.getBody().readAllBytes()) : "";
 					throw new OAuthException(502, "BLAZE_TOKEN_SERVER_ERROR",
-							"Blaze retornou erro interno durante renovacao de token: " + truncate(responseBody, 200));
+							"Blaze returned an internal error during token refresh: " + truncate(responseBody, 200));
 				})
 				.body(OAuthTokenResponse.class);
 	}

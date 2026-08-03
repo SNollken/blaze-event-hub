@@ -79,7 +79,7 @@ public class GlobalExceptionHandler {
 	ResponseEntity<ApiErrorResponse> handleOAuth(OAuthException ex, HttpServletRequest request) {
 		HttpStatus status = HttpStatus.resolve(ex.getHttpStatus());
 		return error(status == null ? HttpStatus.BAD_REQUEST : status, ex.getErrorCode(),
-				(ex.getHttpStatus() == 401 ? ex.getMessage() + " Verifique se o Client ID, Client Secret e Redirect URI do .env pertencem ao mesmo app Blaze e se a Redirect URI esta cadastrada exatamente no console." : ex.getMessage()),
+				(ex.getHttpStatus() == 401 ? ex.getMessage() + " Verify that the Client ID, Client Secret, and Redirect URI in .env belong to the same Blaze app and that the Redirect URI is registered exactly in the console." : ex.getMessage()),
 				request);
 	}
 
@@ -90,7 +90,7 @@ public class GlobalExceptionHandler {
 
 	@ExceptionHandler(Exception.class)
 	ResponseEntity<ApiErrorResponse> handleUnexpected(Exception ex, HttpServletRequest request) {
-		log.error("Erro inesperado em {}: {}", request.getRequestURI(), ex.getMessage(), ex);
+		log.error("Unexpected error in {}: {}", request.getRequestURI(), ex.getMessage(), ex);
 		return error(HttpStatus.INTERNAL_SERVER_ERROR, "INTERNAL_ERROR", "Unexpected server error", request);
 	}
 

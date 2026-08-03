@@ -62,15 +62,15 @@ public class BlazeOAuthService {
 		requireOAuthConfiguration();
 		if (!StringUtils.hasText(code)) {
 			throw new OAuthException(400, "OAUTH_CALLBACK_INCOMPLETE",
-					"OAuth callback incompleto. Volte ao dashboard e clique em Iniciar OAuth novamente.");
+					"OAuth callback incomplete. Return to the dashboard and click Start OAuth again.");
 		}
 		if (!StringUtils.hasText(state)) {
 			throw new OAuthException(400, "OAUTH_CALLBACK_INCOMPLETE",
-					"OAuth callback incompleto. Volte ao dashboard e clique em Iniciar OAuth novamente.");
+					"OAuth callback incomplete. Return to the dashboard and click Start OAuth again.");
 		}
 		OAuthState stored = stateStore.consume(state)
 				.orElseThrow(() -> new OAuthException(400, "OAUTH_CALLBACK_INVALID",
-						"Autorizacao OAuth expirada, ja usada ou perdida pelo reinicio do backend. Volte ao dashboard e clique em Iniciar OAuth novamente."));
+						"OAuth authorization expired, already used, or lost due to backend restart. Return to the dashboard and click Start OAuth again."));
 		try {
 			OAuthTokenResponse response = gateway.exchangeCode(new OAuthTokenExchangeRequest(
 					properties.getClientId(),
@@ -81,14 +81,14 @@ public class BlazeOAuthService {
 					"authorization_code"));
 			return saveCallbackAndSanitize(response);
 		} catch (OAuthException e) {
-			// Erros do gateway (4xx/5xx da Blaze) — deixa propagar com codigo especifico
+			// Gateway errors (4xx/5xx from Blaze) — let them propagate with specific code
 			throw e;
 		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_EXCHANGE_UNAVAILABLE",
-					"Nao foi possivel conectar a Blaze para trocar o codigo por token. Verifique rede/firewall e tente novamente.");
-		} catch (Exception e) {
+					"Could not connect to Blaze to exchange the code for a token. Check network/firewall and try again.");
+			} catch (Exception e) {
 			throw new OAuthException(502, "BLAZE_TOKEN_EXCHANGE_ERROR",
-					"Erro inesperado ao trocar codigo por token: " + e.getMessage());
+					"Unexpected error exchanging code for token: " + e.getMessage());
 		}
 	}
 
@@ -136,10 +136,10 @@ public class BlazeOAuthService {
 			throw e;
 		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_REFRESH_UNAVAILABLE",
-					"Nao foi possivel conectar a Blaze para renovar a sessao. Verifique rede/firewall e tente novamente.");
-		} catch (Exception e) {
+					"Could not connect to Blaze to refresh the session. Check network/firewall and try again.");
+			} catch (Exception e) {
 			throw new OAuthException(502, "BLAZE_TOKEN_REFRESH_ERROR",
-					"Erro inesperado ao renovar a sessao Blaze.");
+					"Unexpected error refreshing the Blaze session.");
 		}
 	}
 

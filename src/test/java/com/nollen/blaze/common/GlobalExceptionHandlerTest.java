@@ -76,7 +76,8 @@ class GlobalExceptionHandlerTest {
 		assertThat(response.getStatusCode().value()).isEqualTo(401);
 		String message = response.getBody().message();
 		assertThat(message).contains("[REDACTED]");
-		assertThat(message).contains("Verifique se o Client ID");
+		assertThat(message).contains("Verify that the Client ID");
+	assertThat(message).doesNotContain("Verifique");
 		assertThat(message).doesNotContain(secretToken);
 		assertThat(message).doesNotContain(refreshToken);
 	}
