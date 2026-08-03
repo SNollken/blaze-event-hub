@@ -9,7 +9,9 @@ import com.nollen.blaze.events.BlazeEventType;
 import com.nollen.blaze.events.EventSubscriptionSnapshot;
 import com.nollen.blaze.events.InMemoryEventSubscriptionStore;
 import com.nollen.blaze.giveaway.Giveaway;
+import com.nollen.blaze.giveaway.GiveawayEntry;
 import com.nollen.blaze.giveaway.GiveawayStatus;
+import com.nollen.blaze.giveaway.InMemoryGiveawayEntryStore;
 import com.nollen.blaze.giveaway.InMemoryGiveawayStore;
 import com.nollen.blaze.intake.LiveEvent;
 import com.nollen.blaze.intake.LiveEventStatus;
@@ -39,6 +41,7 @@ import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
 import java.time.Instant;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
@@ -65,7 +68,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @Testcontainers
 @Transactional
 @Import({LiveEventStore.class, AlertStore.class, AlertRuleStore.class,
-		InMemoryGiveawayStore.class, InMemoryOverlayRepository.class,
+		InMemoryGiveawayStore.class, InMemoryGiveawayEntryStore.class, InMemoryOverlayRepository.class,
 		InMemoryRuntimeOverlayConfigStore.class, InMemoryEventSubscriptionStore.class})
 class PostgresStoreIntegrationTests {
 
@@ -91,6 +94,7 @@ class PostgresStoreIntegrationTests {
 	@Autowired AlertStore alertStore;
 	@Autowired AlertRuleStore alertRuleStore;
 	@Autowired InMemoryGiveawayStore giveawayStore;
+	@Autowired InMemoryGiveawayEntryStore entryStore;
 	@Autowired InMemoryOverlayRepository overlayRepository;
 	@Autowired InMemoryRuntimeOverlayConfigStore runtimeOverlayConfigStore;
 	@Autowired InMemoryEventSubscriptionStore subscriptionStore;
@@ -260,5 +264,43 @@ class PostgresStoreIntegrationTests {
 		assertEquals(1, subscriptionStore.list().size());
 		assertEquals(BlazeEventType.CHANNEL_FOLLOW, subscriptionStore.list().getFirst().type());
 		assertEquals("session-pg-2", subscriptionStore.list().getFirst().sessionId());
+	}
+
+	@Test
+	void giveawayEntryStoreSaveFindUpsertOnPostgres() {
+		GiveawayEntry entry = new GiveawayEntry(
+				"pg-ent-1", "pg-gw-1", "Test Participant", Instant.now(), false, true);
+		entryStore.save(entry);
+
+		assertEquals(1, entryStore.findByGiveawayId("pg-gw-1").size());
+		assertEquals("Test Participant", entryStore.findByGiveawayId("pg-gw-1").getFirst().participantName());
+		assertEquals(1, entryStore.countByGiveawayId("pg-gw-1"));
+
+		GiveawayEntry updated = new GiveawayEntry(
+				"pg-ent-1", "pg-gw-1", "Updated Participant", Instant.now(), true, true);
+		entryStore.save(updated);
+
+		assertEquals(1, entryStore.findByGiveawayId("pg-gw-1").size());
+		assertEquals("Updated Participant", entryStore.findByGiveawayId("pg-gw-1").getFirst().participantName());
+		assertTrue(entryStore.findByGiveawayId("pg-gw-1").getFirst().selected());
+	}
+
+	@Test
+	void giveawayEntryStoreReplaceAllAtomicOnPostgres() {
+		// validate @Transactional replaceAllForGiveaway is atomic on PG
+		List<GiveawayEntry> initial = List.of(
+				new GiveawayEntry("pg-e1", "pg-gw-1", "A", Instant.now(), false, true),
+				new GiveawayEntry("pg-e2", "pg-gw-1", "B", Instant.now(), false, true));
+		entryStore.replaceAllForGiveaway("pg-gw-1", initial);
+		assertEquals(2, entryStore.findByGiveawayId("pg-gw-1").size());
+
+		List<GiveawayEntry> updated = List.of(
+				new GiveawayEntry("pg-e1", "pg-gw-1", "A", Instant.now(), true, true),
+				new GiveawayEntry("pg-e2", "pg-gw-1", "B", Instant.now(), true, true));
+		entryStore.replaceAllForGiveaway("pg-gw-1", updated);
+
+		List<GiveawayEntry> after = entryStore.findByGiveawayId("pg-gw-1");
+		assertEquals(2, after.size());
+		assertTrue(after.stream().allMatch(GiveawayEntry::selected));
 	}
 }
