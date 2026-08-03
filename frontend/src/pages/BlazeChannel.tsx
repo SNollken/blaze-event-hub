@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { Badge, StatusDot } from '../components/Badge';
+import { ErrorBanner, LoadingValue } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -28,9 +29,11 @@ export default function BlazeChannel() {
   const fetchSetup = useCallback(() => getSetupStatus(), []);
   const fetchOAuth = useCallback(() => getOAuthSession(), []);
 
-  const { data: status, reload: reloadStatus } = usePolling(fetchStatus, 12000);
-  const { data: setup, reload: reloadSetup } = usePolling(fetchSetup, 15000);
-  const { data: oauth, reload: reloadOAuth } = usePolling(fetchOAuth, 12000);
+  const { data: status, loading: statusLoading, error: statusError, reload: reloadStatus } = usePolling(fetchStatus, 12000);
+  const { data: setup, loading: setupLoading, error: setupError, reload: reloadSetup } = usePolling(fetchSetup, 15000);
+  const { data: oauth, loading: oauthLoading, error: oauthError, reload: reloadOAuth } = usePolling(fetchOAuth, 12000);
+
+  const firstError = statusError || setupError || oauthError;
 
   const [actionLoading, setActionLoading] = useState<string | null>(null);
 
@@ -109,34 +112,37 @@ export default function BlazeChannel() {
         </button>
       }
     >
+      {/* Error banner */}
+      {firstError && <ErrorBanner error={firstError} onRetry={handleSync} />}
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard
           title="Conexao Blaze"
-          value={isConnected ? 'Conectado' : 'Desconectado'}
+          value={oauthLoading ? 'Carregando...' : isConnected ? 'Conectado' : 'Desconectado'}
           icon={<Key size={18} />}
           color={isConnected ? 'success' : 'warning'}
-          subtitle={oauth?.profile?.displayName || 'Sem conta'}
+          subtitle={oauthLoading ? '' : oauth?.profile?.displayName || 'Sem conta'}
         />
         <StatsCard
           title="Token"
-          value={isTokenPresent ? 'Presente' : 'Ausente'}
+          value={oauthLoading ? 'Carregando...' : isTokenPresent ? 'Presente' : 'Ausente'}
           icon={<Shield size={18} />}
           color={isTokenPresent ? 'success' : 'error'}
-          subtitle={oauth?.tokenExpiredOrUnknown ? 'Expirado' : 'Valido'}
+          subtitle={oauthLoading ? '' : oauth?.tokenExpiredOrUnknown ? 'Expirado' : 'Valido'}
         />
         <StatsCard
           title="Events Config"
-          value={status?.socketConfigured ? 'Pronto' : 'Nao configurado'}
+          value={statusLoading ? 'Carregando...' : status?.socketConfigured ? 'Pronto' : 'Nao configurado'}
           icon={<Radio size={18} />}
-          color={status?.socketConfigured ? 'success' : 'neutral'}
+          color={statusLoading ? 'neutral' : status?.socketConfigured ? 'success' : 'neutral'}
+          subtitle={statusLoading ? '' : setup?.monitoredChannel || ''}
         />
         <StatsCard
           title="Canal Monitorado"
-          value={status?.monitoredChannelConfigured ? 'Configurado' : 'Nao configurado'}
+          value={setupLoading ? 'Carregando...' : status?.monitoredChannelConfigured ? 'Configurado' : 'Nao configurado'}
           icon={<Radio size={18} />}
-          color={status?.monitoredChannelConfigured ? 'success' : 'neutral'}
-          subtitle={setup?.monitoredChannel || ''}
+          color={setupLoading ? 'neutral' : status?.monitoredChannelConfigured ? 'success' : 'neutral'}
+          subtitle={setupLoading ? '' : setup?.monitoredChannel || ''}
         />
       </div>
 

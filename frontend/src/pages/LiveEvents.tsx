@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -28,8 +29,10 @@ export default function LiveEvents() {
   const fetchEvents = useCallback(() => getEventsStatus(), []);
   const fetchStatus = useCallback(() => getStatus(), []);
 
-  const { data: events, reload: reloadEvents } = usePolling(fetchEvents, 5000);
-  const { data: status, reload: reloadStatus } = usePolling(fetchStatus, 15000);
+  const { data: events, loading: eventsLoading, error: eventsError, reload: reloadEvents } = usePolling(fetchEvents, 5000);
+  const { data: status, loading: statusLoading, error: statusError, reload: reloadStatus } = usePolling(fetchStatus, 15000);
+
+  const pollError = eventsError || statusError;
 
   const [logs, setLogs] = useState<{ time: string; message: string }[]>([]);
   const [starting, setStarting] = useState(false);
@@ -94,53 +97,54 @@ export default function LiveEvents() {
         )
       }
     >
+      {pollError && <ErrorBanner error={pollError} onRetry={() => { void reloadEvents(); void reloadStatus(); }} />}
       {/* Stats */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard
           title="Runner"
-          value={events?.runnerRunning ? 'Rodando' : 'Parado'}
+          value={eventsLoading ? 'Carregando...' : events?.runnerRunning ? 'Rodando' : 'Parado'}
           icon={<Radio size={18} />}
-          color={events?.runnerRunning ? 'success' : 'neutral'}
+          color={eventsLoading ? 'neutral' : events?.runnerRunning ? 'success' : 'neutral'}
         />
         <StatsCard
           title="Cliente Socket"
-          value={events?.clientRunning ? 'Conectado' : 'Desconectado'}
+          value={eventsLoading ? 'Carregando...' : events?.clientRunning ? 'Conectado' : 'Desconectado'}
           icon={events?.clientRunning ? <Wifi size={18} /> : <WifiOff size={18} />}
-          color={events?.clientRunning ? 'success' : 'error'}
+          color={eventsLoading ? 'neutral' : events?.clientRunning ? 'success' : 'error'}
         />
         <StatsCard
           title="Ultima Mensagem"
-          value={events?.lastMessageType || '-'}
+          value={eventsLoading ? 'Carregando...' : (events?.lastMessageType || '-')}
           icon={<MessageSquare size={18} />}
           color="accent"
         />
         <StatsCard
           title="Monitorado"
-          value={status?.monitoredChannelConfigured ? 'Sim' : 'Nao'}
+          value={statusLoading ? 'Carregando...' : status?.monitoredChannelConfigured ? 'Sim' : 'Nao'}
           icon={<Radio size={18} />}
-          color={status?.monitoredChannelConfigured ? 'success' : 'warning'}
-          subtitle={status?.monitoredChannelConfigured ? 'Canal configurado' : 'Configurar canal'}
+          color={statusLoading ? 'neutral' : status?.monitoredChannelConfigured ? 'success' : 'warning'}
+          subtitle={statusLoading ? '' : status?.monitoredChannelConfigured ? 'Canal configurado' : 'Configurar canal'}
         />
         <StatsCard
           title="Mensagens Vistas"
-          value={events?.messagesSeen ?? 0}
+          value={eventsLoading ? 'Carregando...' : (events?.messagesSeen ?? 0)}
           icon={<MessageSquare size={18} />}
           color="accent"
-          subtitle={events?.runnerRunning ? 'Desde o ultimo inicio' : 'Runner parado'}
+          subtitle={eventsLoading ? '' : events?.runnerRunning ? 'Desde o ultimo inicio' : 'Runner parado'}
         />
         <StatsCard
           title="Eventos Aceitos"
-          value={events?.acceptedEvents ?? 0}
+          value={eventsLoading ? 'Carregando...' : (events?.acceptedEvents ?? 0)}
           icon={<CheckCircle size={18} />}
           color="success"
-          subtitle={events?.runnerRunning ? 'Desdobrados pelo pipeline' : 'Runner parado'}
+          subtitle={eventsLoading ? '' : events?.runnerRunning ? 'Desdobrados pelo pipeline' : 'Runner parado'}
         />
         <StatsCard
           title="Eventos Rejeitados"
-          value={events?.rejectedEvents ?? 0}
+          value={eventsLoading ? 'Carregando...' : (events?.rejectedEvents ?? 0)}
           icon={<XCircle size={18} />}
-          color={events?.rejectedEvents && events.rejectedEvents > 0 ? 'warning' : 'neutral'}
-          subtitle={events?.runnerRunning ? 'Ignorados (welcome/unknown)' : 'Runner parado'}
+          color={eventsLoading ? 'neutral' : events?.rejectedEvents && events.rejectedEvents > 0 ? 'warning' : 'neutral'}
+          subtitle={eventsLoading ? '' : events?.runnerRunning ? 'Ignorados (welcome/unknown)' : 'Runner parado'}
         />
       </div>
 

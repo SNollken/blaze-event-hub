@@ -2,6 +2,7 @@ import { useCallback } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { StatusDot } from '../components/Badge';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { getStatus, getEventsStatus, getOAuthSession } from '../api/client';
 import {
@@ -26,9 +27,11 @@ export default function Dashboard() {
   const fetchEvents = useCallback(() => getEventsStatus(), []);
   const fetchOAuth = useCallback(() => getOAuthSession(), []);
 
-  const { data: status, loading: statusLoading } = usePolling(fetchStatus, 10000);
-  const { data: events } = usePolling(fetchEvents, 8000);
-  const { data: oauth } = usePolling(fetchOAuth, 15000);
+  const { data: status, loading: statusLoading, error: statusError } = usePolling(fetchStatus, 10000);
+  const { data: events, loading: eventsLoading, error: eventsError } = usePolling(fetchEvents, 8000);
+  const { data: oauth, loading: oauthLoading, error: oauthError } = usePolling(fetchOAuth, 15000);
+
+  const pollError = statusError || eventsError || oauthError;
 
   if (statusLoading && !status) {
     return (
@@ -42,6 +45,7 @@ export default function Dashboard() {
 
   return (
     <Layout title="Visao Geral" subtitle="Painel do NollenBlaze">
+      {pollError && <ErrorBanner error={pollError} onRetry={() => window.location.reload()} />}
       {/* Stats row */}
       <div className="stats-grid" style={{ marginBottom: 24 }}>
         <StatsCard
