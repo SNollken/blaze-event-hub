@@ -1,6 +1,10 @@
 const BASE = '';
 const API_KEY = import.meta.env.VITE_NOLLEN_API_KEY || 'dev-local-key';
 
+interface ApiErrorResponse {
+  message?: string;
+}
+
 async function request<T>(url: string, options?: RequestInit): Promise<T> {
   const { headers: callerHeaders, ...restOptions } = options || {};
   const res = await fetch(`${BASE}${url}`, {
@@ -14,7 +18,16 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
   });
   if (!res.ok) {
     const text = await res.text().catch(() => '');
-    throw new Error(`API ${res.status}: ${text || res.statusText}`);
+    let detail = text || res.statusText;
+    try {
+      const parsed = JSON.parse(text) as Partial<ApiErrorResponse>;
+      if (parsed.message) {
+        detail = parsed.message;
+      }
+    } catch {
+      // Not JSON — keep the raw text
+    }
+    throw new Error(`API ${res.status}: ${detail}`);
   }
   if (res.status === 204) return undefined as T;
   return res.json();
