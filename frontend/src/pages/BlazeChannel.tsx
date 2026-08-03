@@ -2,7 +2,7 @@ import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
 import { Badge, StatusDot } from '../components/Badge';
-import { ErrorBanner, LoadingValue } from '../components/ErrorBanner';
+import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import {
@@ -232,7 +232,7 @@ export default function BlazeChannel() {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
                 {oauth.profile.avatarUrl && (
-                  <img src={oauth.profile.avatarUrl} alt="" style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                  <img src={oauth.profile.avatarUrl} alt={oauth.profile.displayName ? `${oauth.profile.displayName} avatar` : ''} style={{ width: 40, height: 40, borderRadius: '50%' }} />
                 )}
                 <div>
                   <div style={{ fontWeight: 600 }}>{oauth.profile.displayName}</div>

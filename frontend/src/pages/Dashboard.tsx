@@ -115,7 +115,7 @@ export default function Dashboard() {
                 {oauth.profile?.avatarUrl && (
                   <img
                     src={oauth.profile.avatarUrl}
-                    alt=""
+                    alt={oauth.profile.displayName ? `${oauth.profile.displayName} avatar` : ''}
                     style={{ width: 36, height: 36, borderRadius: '50%' }}
                   />
                 )}

@@ -12,7 +12,7 @@ interface BadgeProps {
 export function Badge({ children, variant = 'neutral', dot = false, style }: BadgeProps) {
   return (
     <span className={`badge badge-${variant}`} style={style}>
-      {dot && <span className={`status-dot ${variant === 'success' ? 'active' : variant === 'error' ? 'error' : variant === 'warning' ? 'warning' : 'inactive'}`} style={{ marginRight: 4 }} />}
+      {dot && <span className={`status-dot ${variant === 'success' ? 'active' : variant === 'error' ? 'error' : variant === 'warning' ? 'warning' : 'inactive'}`} style={{ marginRight: 4 }} aria-hidden="true" />}
       {children}
     </span>
   );
@@ -26,7 +26,7 @@ interface StatusDotProps {
 export function StatusDot({ status, label }: StatusDotProps) {
   return (
     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, fontSize: 13 }}>
-      <span className={`status-dot ${status}`} />
+      <span className={`status-dot ${status}`} aria-hidden="true" />
       {label && <span style={{ color: 'var(--text-secondary)' }}>{label}</span>}
     </span>
   );

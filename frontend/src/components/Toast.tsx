@@ -48,7 +48,7 @@ export function ToastContainer() {
   }, []);
 
   return (
-    <div className="toast-container">
+    <div className="toast-container" role="log" aria-live="polite">
       {items.map((t) => (
         <div key={t.id} className={`toast toast-${t.type}`}>
           {icons[t.type]}

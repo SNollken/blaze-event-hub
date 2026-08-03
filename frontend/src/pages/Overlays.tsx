@@ -43,7 +43,8 @@ export default function Overlays() {
     try {
       const data = await getOverlays(profileId);
       setOverlays(data);
-    } catch {
+    } catch (e: unknown) {
+      addToast('error', e instanceof Error ? e.message : 'Erro ao carregar overlays');
       setOverlays([]);
     }
   };
@@ -137,8 +138,8 @@ export default function Overlays() {
           <button className="copy-btn" aria-label={`Copiar URL da overlay ${o.name}`} onClick={() => copyToClipboard(getOverlayUrl(o.publicToken))}>
             <Copy size={10} />
           </button>
-          <a href={getOverlayUrl(o.publicToken)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '2px 6px' }}>
-            <ExternalLink size={10} />
+          <a href={getOverlayUrl(o.publicToken)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '2px 6px' }} aria-label={`Ver overlay ${o.name} em nova aba`}>
+            <ExternalLink size={10} aria-hidden="true" />
           </a>
         </div>
       ),

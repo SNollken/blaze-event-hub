@@ -28,7 +28,7 @@ export function StatsCard({ title, value, subtitle, icon, trend, trendValue, col
     <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
         <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</span>
-        {icon && <span style={{ color: colorMap[color], opacity: 0.7 }}>{icon}</span>}
+        {icon && <span style={{ color: colorMap[color], opacity: 0.7 }} aria-hidden="true">{icon}</span>}
       </div>
       <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
         {value}

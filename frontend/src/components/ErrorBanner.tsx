@@ -1,5 +1,4 @@
 import { AlertCircle } from 'lucide-react';
-import { ReactNode } from 'react';
 
 /** Minimal inline error banner with optional retry. */
 export function ErrorBanner({ error, onRetry }: { error: string | null; onRetry?: () => void }) {
@@ -28,10 +27,4 @@ export function ErrorBanner({ error, onRetry }: { error: string | null; onRetry?
 			)}
 		</div>
 	);
-}
-
-/** Inline loading indicator for inline replacement of a value. */
-export function LoadingValue({ children, loading }: { children: ReactNode; loading: boolean }) {
-	if (loading) return <span style={{ color: 'var(--text-muted)' }}>Carregando...</span>;
-	return <>{children}</>;
 }

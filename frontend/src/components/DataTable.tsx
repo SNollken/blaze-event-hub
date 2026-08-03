@@ -96,6 +96,14 @@ export function DataTable<T>({
                   key={col.key}
                   style={{ width: col.width, cursor: col.sortable ? 'pointer' : undefined, userSelect: 'none' }}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
+                  tabIndex={col.sortable ? 0 : undefined}
+                  onKeyDown={col.sortable ? (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      handleSort(col.key);
+                    }
+                  } : undefined}
+                  aria-sort={col.sortable ? (sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined}
                 >
                   <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                     {col.header}
@@ -116,7 +124,7 @@ export function DataTable<T>({
               <tr>
                 <td colSpan={columns.length}>
                   <div className="empty-state">
-                    <Search size={24} />
+                    <Search size={24} aria-hidden="true" />
                     {emptyMessage}
                   </div>
                 </td>
