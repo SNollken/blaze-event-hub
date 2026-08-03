@@ -89,7 +89,7 @@ public class GiveawayService {
 		giveawayStore.delete(id);
 	}
 
-	public Giveaway openGiveaway(String id) {
+	public synchronized Giveaway openGiveaway(String id) {
 		Giveaway giveaway = getGiveaway(id);
 		if (giveaway.status() != GiveawayStatus.DRAFT) {
 			throw new ConflictException("Can only open giveaways in DRAFT status");
@@ -110,7 +110,7 @@ public class GiveawayService {
 		return giveawayStore.save(opened);
 	}
 
-	public Giveaway closeGiveaway(String id) {
+	public synchronized Giveaway closeGiveaway(String id) {
 		Giveaway giveaway = getGiveaway(id);
 		if (giveaway.status() != GiveawayStatus.OPEN) {
 			throw new ConflictException("Can only close giveaways in OPEN status");
@@ -247,6 +247,14 @@ public class GiveawayService {
 			return giveawayStore.save(completed);
 		} catch (Exception e) {
 			// FIX BUG 3: On failure, revert to CLOSED instead of leaving stuck in DRAWING.
+			// FIX BUG 6: also un-select all entries so getResults() does not surface phantom
+			// winners from a partially-completed draw (replaceAllForGiveaway ran before the
+			// save that failed).
+			List<GiveawayEntry> unselected = entries.stream()
+					.map(en -> new GiveawayEntry(en.id(), en.giveawayId(), en.participantName(),
+							en.enteredAt(), false, en.eligible()))
+					.toList();
+			entryStore.replaceAllForGiveaway(giveawayId, unselected);
 			Giveaway reverted = new Giveaway(
 					giveaway.id(),
 					giveaway.title(),

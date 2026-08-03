@@ -247,6 +247,42 @@ class GiveawayServiceTests {
 	}
 
 	@Test
+	void drawWinnersFailureRevertsSelectedEntries() {
+		// Regression (Bug 6): replaceAllForGiveaway marks entries selected=true BEFORE
+		// the COMPLETED save. If that save fails, the catch must clear selected so
+		// getResults() does not surface phantom winners from a partial draw.
+		InMemoryGiveawayStore failingStore = new InMemoryGiveawayStore() {
+			@Override
+			public Giveaway save(Giveaway giveaway) {
+				if (giveaway.status() == GiveawayStatus.COMPLETED) {
+					throw new RuntimeException("simulated DB failure");
+				}
+				return super.save(giveaway);
+			}
+		};
+		GiveawayService svc = new GiveawayService(
+				failingStore, new InMemoryGiveawayEntryStore(), new IdGenerator(),
+				Clock.fixed(Instant.parse("2026-06-23T12:00:00Z"), ZoneOffset.UTC));
+
+		Giveaway gw = svc.createGiveaway(new CreateGiveawayRequest("Sorteio", null, 10));
+		svc.openGiveaway(gw.id());
+		svc.enterGiveaway(gw.id(), new EnterGiveawayRequest("Joao"));
+		svc.enterGiveaway(gw.id(), new EnterGiveawayRequest("Maria"));
+		svc.closeGiveaway(gw.id());
+
+		assertThatThrownBy(() -> svc.drawWinners(gw.id(), 1))
+				.isInstanceOf(RuntimeException.class)
+				.hasMessageContaining("simulated DB failure");
+
+		// Giveaway reverted to CLOSED (not stuck in DRAWING)...
+		assertThat(svc.getGiveaway(gw.id()).status()).isEqualTo(GiveawayStatus.CLOSED);
+		// ...and no entry left marked selected (no phantom winners).
+		List<GiveawayEntry> entries = svc.getEntries(gw.id());
+		assertThat(entries).hasSize(2);
+		assertThat(entries.stream().noneMatch(GiveawayEntry::selected)).isTrue();
+	}
+
+	@Test
 	void getStatsReturnsCorrectCounts() {
 		service.createGiveaway(new CreateGiveawayRequest("A", null, null));
 		Giveaway b = service.createGiveaway(new CreateGiveawayRequest("B", null, null));
