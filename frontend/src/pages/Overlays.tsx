@@ -83,9 +83,13 @@ export default function Overlays() {
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    addToast('success', 'URL copiada');
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast('success', 'URL copiada');
+    } catch {
+      addToast('error', 'Nao foi possivel copiar para a area de transferencia');
+    }
   };
 
   const getOverlayUrl = (token: string) => `${window.location.origin}/overlay/${token}`;

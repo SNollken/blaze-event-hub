@@ -19,16 +19,26 @@ public class LiveEventDeduplicator {
 		this.store = store;
 	}
 
+	// ponytail: LinkedHashMap LRU is read+write from the event intake path under
+	// concurrency (REST create + WebSocket dispatch). Access is synchronized on the
+	// map instance itself (DB call kept outside the lock) so the cache stays correct
+	// without serializing the slow existsByDedupKey query.
 	public boolean isDuplicate(String dedupKey) {
 		if (dedupKey == null || dedupKey.isBlank()) {
 			return false;
 		}
-		if (Boolean.TRUE.equals(knownDuplicates.get(dedupKey))) {
+		boolean known;
+		synchronized (knownDuplicates) {
+			known = Boolean.TRUE.equals(knownDuplicates.get(dedupKey));
+		}
+		if (known) {
 			return true;
 		}
 		boolean duplicate = store.existsByDedupKey(dedupKey);
 		if (duplicate) {
-			knownDuplicates.put(dedupKey, Boolean.TRUE);
+			synchronized (knownDuplicates) {
+				knownDuplicates.put(dedupKey, Boolean.TRUE);
+			}
 		}
 		return duplicate;
 	}

@@ -78,14 +78,20 @@ export default function BlazeChannel() {
       await reloadOAuth();
       await reloadStatus();
       addToast('success', 'Status atualizado');
+    } catch (e: unknown) {
+      addToast('error', e instanceof Error ? e.message : 'Erro ao sincronizar status');
     } finally {
       setActionLoading(null);
     }
   };
 
-  const copyToClipboard = (text: string) => {
-    navigator.clipboard.writeText(text);
-    addToast('success', 'Copiado para area de transferencia');
+  const copyToClipboard = async (text: string) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      addToast('success', 'Copiado para area de transferencia');
+    } catch {
+      addToast('error', 'Nao foi possivel copiar para a area de transferencia');
+    }
   };
 
   const isOAuthReady = setup?.oauthStartReady;

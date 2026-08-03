@@ -5,10 +5,14 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 @Component
 public class PayloadSanitizer {
+
+	private static final Logger log = LoggerFactory.getLogger(PayloadSanitizer.class);
 
 	private static final int MAX_PAYLOAD_SIZE_BYTES = 10_000;
 	private static final int MAX_STRING_LENGTH = 2_000;
@@ -32,6 +36,10 @@ public class PayloadSanitizer {
 			int estimatedSize = payload.toString().getBytes(java.nio.charset.StandardCharsets.UTF_8).length;
 			return estimatedSize > MAX_PAYLOAD_SIZE_BYTES;
 		} catch (Exception e) {
+			// ponytail: payload.toString() failed (e.g. a defector object); do not block intake,
+			// but log so size-protection bypass is diagnosable. Upgrade path: compute size via
+			// a defensive deep-walk instead of toString().
+			log.warn("Falha ao estimar tamanho do payload (aceitando como nao-oversize): {}", e.toString());
 			return false;
 		}
 	}
