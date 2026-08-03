@@ -1,6 +1,6 @@
 import { useState, useMemo, ReactNode } from 'react';
 import { ArrowUpDown, ArrowUp, ArrowDown, Search } from 'lucide-react';
-import { t } from '../i18n';
+import { t, getLocale } from '../i18n';
 
 export interface Column<T = unknown> {
   key: string;
@@ -68,7 +68,7 @@ export function DataTable<T>({
       if (av == null && bv == null) return 0;
       if (av == null) return 1;
       if (bv == null) return -1;
-      const cmp = String(av).localeCompare(String(bv), 'pt-BR', { numeric: true });
+      const cmp = String(av).localeCompare(String(bv), getLocale(), { numeric: true });
       return sortDir === 'asc' ? cmp : -cmp;
     });
   }, [filtered, sortKey, sortDir]);

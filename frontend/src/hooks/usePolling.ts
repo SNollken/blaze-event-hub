@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { addToast } from '../components/Toast';
+import { t } from '../i18n';
 
 /** Hook for initial loading plus automatic polling at the given interval. */
 export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
@@ -13,7 +14,7 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
       setData(result);
       setError(null);
     } catch (e: unknown) {
-      setError(e instanceof Error ? e.message : 'Erro desconhecido');
+      setError(e instanceof Error ? e.message : t('common.unknownError'));
     } finally {
       setLoading(false);
     }

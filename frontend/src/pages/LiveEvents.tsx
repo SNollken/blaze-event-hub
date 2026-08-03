@@ -5,7 +5,7 @@ import { Badge } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
-import { t } from '../i18n';
+import { t, getLocale } from '../i18n';
 import {
   getStatus,
   getEventsStatus,
@@ -40,7 +40,7 @@ export default function LiveEvents() {
   const [stopping, setStopping] = useState(false);
 
   const addLog = (message: string) => {
-    const time = new Date().toLocaleTimeString('pt-BR');
+    const time = new Date().toLocaleTimeString(getLocale());
     setLogs((prev) => [...prev.slice(-99), { time, message }]);
   };
 
@@ -181,7 +181,7 @@ export default function LiveEvents() {
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.startedAt')}</div>
             <span style={{ fontSize: 13 }}>
               {events?.startedAt
-                ? new Date(events.startedAt).toLocaleString('pt-BR')
+                ? new Date(events.startedAt).toLocaleString(getLocale())
                 : t('common.na')}
             </span>
           </div>

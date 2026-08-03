@@ -7,7 +7,7 @@ import { DataTable, Column } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
-import { t } from '../i18n';
+import { t, getLocale } from '../i18n';
 import {
   closeGiveaway,
   createGiveaway,
@@ -109,7 +109,7 @@ export default function Giveaways() {
     { key: 'maxEntries', header: t('common.limit') },
     {
       key: 'createdAt', header: t('giveaways.colCreated'),
-      render: (g) => <span className="mono" style={{ fontSize: 12 }}>{new Date(g.createdAt).toLocaleString('pt-BR')}</span>,
+      render: (g) => <span className="mono" style={{ fontSize: 12 }}>{new Date(g.createdAt).toLocaleString(getLocale())}</span>,
     },
     {
       key: 'actions', header: '', width: 220,
@@ -228,7 +228,7 @@ export default function Giveaways() {
                     <div key={winner.entryId} className="log-line">
                       <Crown size={14} style={{ color: 'var(--accent)' }} />
                       <span>{winner.participantName}</span>
-                      <span className="timestamp">{new Date(winner.enteredAt).toLocaleString('pt-BR')}</span>
+                      <span className="timestamp">{new Date(winner.enteredAt).toLocaleString(getLocale())}</span>
                     </div>
                   ))}
                 </div>

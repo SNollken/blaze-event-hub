@@ -42,8 +42,8 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
         <button
           className="btn btn-secondary btn-sm"
           onClick={() => setLocale(getLocale() === 'pt-BR' ? 'en' : 'pt-BR')}
-          title={getLocale() === 'pt-BR' ? t('header.langSwitch') : t('header.langSwitch')}
-          aria-label={getLocale() === 'pt-BR' ? t('header.langSwitch') : t('header.langSwitch')}
+          title={t('header.langSwitch')}
+          aria-label={t('header.langSwitch')}
           style={{ minWidth: 60 }}
         >
           <Globe size={14} />

@@ -7,7 +7,7 @@ import { DataTable, Column } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
-import { t } from '../i18n';
+import { t, getLocale } from '../i18n';
 import {
   getOverlayProfiles,
   getOverlays,
@@ -111,7 +111,7 @@ export default function Overlays() {
     { key: 'name', header: t('common.name'), sortable: true },
     {
       key: 'createdAt', header: t('overlays.colCreated'),
-      render: (p) => <span className="mono" style={{ fontSize: 12 }}>{new Date(p.createdAt).toLocaleDateString('pt-BR')}</span>,
+      render: (p) => <span className="mono" style={{ fontSize: 12 }}>{new Date(p.createdAt).toLocaleDateString(getLocale())}</span>,
     },
     {
       key: 'actions', header: '', width: 100,

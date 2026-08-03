@@ -7,7 +7,7 @@ import { DataTable, Column } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
-import { t } from '../i18n';
+import { t, getLocale } from '../i18n';
 import {
   acknowledgeAlert,
   createAlertRule,
@@ -138,7 +138,7 @@ export default function Alerts() {
   const alertColumns: Column<AlertEvent>[] = [
     {
       key: 'triggeredAt', header: t('alerts.colWhen'), width: 170,
-      render: (a) => <span className="mono" style={{ fontSize: 12 }}>{new Date(a.triggeredAt).toLocaleString('pt-BR')}</span>,
+      render: (a) => <span className="mono" style={{ fontSize: 12 }}>{new Date(a.triggeredAt).toLocaleString(getLocale())}</span>,
     },
     { key: 'ruleName', header: t('alerts.colRule'), sortable: true },
     { key: 'eventType', header: t('alerts.colEvent'), render: (a) => <Badge variant="neutral">{a.eventType}</Badge> },

@@ -36,4 +36,11 @@ describe('i18n', () => {
     setLocale('pt-BR');
     expect(t('nonexistent.key')).toBe('nonexistent.key');
   });
+
+  it('translates unknownError key in both locales', () => {
+    setLocale('pt-BR');
+    expect(t('common.unknownError')).toBe('Erro desconhecido');
+    setLocale('en');
+    expect(t('common.unknownError')).toBe('Unknown error');
+  });
 });

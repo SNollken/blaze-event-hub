@@ -5,7 +5,7 @@ import { Badge, StatusDot } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
-import { t } from '../i18n';
+import { t, getLocale } from '../i18n';
 import {
   getStatus,
   getSetupStatus,
@@ -240,9 +240,9 @@ export default function BlazeChannel() {
                 </div>
               </div>
               <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
-                <div>{t('blaze.scopes')} {oauth.scopes?.join(', ') || 'nenhum'}</div>
+                <div>{t('blaze.scopes')} {oauth.scopes?.join(', ') || t('common.none')}</div>
                 {oauth.lastProfileSyncAt && (
-                  <div>{t('blaze.lastSync')} {new Date(oauth.lastProfileSyncAt).toLocaleString('pt-BR')}</div>
+                  <div>{t('blaze.lastSync')} {new Date(oauth.lastProfileSyncAt).toLocaleString(getLocale())}</div>
                 )}
               </div>
             </div>
