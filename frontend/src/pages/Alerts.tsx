@@ -20,6 +20,8 @@ import {
 import { AlertCondition, AlertEvent, AlertRule, BlazeEventType } from '../api/types';
 import { Bell, BellRing, Check, Play, Plus, Trash2 } from 'lucide-react';
 
+// ponytail: async buttons disabled via actionLoading — no per-button loading spinner yet (1 action at a time)
+
 const eventTypes: BlazeEventType[] = [
   'channel.follow',
   'channel.subscribe',
