@@ -10,8 +10,10 @@ import '@fontsource/funnel-sans/500.css';
 import '@fontsource/funnel-sans/600.css';
 import '@fontsource/funnel-sans/700.css';
 import { initI18n } from './i18n';
+import { initTheme } from './hooks/useTheme';
 
 initI18n();
+initTheme();
 
 ReactDOM.createRoot(document.getElementById('root')!).render(
   <React.StrictMode>

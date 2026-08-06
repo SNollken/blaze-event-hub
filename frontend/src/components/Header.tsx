@@ -1,8 +1,9 @@
 import { usePolling } from '../hooks/usePolling';
 import { getStatus } from '../api/client';
 import { StatusDot } from './Badge';
-import { RefreshCw, Globe } from 'lucide-react';
+import { RefreshCw, Globe, Sun, Moon } from 'lucide-react';
 import { t, setLocale, getLocale } from '../i18n';
+import { useTheme } from '../hooks/useTheme';
 
 interface HeaderProps {
   title: string;
@@ -13,6 +14,7 @@ interface HeaderProps {
 export function Header({ title, subtitle, actions }: HeaderProps) {
   const { data: status, reload } = usePolling(() => getStatus(), 15000);
   const isOnline = !!status;
+  const { theme, toggleTheme } = useTheme();
 
   return (
     <header
@@ -36,6 +38,14 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
         {actions}
         <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? t('common.connected') : t('common.disconnected')} />
+        <button
+          className="btn btn-secondary btn-sm"
+          onClick={toggleTheme}
+          title={theme === 'dark' ? t('header.themeLight') : t('header.themeDark')}
+          aria-label={theme === 'dark' ? t('header.themeLight') : t('header.themeDark')}
+        >
+          {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+        </button>
         <button className="btn btn-secondary btn-sm" onClick={() => reload()} title={t('header.refresh')} aria-label={t('header.refresh')}>
           <RefreshCw size={14} />
         </button>

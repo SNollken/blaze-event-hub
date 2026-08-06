@@ -31,6 +31,8 @@ export const translations: Record<Locale, TranslationMap> = {
     // Header
     'header.refresh': 'Refresh status',
     'header.langSwitch': 'Switch to Portuguese',
+    'header.themeLight': 'Switch to light mode',
+    'header.themeDark': 'Switch to dark mode',
 
     // Common
     'common.cancel': 'Cancel',
@@ -324,6 +326,8 @@ export const translations: Record<Locale, TranslationMap> = {
     // Header
     'header.refresh': 'Atualizar status',
     'header.langSwitch': 'Alternar para inglês',
+    'header.themeLight': 'Alternar para modo claro',
+    'header.themeDark': 'Alternar para modo escuro',
 
     // Common
     'common.cancel': 'Cancelar',
