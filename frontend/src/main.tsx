@@ -3,6 +3,12 @@ import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import App from './App';
 import './styles/tokens.css';
+import '@fontsource/funnel-display/400.css';
+import '@fontsource/funnel-display/700.css';
+import '@fontsource/funnel-sans/400.css';
+import '@fontsource/funnel-sans/500.css';
+import '@fontsource/funnel-sans/600.css';
+import '@fontsource/funnel-sans/700.css';
 import { initI18n } from './i18n';
 
 initI18n();
