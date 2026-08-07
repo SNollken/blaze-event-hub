@@ -21,7 +21,7 @@ const navItems = [
 
 export function Sidebar() {
   return (
-    <aside className="flex flex-col h-screen overflow-hidden flex-shrink-0 bg-bg-sidebar border-r border-border-default" style={{ width: 'var(--sidebar-width)' }}>
+    <aside className="flex flex-col h-screen overflow-hidden flex-shrink-0 bg-bg-sidebar border-r border-border-default" style={{ width: 'var(--sidebar-width)' }} aria-label={t('sidebar.controlPanel')}>
       {/* Brand */}
       <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default">
         <div className="flex items-center justify-center rounded-lg" style={{ width: 32, height: 32, background: 'linear-gradient(135deg, var(--primary), var(--accent))' }}>

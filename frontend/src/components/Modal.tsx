@@ -1,4 +1,5 @@
 import { ReactNode, useEffect, useRef } from 'react';
+import { t } from '../i18n';
 
 interface ModalProps {
   open: boolean;
@@ -67,8 +68,8 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       >
         <div className="modal-header">
           <h3 id="modal-title">{title}</h3>
-          <button className="btn btn-secondary btn-sm !px-2 !py-1" aria-label={`Fechar ${title}`} onClick={onClose}>
-            Fechar
+          <button className="btn btn-secondary btn-sm !px-2 !py-1" aria-label={`${t('common.close')} ${title}`} onClick={onClose}>
+            {t('common.close')}
           </button>
         </div>
         <div className="modal-body">{children}</div>

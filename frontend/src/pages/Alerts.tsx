@@ -93,7 +93,7 @@ export default function Alerts() {
   const simulateEvent = async () => {
     setActionLoading('simulate');
     try {
-      await simulateBlazeEvent(form.eventType, `Evento simulado para ${form.eventType}`);
+      await simulateBlazeEvent(form.eventType, `${t('alerts.simulateMessage')} ${form.eventType}`);
       addToast('success', t('alerts.simulateSuccess'));
       await reloadAll();
     } catch (error) {

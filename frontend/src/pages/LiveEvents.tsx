@@ -12,7 +12,7 @@ import {
   startEvents,
   stopEvents,
 } from '../api/client';
-import type { BlazeEventsStatusResponse } from '../api/types';
+
 import {
   Radio,
   Play,

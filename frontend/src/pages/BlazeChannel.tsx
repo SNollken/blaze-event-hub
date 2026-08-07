@@ -1,7 +1,7 @@
 import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
 import { StatsCard } from '../components/StatsCard';
-import { Badge, StatusDot } from '../components/Badge';
+import { Badge } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';

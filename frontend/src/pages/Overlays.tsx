@@ -130,7 +130,7 @@ export default function Overlays() {
 
   const overlayColumns: Column<Overlay>[] = [
     { key: 'name', header: t('common.name'), sortable: true },
-    { key: 'type', header: t('alerts.colEvent'), render: (o) => <Badge variant="neutral">{o.type}</Badge> },
+    { key: 'type', header: t('overlays.colType'), render: (o) => <Badge variant="neutral">{o.type}</Badge> },
     {
       key: 'enabled', header: t('common.status'),
       render: (o) => <Badge variant={o.enabled ? 'success' : 'neutral'} dot>{o.enabled ? t('common.connected') : t('common.disconnected')}</Badge>,
@@ -253,12 +253,12 @@ export default function Overlays() {
         }
       >
         <div>
-          <label>{t('overlays.profileNameLabel')}</label>
-          <input className="input" placeholder={t('overlays.profileNamePlaceholder')} value={profileName} onChange={e => setProfileName(e.target.value)} />
+          <label htmlFor="profile-name">{t('overlays.profileNameLabel')}</label>
+          <input id="profile-name" className="input" placeholder={t('overlays.profileNamePlaceholder')} value={profileName} onChange={e => setProfileName(e.target.value)} />
         </div>
         <div>
-          <label>{t('overlays.descriptionLabel')}</label>
-          <input className="input" placeholder={t('overlays.descriptionPlaceholder')} value={profileDescription} onChange={e => setProfileDescription(e.target.value)} />
+          <label htmlFor="profile-description">{t('overlays.descriptionLabel')}</label>
+          <input id="profile-description" className="input" placeholder={t('overlays.descriptionPlaceholder')} value={profileDescription} onChange={e => setProfileDescription(e.target.value)} />
         </div>
       </Modal>
 
