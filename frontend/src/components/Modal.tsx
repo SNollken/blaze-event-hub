@@ -67,7 +67,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       >
         <div className="modal-header">
           <h3 id="modal-title">{title}</h3>
-          <button className="btn btn-secondary btn-sm" aria-label={`Fechar ${title}`} onClick={onClose} style={{ padding: '4px 8px' }}>
+          <button className="btn btn-secondary btn-sm !px-2 !py-1" aria-label={`Fechar ${title}`} onClick={onClose}>
             Fechar
           </button>
         </div>

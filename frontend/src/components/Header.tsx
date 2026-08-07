@@ -18,24 +18,16 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
 
   return (
     <header
-      style={{
-        height: 'var(--header-height)',
-        borderBottom: '1px solid var(--border)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'space-between',
-        padding: '0 24px',
-        flexShrink: 0,
-        background: 'var(--bg-sidebar)',
-      }}
+      className="flex items-center justify-between px-6 flex-shrink-0 bg-bg-sidebar border-b border-border-default"
+      style={{ height: 'var(--header-height)' }}
     >
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-        <h1 style={{ fontSize: 16, fontWeight: 600, color: 'var(--text-primary)' }}>{title}</h1>
+      <div className="flex items-center gap-3">
+        <h1 className="text-base font-semibold text-text-primary">{title}</h1>
         {subtitle && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{subtitle}</span>
+          <span className="text-xs text-text-muted">{subtitle}</span>
         )}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+      <div className="flex items-center gap-3">
         {actions}
         <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? t('common.connected') : t('common.disconnected')} />
         <button
@@ -50,14 +42,13 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           <RefreshCw size={14} />
         </button>
         <button
-          className="btn btn-secondary btn-sm"
+          className="btn btn-secondary btn-sm min-w-[60px]"
           onClick={() => setLocale(getLocale() === 'pt-BR' ? 'en' : 'pt-BR')}
           title={t('header.langSwitch')}
           aria-label={t('header.langSwitch')}
-          style={{ minWidth: 60 }}
         >
           <Globe size={14} />
-          <span style={{ fontSize: 11, fontWeight: 600 }}>{getLocale() === 'pt-BR' ? 'PT-BR' : 'EN'}</span>
+          <span className="text-[11px] font-semibold">{getLocale() === 'pt-BR' ? 'PT-BR' : 'EN'}</span>
         </button>
       </div>
     </header>

@@ -4,7 +4,7 @@ import { ErrorBoundary } from './components/ErrorBoundary';
 import { t } from './i18n';
 
 const NotFound = () => (
-  <div style={{ padding: '2rem', textAlign: 'center' }}>
+  <div className="p-8 text-center">
     <h2>404</h2>
     <p>{t('app.notFound')}</p>
   </div>
@@ -20,7 +20,7 @@ const Overlays = lazy(() => import('./pages/Overlays'));
 export default function App() {
   return (
     <ErrorBoundary>
-      <Suspense fallback={<div className="skeleton-list" style={{ margin: 24 }} />}>
+      <Suspense fallback={<div className="skeleton-list m-6" />}>
         <Routes>
           <Route path="/" element={<Dashboard />} />
           <Route path="/events" element={<LiveEvents />} />

@@ -19,7 +19,7 @@ export class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundarySt
   render() {
     if (this.state.failed) {
       return (
-        <div className="empty-state" style={{ minHeight: '100vh' }}>
+        <div className="empty-state min-h-screen">
           <strong>{t('error.failed')}</strong>
           <span>{t('error.checkBackend')}</span>
           <button

@@ -21,84 +21,41 @@ const navItems = [
 
 export function Sidebar() {
   return (
-    <aside
-      style={{
-        width: 'var(--sidebar-width)',
-        flexShrink: 0,
-        background: 'var(--bg-sidebar)',
-        borderRight: '1px solid var(--border)',
-        display: 'flex',
-        flexDirection: 'column',
-        height: '100vh',
-        overflow: 'hidden',
-      }}
-    >
+    <aside className="flex flex-col h-screen overflow-hidden flex-shrink-0 bg-bg-sidebar border-r border-border-default" style={{ width: 'var(--sidebar-width)' }}>
       {/* Brand */}
-      <div
-        style={{
-          padding: '16px 20px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 10,
-        }}
-      >
-        <div
-          style={{
-            width: 32,
-            height: 32,
-            borderRadius: 8,
-            background: 'linear-gradient(135deg, var(--primary), var(--accent))',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-          }}
-        >
+      <div className="flex items-center gap-2.5 px-5 py-4 border-b border-border-default">
+        <div className="flex items-center justify-center rounded-lg" style={{ width: 32, height: 32, background: 'linear-gradient(135deg, var(--primary), var(--accent))' }}>
           <Flame size={18} color="#fff" />
         </div>
         <div>
-          <div style={{ fontSize: 15, fontWeight: 700, letterSpacing: '-0.02em', color: 'var(--text-primary)' }}>
+          <div className="text-[15px] font-bold tracking-tight text-text-primary">
             {t('app.title')}
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{t('sidebar.controlPanel')}</div>
+          <div className="text-[11px] text-text-muted">{t('sidebar.controlPanel')}</div>
         </div>
       </div>
 
       {/* Navigation */}
-      <nav style={{ flex: 1, padding: '12px 8px', overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
+      <nav className="flex flex-col gap-0.5 flex-1 py-3 px-2 overflow-y-auto">
         {navItems.map((item) => (
           <NavLink
             key={item.to}
             to={item.to}
             end={item.to === '/'}
-            style={({ isActive }) => ({
-              display: 'flex',
-              alignItems: 'center',
-              gap: 10,
-              padding: '9px 12px',
-              borderRadius: 'var(--radius)',
-              textDecoration: 'none',
-              fontSize: 13,
-              fontWeight: 500,
-              color: isActive ? 'var(--text-primary)' : 'var(--text-secondary)',
-              background: isActive ? 'var(--primary-subtle)' : 'transparent',
-              transition: 'all var(--transition-fast)',
-            })}
+            className={({ isActive }) =>
+              `flex items-center gap-2.5 px-3 py-[9px] rounded-lg no-underline text-[13px] font-medium transition-all duration-fast ${
+                isActive
+                  ? 'text-text-primary bg-primary-subtle'
+                  : 'text-text-secondary bg-transparent hover:text-text-primary'
+              }`
+            }
           >
             {({ isActive }) => (
               <>
-                <item.icon size={16} style={{ color: isActive ? 'var(--primary)' : 'var(--text-muted)' }} />
+                <item.icon size={16} className={isActive ? 'text-primary' : 'text-text-muted'} />
                 <span>{t(item.labelKey)}</span>
                 {isActive && (
-                  <div
-                    style={{
-                      marginLeft: 'auto',
-                      width: 6,
-                      height: 6,
-                      borderRadius: '50%',
-                      background: 'var(--primary)',
-                    }}
-                  />
+                  <div className="ml-auto w-1.5 h-1.5 rounded-full bg-primary" />
                 )}
               </>
             )}
@@ -107,15 +64,7 @@ export function Sidebar() {
       </nav>
 
       {/* Footer */}
-      <div
-        style={{
-          padding: '12px 16px',
-          borderTop: '1px solid var(--border)',
-          fontSize: 11,
-          color: 'var(--text-muted)',
-          textAlign: 'center',
-        }}
-      >
+      <div className="px-4 py-3 border-t border-border-default text-[11px] text-text-muted text-center">
         {t('app.title')} v0.1
       </div>
     </aside>

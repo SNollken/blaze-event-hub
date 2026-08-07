@@ -698,6 +698,32 @@ code, .mono {
 .gap-sm { gap: 8px; }
 .gap-md { gap: 16px; }
 
+/* Toast close button */
+.toast-close {
+  background: none;
+  border: none;
+  color: inherit;
+  cursor: pointer;
+  padding: 0;
+  display: flex;
+  align-items: center;
+}
+
+/* Data table search wrapper */
+.search-input-wrapper {
+  position: relative;
+  max-width: 320px;
+  margin-bottom: 12px;
+}
+.search-input-wrapper svg {
+  position: absolute;
+  left: 10px;
+  top: 50%;
+  transform: translateY(-50%);
+  color: var(--color-text-muted);
+  pointer-events: none;
+}
+
 /* Skeleton loading */
 .skeleton-list {
   min-height: 220px;

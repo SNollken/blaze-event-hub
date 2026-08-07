@@ -53,11 +53,11 @@ export function ToastContainer() {
       {items.map((item) => (
         <div key={item.id} className={`toast toast-${item.type}`}>
           {icons[item.type]}
-          <span style={{ flex: 1 }}>{item.text}</span>
+          <span className="flex-1">{item.text}</span>
           <button
+            className="toast-close"
             aria-label={t('toast.close')}
             onClick={() => removeToast(item.id)}
-            style={{ background: 'none', border: 'none', color: 'inherit', cursor: 'pointer', padding: 0, display: 'flex' }}
           >
             <X size={14} />
           </button>

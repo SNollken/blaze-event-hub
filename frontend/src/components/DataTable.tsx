@@ -76,12 +76,11 @@ export function DataTable<T>({
   return (
     <div>
       {filterable && (
-        <div style={{ marginBottom: 12, position: 'relative', maxWidth: 320 }}>
-          <Search size={14} style={{ position: 'absolute', left: 10, top: '50%', transform: 'translateY(-50%)', color: 'var(--text-muted)' }} />
+        <div className="search-input-wrapper">
+          <Search size={14} />
           <input
-            className="input"
+            className="input !pl-8"
             aria-label={filterPlaceholder}
-            style={{ paddingLeft: 32 }}
             placeholder={filterPlaceholder}
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
@@ -95,7 +94,8 @@ export function DataTable<T>({
               {columns.map((col) => (
                 <th
                   key={col.key}
-                  style={{ width: col.width, cursor: col.sortable ? 'pointer' : undefined, userSelect: 'none' }}
+                  className={col.sortable ? 'cursor-pointer select-none' : undefined}
+                  style={{ width: col.width }}
                   onClick={col.sortable ? () => handleSort(col.key) : undefined}
                   tabIndex={col.sortable ? 0 : undefined}
                   onKeyDown={col.sortable ? (e) => {
@@ -106,13 +106,13 @@ export function DataTable<T>({
                   } : undefined}
                   aria-sort={col.sortable ? (sortKey === col.key ? (sortDir === 'asc' ? 'ascending' : 'descending') : 'none') : undefined}
                 >
-                  <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+                  <span className="inline-flex items-center gap-1">
                     {col.header}
                     {col.sortable && (
                       sortKey === col.key ? (
                         sortDir === 'asc' ? <ArrowUp size={12} /> : <ArrowDown size={12} />
                       ) : (
-                        <ArrowUpDown size={12} style={{ opacity: 0.4 }} />
+                        <ArrowUpDown size={12} className="opacity-40" />
                       )
                     )}
                   </span>
@@ -137,7 +137,7 @@ export function DataTable<T>({
                 <tr
                   key={originalIndex >= 0 ? `row-${originalIndex}` : `row-${row}`}
                   onClick={onRowClick ? () => onRowClick(row) : undefined}
-                  style={onRowClick ? { cursor: 'pointer' } : undefined}
+                  className={onRowClick ? 'cursor-pointer' : undefined}
                 >
                   {columns.map((col) => (
                     <td key={col.key}>

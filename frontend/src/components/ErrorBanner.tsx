@@ -3,24 +3,12 @@ import { t } from '../i18n';
 
 /** Minimal inline error banner with optional retry. */
 export function ErrorBanner({ error, onRetry }: { error: string | null; onRetry?: () => void }) {
+
 	if (!error) return null;
 	return (
-		<div
-			style={{
-				padding: '12px 16px',
-				background: 'var(--error-subtle)',
-				border: '1px solid var(--error)',
-				borderRadius: 'var(--radius)',
-				color: 'var(--error)',
-				fontSize: 13,
-				marginBottom: 16,
-				display: 'flex',
-				alignItems: 'center',
-				gap: 10,
-			}}
-		>
+		<div className="p-3 px-4 bg-error-subtle border border-error rounded-lg text-[13px] text-error mb-4 flex items-center gap-2.5">
 			<AlertCircle size={16} />
-			<span style={{ flex: 1 }}>{error}</span>
+			<span className="flex-1">{error}</span>
 			{onRetry && (
 				<button className="btn btn-secondary btn-sm" onClick={onRetry}>
 					{t('error.retry')}

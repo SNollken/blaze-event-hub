@@ -11,37 +11,38 @@ interface StatsCardProps {
   color?: 'primary' | 'accent' | 'success' | 'error' | 'warning' | 'neutral';
 }
 
-const colorMap = {
-  primary: 'var(--primary)',
-  accent: 'var(--accent)',
-  success: 'var(--success)',
-  error: 'var(--error)',
-  warning: 'var(--warning)',
-  neutral: 'var(--text-muted)',
-};
+const colorClass = {
+  primary: 'text-primary',
+  accent: 'text-accent',
+  success: 'text-success',
+  error: 'text-error',
+  warning: 'text-warning',
+  neutral: 'text-text-muted',
+} as const;
 
 export function StatsCard({ title, value, subtitle, icon, trend, trendValue, color = 'primary' }: StatsCardProps) {
   const TrendIcon = trend === 'up' ? TrendingUp : trend === 'down' ? TrendingDown : Minus;
-  const trendColor = trend === 'up' ? 'var(--success)' : trend === 'down' ? 'var(--error)' : 'var(--text-muted)';
 
   return (
-    <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', flexDirection: 'column', gap: 8 }}>
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-        <span style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-secondary)' }}>{title}</span>
-        {icon && <span style={{ color: colorMap[color], opacity: 0.7 }} aria-hidden="true">{icon}</span>}
+    <div className="glass-card p-5 flex flex-col gap-2">
+      <div className="flex items-center justify-between">
+        <span className="text-xs font-medium text-text-secondary">{title}</span>
+        {icon && <span className={`${colorClass[color]} opacity-70`} aria-hidden="true">{icon}</span>}
       </div>
-      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--text-primary)', lineHeight: 1.1 }}>
+      <div className="text-[28px] font-bold text-text-primary leading-[1.1]">
         {value}
       </div>
-      <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+      <div className="flex items-center gap-1.5">
         {trend && trendValue && (
-          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 3, fontSize: 12, color: trendColor, fontWeight: 500 }}>
+          <span className={`inline-flex items-center gap-0.5 text-xs font-medium ${
+            trend === 'up' ? 'text-success' : trend === 'down' ? 'text-error' : 'text-text-muted'
+          }`}>
             <TrendIcon size={12} />
             {trendValue}
           </span>
         )}
         {subtitle && (
-          <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>{subtitle}</span>
+          <span className="text-xs text-text-muted">{subtitle}</span>
         )}
       </div>
     </div>
