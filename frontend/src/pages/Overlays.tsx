@@ -99,7 +99,7 @@ export default function Overlays() {
   const copyToClipboard = async (text: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      addToast('success', t('overlays.copyUrlSuccess'));
+      addToast('success', t('overlays.copySuccess'));
     } catch {
       addToast('error', t('overlays.copyUrlError'));
     }

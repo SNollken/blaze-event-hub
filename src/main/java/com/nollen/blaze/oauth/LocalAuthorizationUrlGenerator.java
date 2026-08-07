@@ -1,6 +1,5 @@
 package com.nollen.blaze.oauth;
 
-import java.io.UnsupportedEncodingException;
 import java.net.URLEncoder;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -67,10 +66,6 @@ public class LocalAuthorizationUrlGenerator {
 
     static String encodeParam(String value) {
         if (value == null) return "";
-        try {
-            return URLEncoder.encode(value, "UTF-8");
-        } catch (UnsupportedEncodingException e) {
-            throw new IllegalStateException("UTF-8 not available", e);
-        }
+        return URLEncoder.encode(value, java.nio.charset.StandardCharsets.UTF_8);
     }
 }

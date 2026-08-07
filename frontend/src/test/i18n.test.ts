@@ -43,4 +43,15 @@ describe('i18n', () => {
     setLocale('en');
     expect(t('common.unknownError')).toBe('Unknown error');
   });
+
+  it('translates new keys (alerts status, uptime) in both locales', () => {
+    setLocale('pt-BR');
+    expect(t('alerts.statusActive')).toBe('Ativo');
+    expect(t('alerts.statusInactive')).toBe('Inativo');
+    expect(t('common.hour')).toBe('h');
+    expect(t('common.minute')).toBe('min');
+    setLocale('en');
+    expect(t('alerts.statusActive')).toBe('Active');
+    expect(t('alerts.statusInactive')).toBe('Inactive');
+  });
 });

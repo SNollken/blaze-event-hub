@@ -112,7 +112,7 @@ public class BlazeEventsPipeline {
 				return BlazeEventType.from(candidate);
 			}
 			catch (IllegalArgumentException e) {
-				log.debug("Unrecognized Blaze event type '{}' (subscriptionType={}, messageType={}) — not dispatched", candidate, subscriptionType, messageType, e.getMessage());
+				log.debug("Unrecognized Blaze event type '{}' (subscriptionType={}, messageType={}) — not dispatched", candidate, subscriptionType, messageType, e);
 			}
 		}
 		return null;

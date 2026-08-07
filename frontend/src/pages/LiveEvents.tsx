@@ -21,7 +21,6 @@ import {
   Wifi,
   WifiOff,
   MessageSquare,
-  Clock,
   CheckCircle,
   XCircle,
 } from 'lucide-react';

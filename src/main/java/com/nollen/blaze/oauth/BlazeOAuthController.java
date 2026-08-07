@@ -2,6 +2,8 @@ package com.nollen.blaze.oauth;
 
 import com.nollen.blaze.common.OAuthException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -16,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 @RestController
 @RequestMapping("/api/blaze/oauth")
 public class BlazeOAuthController {
-
+	private static final Logger log = LoggerFactory.getLogger(BlazeOAuthController.class);
 	private final BlazeOAuthService oAuthService;
 
 	public BlazeOAuthController(BlazeOAuthService oAuthService) {
@@ -58,6 +60,7 @@ public class BlazeOAuthController {
 			if (json) {
 				throw ex;
 			}
+			log.error("Unexpected error during OAuth callback", ex);
 			return html(HttpStatus.BAD_GATEWAY, errorPage("Nao foi possivel concluir a conexao com a Blaze."));
 		}
 	}

@@ -37,7 +37,7 @@ public class OAuthProfileService {
 			return OAuthProfileSyncResult.synced(profile);
 		}
 		catch (Exception ex) {
-			log.error("Failed to sync Blaze profile (retaining previously saved profile): {}", ex.toString());
+			log.error("Failed to sync Blaze profile (retaining previously saved profile): {}", ex.toString(), ex);
 			return OAuthProfileSyncResult.failed(profileStore.current().orElse(null));
 		}
 	}

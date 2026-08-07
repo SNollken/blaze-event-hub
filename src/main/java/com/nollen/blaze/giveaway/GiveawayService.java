@@ -11,11 +11,14 @@ import com.nollen.blaze.common.ConflictException;
 import com.nollen.blaze.common.IdGenerator;
 import com.nollen.blaze.common.NotFoundException;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 @Service
 public class GiveawayService {
 
+	private static final Logger log = LoggerFactory.getLogger(GiveawayService.class);
 	private static final int DEFAULT_MAX_ENTRIES = 1000;
 	private static final int DEFAULT_WINNER_COUNT = 1;
 
@@ -245,6 +248,7 @@ public class GiveawayService {
 					winnerIds);
 			return giveawayStore.save(completed);
 		} catch (Exception e) {
+			log.error("drawWinners failed, reverting giveaway {} to CLOSED", giveawayId, e);
 			// FIX BUG 3: On failure, revert to CLOSED instead of leaving stuck in DRAWING.
 			// FIX BUG 6: also un-select all entries so getResults() does not surface phantom
 			// winners from a partially-completed draw (replaceAllForGiveaway ran before the

@@ -32,7 +32,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       if (event.key === 'Escape') onClose();
       if (event.key === 'Tab' && modal) {
         const focusable = modal.querySelectorAll(
-          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"]):not([tabIndex="0"]):not([tabindex])',
+          'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
         );
         if (focusable.length === 0) return;
         const first = focusable[0] as HTMLElement;

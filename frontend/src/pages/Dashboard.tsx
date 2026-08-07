@@ -19,8 +19,8 @@ import {
 function formatUptime(seconds: number): string {
   const h = Math.floor(seconds / 3600);
   const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}h ${m}min`;
-  return `${m}min`;
+  if (h > 0) return `${h}${t('common.hour')} ${m}${t('common.minute')}`;
+  return `${m}${t('common.minute')}`;
 }
 
 export default function Dashboard() {

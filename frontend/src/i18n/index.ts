@@ -20,7 +20,7 @@ export function initI18n() {
     currentLocale = saved;
   } else {
     // Default to pt-BR — the app's original locale; user can switch to EN
-    currentLocale = navigator.language.startsWith('pt') ? 'pt-BR' : 'pt-BR';
+    currentLocale = navigator.language.startsWith('pt') ? 'pt-BR' : 'en';
   }
 }
 

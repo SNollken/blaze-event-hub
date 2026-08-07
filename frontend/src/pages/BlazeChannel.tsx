@@ -302,7 +302,7 @@ export default function BlazeChannel() {
         <div className="glass-card p-5">
           <h3 className="text-sm font-semibold mb-4">{t('blaze.recommendedScopes')}</h3>
           <div className="data-table-wrapper">
-            <table className="data-table">
+            <table className="data-table" aria-label={t('blaze.recommendedScopes')}>
               <thead>
                 <tr>
                   <th>{t('table.scope')}</th>
