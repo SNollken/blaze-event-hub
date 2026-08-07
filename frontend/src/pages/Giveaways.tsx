@@ -109,7 +109,7 @@ export default function Giveaways() {
     { key: 'maxEntries', header: t('common.limit') },
     {
       key: 'createdAt', header: t('giveaways.colCreated'),
-      render: (g) => <span className="mono" style={{ fontSize: 12 }}>{new Date(g.createdAt).toLocaleString(getLocale())}</span>,
+      render: (g) => <span className="mono text-xs">{new Date(g.createdAt).toLocaleString(getLocale())}</span>,
     },
     {
       key: 'actions', header: '', width: 220,
@@ -139,7 +139,7 @@ export default function Giveaways() {
   return (
     <Layout title={t('giveaways.title')} subtitle={t('giveaways.subtitle')}>
       {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+      <div className="stats-grid mb-6">
         <StatsCard title={t('giveaways.openGiveaways')} value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" subtitle={`${stats?.totalGiveaways ?? 0} ${t('common.total')}`} />
         <StatsCard title={t('giveaways.participants')} value={stats?.totalEntries ?? 0} icon={<Users size={18} />} color="primary" />
         <StatsCard title={t('giveaways.completed')} value={stats?.completedCount ?? 0} icon={<Trophy size={18} />} color="success" />
@@ -198,7 +198,7 @@ export default function Giveaways() {
           <>
             <div className="flex items-center justify-between flex-wrap gap-sm">
               <Badge variant={statusColors[selectedGiveaway.status]} dot>{statusLabels[selectedGiveaway.status]}</Badge>
-              <span style={{ color: 'var(--text-secondary)', fontSize: 13 }}>
+              <span className="text-text-secondary text-[13px]">
                 {selectedGiveaway.entryCount}/{selectedGiveaway.maxEntries} {t('giveaways.participants')}
               </span>
             </div>
@@ -221,19 +221,19 @@ export default function Giveaways() {
               </div>
             )}
             <div>
-              <div className="section-title" style={{ marginBottom: 8 }}>{t('giveaways.winners')}</div>
+              <div className="section-title mb-2">{t('giveaways.winners')}</div>
               {selectedResults?.winners.length ? (
                 <div className="log-panel">
                   {selectedResults.winners.map((winner) => (
                     <div key={winner.entryId} className="log-line">
-                      <Crown size={14} style={{ color: 'var(--accent)' }} />
+                      <Crown size={14} className="text-accent" />
                       <span>{winner.participantName}</span>
                       <span className="timestamp">{new Date(winner.enteredAt).toLocaleString(getLocale())}</span>
                     </div>
                   ))}
                 </div>
               ) : (
-                <div className="empty-state" style={{ padding: 24 }}>{t('giveaways.noWinners')}</div>
+                <div className="empty-state p-6">{t('giveaways.noWinners')}</div>
               )}
             </div>
           </>

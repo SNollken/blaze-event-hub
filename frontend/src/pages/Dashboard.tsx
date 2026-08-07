@@ -37,7 +37,7 @@ export default function Dashboard() {
   if (statusLoading && !status) {
     return (
       <Layout title={t('dashboard.title')}>
-        <div className="empty-state" style={{ minHeight: 300 }}>
+        <div className="empty-state min-h-[300px]">
           <div>{t('common.loading')}</div>
         </div>
       </Layout>
@@ -48,7 +48,7 @@ export default function Dashboard() {
     <Layout title={t('dashboard.title')} subtitle={t('dashboard.subtitle')}>
       {pollError && <ErrorBanner error={pollError} onRetry={() => window.location.reload()} />}
       {/* Stats row */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+      <div className="stats-grid mb-6">
         <StatsCard
           title={t('dashboard.backend')}
           value={status ? t('common.online') : t('common.offline')}
@@ -92,11 +92,11 @@ export default function Dashboard() {
       </div>
 
       {/* Status details */}
-      <div className="responsive-grid-2" style={{ marginBottom: 24 }}>
+      <div className="responsive-grid-2 mb-6">
         {/* System status */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('dashboard.systemStatus')}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold mb-4">{t('dashboard.systemStatus')}</h3>
+          <div className="flex flex-col gap-3">
             <StatusItem label={t('dashboard.oauthConfigured')} ok={status?.blazeOAuthConfigured} />
             <StatusItem label={t('dashboard.blazeApiConfigured')} ok={status?.blazeApiConfigured} />
             <StatusItem label={t('dashboard.socketConfigured')} ok={status?.socketConfigured} />
@@ -108,41 +108,41 @@ export default function Dashboard() {
         </div>
 
         {/* Account & OAuth */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('dashboard.accountOAuth')}</h3>
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold mb-4">{t('dashboard.accountOAuth')}</h3>
           {oauth?.connected ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
                 {oauth.profile?.avatarUrl && (
                   <img
                     src={oauth.profile.avatarUrl}
                     alt={oauth.profile.displayName ? `${oauth.profile.displayName} ${t('common.avatar')}` : ''}
-                    style={{ width: 36, height: 36, borderRadius: '50%' }}
+                    className="w-9 h-9 rounded-full"
                   />
                 )}
                 <div>
-                  <div style={{ fontWeight: 600, fontSize: 14 }}>
+                  <div className="font-semibold text-sm">
                     {oauth.profile?.displayName || oauth.userId}
                   </div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                  <div className="text-xs text-text-muted">
                     @{oauth.profile?.username || t('common.unknown')}
                   </div>
                 </div>
               </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-secondary)' }}>
+              <div className="flex flex-col gap-1.5 text-xs text-text-secondary">
                 <div>{t('blaze.scopes')} {oauth.scopes?.join(', ') || t('common.none')}</div>
                 <div>{t('dashboard.tokenPresent')}: {oauth.tokenPresent ? t('common.present') : t('common.absent')}</div>
                 <div>{t('dashboard.refreshCredential')}: {oauth.refreshCredentialPresent ? t('common.present') : t('common.absent')}</div>
                 {oauth.tokenExpiredOrUnknown && (
-                  <div style={{ color: 'var(--warning)' }}>{t('common.expired')}</div>
+                  <div className="text-warning">{t('common.expired')}</div>
                 )}
               </div>
             </div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            <div className="text-[13px] text-text-muted">
               {t('dashboard.noAccount')}
               {status?.nextRecommendedAction && (
-                <div style={{ marginTop: 8, color: 'var(--accent)' }}>
+                <div className="mt-2 text-accent">
                   {t('dashboard.nextAction')} {status.nextRecommendedAction}
                 </div>
               )}
@@ -154,17 +154,10 @@ export default function Dashboard() {
       {/* Recommended action */}
       {status?.nextRecommendedAction && (
         <div
-          className="glass-card"
-          style={{
-            padding: '14px 20px',
-            display: 'flex',
-            alignItems: 'center',
-            gap: 10,
-            borderColor: 'var(--accent)',
-          }}
+          className="glass-card p-3.5 px-5 flex items-center gap-2.5 border-accent"
         >
-          <Settings size={16} style={{ color: 'var(--accent)', flexShrink: 0 }} />
-          <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>
+          <Settings size={16} className="text-accent shrink-0" />
+          <span className="text-[13px] text-text-secondary">
             {status.nextRecommendedAction}
           </span>
         </div>
@@ -175,8 +168,8 @@ export default function Dashboard() {
 
 function StatusItem({ label, ok }: { label: string; ok?: boolean }) {
   return (
-    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-      <span style={{ fontSize: 13, color: 'var(--text-secondary)' }}>{label}</span>
+    <div className="flex items-center justify-between">
+      <span className="text-[13px] text-text-secondary">{label}</span>
       <StatusDot status={ok ? 'active' : 'inactive'} label={ok ? t('common.yes') : t('common.no')} />
     </div>
   );

@@ -111,12 +111,12 @@ export default function Overlays() {
     { key: 'name', header: t('common.name'), sortable: true },
     {
       key: 'createdAt', header: t('overlays.colCreated'),
-      render: (p) => <span className="mono" style={{ fontSize: 12 }}>{new Date(p.createdAt).toLocaleDateString(getLocale())}</span>,
+      render: (p) => <span className="mono text-xs">{new Date(p.createdAt).toLocaleDateString(getLocale())}</span>,
     },
     {
       key: 'actions', header: '', width: 100,
       render: (p) => (
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="flex gap-1">
           <button className="btn btn-primary btn-sm btn-icon" aria-label={`${t('overlays.viewOverlays')} ${p.name}`} onClick={() => loadOverlays(p.id)} disabled={actionLoading !== null}>
             <Eye size={12} />
           </button>
@@ -137,19 +137,19 @@ export default function Overlays() {
     },
     {
       key: 'config', header: t('overlays.canvas'),
-      render: (o) => <span className="mono" style={{ fontSize: 12 }}>{o.config.canvasWidth}x{o.config.canvasHeight}</span>,
+      render: (o) => <span className="mono text-xs">{o.config.canvasWidth}x{o.config.canvasHeight}</span>,
     },
     {
       key: 'publicToken', header: t('overlays.publicUrl'), width: 200,
       render: (o) => (
-        <div style={{ display: 'flex', alignItems: 'center', gap: 4 }}>
-          <code className="mono" style={{ fontSize: 11, color: 'var(--text-muted)', maxWidth: 140, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+        <div className="flex items-center gap-1">
+          <code className="mono text-[11px] text-text-muted max-w-[140px] overflow-hidden text-ellipsis whitespace-nowrap">
             {o.publicToken}
           </code>
           <button className="copy-btn" aria-label={`${t('overlays.copyUrl')} ${o.name}`} onClick={() => copyToClipboard(getOverlayUrl(o.publicToken))}>
             <Copy size={10} />
           </button>
-          <a href={getOverlayUrl(o.publicToken)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm" style={{ padding: '2px 6px' }} aria-label={`${t('overlays.viewOverlay')} ${o.name} ${t('overlays.newTab')}`}>
+          <a href={getOverlayUrl(o.publicToken)} target="_blank" rel="noreferrer" className="btn btn-secondary btn-sm !px-1.5 !py-0.5" aria-label={`${t('overlays.viewOverlay')} ${o.name} ${t('overlays.newTab')}`}>
             <ExternalLink size={10} aria-hidden="true" />
           </a>
         </div>
@@ -158,7 +158,7 @@ export default function Overlays() {
     {
       key: 'actions', header: '', width: 80,
       render: (o) => (
-        <div style={{ display: 'flex', gap: 4 }}>
+        <div className="flex gap-1">
           <button className="btn btn-secondary btn-sm btn-icon" aria-label={`${t('overlays.viewDetails')} ${o.name}`} onClick={() => setSelectedOverlay(o)} disabled={actionLoading !== null}>
             <Settings size={12} />
           </button>
@@ -174,7 +174,7 @@ export default function Overlays() {
     <Layout title={t('nav.overlays')} subtitle={t('overlays.subtitle')}>
       {profilesError && <ErrorBanner error={profilesError} onRetry={reloadProfiles} />}
       {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+      <div className="stats-grid mb-6">
         <StatsCard
           title={t('overlays.profiles')}
           value={profiles?.length ?? 0}
@@ -212,7 +212,7 @@ export default function Overlays() {
 
       {/* Overlays for selected profile */}
       {selectedProfileId && (
-        <div style={{ marginTop: 24 }}>
+        <div className="mt-6">
           <div className="section-header">
             <span className="section-title">
               {t('overlays.overlaysSection')}
@@ -272,8 +272,8 @@ export default function Overlays() {
         }
       >
         {selectedOverlay && (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
-            <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex flex-col gap-3.5">
+            <div className="flex gap-2">
               <Badge variant="neutral">{selectedOverlay.type}</Badge>
               <Badge variant={selectedOverlay.enabled ? 'success' : 'neutral'} dot>
                 {selectedOverlay.enabled ? t('common.connected') : t('common.disconnected')}
@@ -282,16 +282,16 @@ export default function Overlays() {
 
             <div>
               <label>{t('overlays.canvas')}</label>
-              <div className="mono" style={{ fontSize: 13 }}>
+              <div className="mono text-[13px]">
                 {selectedOverlay.config.canvasWidth} x {selectedOverlay.config.canvasHeight}
               </div>
             </div>
 
             <div>
               <label>{t('overlays.background')}</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <div style={{ width: 16, height: 16, borderRadius: 4, background: selectedOverlay.config.backgroundColor, border: '1px solid var(--border)' }} />
-                <span className="mono" style={{ fontSize: 12 }}>{selectedOverlay.config.backgroundColor}</span>
+              <div className="flex items-center gap-2">
+                <div className="w-4 h-4 rounded border border-border" style={{ background: selectedOverlay.config.backgroundColor }} />
+                <span className="mono text-xs">{selectedOverlay.config.backgroundColor}</span>
                 <Badge variant="neutral">{selectedOverlay.config.transparent ? t('overlays.transparent') : t('overlays.solid')}</Badge>
               </div>
             </div>
@@ -299,9 +299,9 @@ export default function Overlays() {
             {selectedOverlay.layers.length > 0 && (
               <div>
                 <label>{t('overlays.layers')} ({selectedOverlay.layers.length})</label>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, marginTop: 4 }}>
+                <div className="flex flex-col gap-1 mt-1">
                   {selectedOverlay.layers.map((layer) => (
-                    <div key={layer.id} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 12, color: 'var(--text-secondary)' }}>
+                    <div key={layer.id} className="flex items-center gap-2 text-xs text-text-secondary">
                       <Badge variant="neutral">{layer.type}</Badge>
                       <span>{layer.text || layer.assetId || `#${layer.id}`}</span>
                       <span className="mono">{t('overlays.zIndex')}{layer.zIndex}</span>
@@ -313,8 +313,8 @@ export default function Overlays() {
 
             <div>
               <label>{t('overlays.publicUrl')}</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 4 }}>
-                <code className="mono" style={{ flex: 1, fontSize: 11, padding: '4px 8px', background: 'var(--bg-base)', borderRadius: 'var(--radius-sm)', border: '1px solid var(--border-subtle)' }}>
+              <div className="flex items-center gap-2 mt-1">
+                <code className="mono flex-1 text-[11px] px-2 py-1 bg-bg-base rounded-sm border border-border-subtle">
                   {getOverlayUrl(selectedOverlay.publicToken)}
                 </code>
                 <button className="copy-btn" aria-label={`${t('overlays.copyUrl')} ${selectedOverlay.name}`} onClick={() => copyToClipboard(getOverlayUrl(selectedOverlay.publicToken))}>

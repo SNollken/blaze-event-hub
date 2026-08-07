@@ -115,7 +115,7 @@ export default function BlazeChannel() {
       {/* Error banner */}
       {firstError && <ErrorBanner error={firstError} onRetry={handleSync} />}
       {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+      <div className="stats-grid mb-6">
         <StatsCard
           title={t('blaze.oauthConnection')}
           value={oauthLoading ? t('common.loading') : isConnected ? t('common.connected') : t('common.disconnected')}
@@ -147,33 +147,25 @@ export default function BlazeChannel() {
       </div>
 
       {/* Setup checklist */}
-      <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
-        <div className="section-header" style={{ marginBottom: 16 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('blaze.checklist')}</h3>
+      <div className="glass-card p-5 mb-6">
+        <div className="section-header mb-4">
+          <h3 className="text-sm font-semibold">{t('blaze.checklist')}</h3>
         </div>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div className="flex flex-col gap-2.5">
           {setup?.checklist?.map((item, i) => (
             <div
               key={i}
-              style={{
-                display: 'flex',
-                alignItems: 'center',
-                justifyContent: 'space-between',
-                padding: '10px 14px',
-                background: 'var(--bg-base)',
-                borderRadius: 'var(--radius)',
-                border: '1px solid var(--border-subtle)',
-              }}
+              className="flex items-center justify-between p-2.5 px-3.5 bg-bg-base rounded border border-border-subtle"
             >
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+              <div className="flex items-center gap-2.5">
                 {item.configured ? (
-                  <CheckCircle size={16} style={{ color: 'var(--success)' }} />
+                  <CheckCircle size={16} className="text-success" />
                 ) : (
-                  <XCircle size={16} style={{ color: 'var(--text-muted)' }} />
+                  <XCircle size={16} className="text-text-muted" />
                 )}
                 <div>
-                  <div style={{ fontSize: 13, fontWeight: 500 }}>{item.name}</div>
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>{item.help}</div>
+                  <div className="text-[13px] font-medium">{item.name}</div>
+                  <div className="text-[11px] text-text-muted">{item.help}</div>
                 </div>
               </div>
               <Badge variant={item.configured ? 'success' : 'warning'}>{item.status}</Badge>
@@ -183,11 +175,11 @@ export default function BlazeChannel() {
       </div>
 
       {/* OAuth & Account */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 24 }}>
+      <div className="grid grid-cols-2 gap-4 mb-6">
         {/* OAuth controls */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.oauthAuth')}</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold mb-4">{t('blaze.oauthAuth')}</h3>
+          <div className="flex flex-col gap-3">
             {!isConnected ? (
               <button
                 className="btn btn-accent"
@@ -211,12 +203,12 @@ export default function BlazeChannel() {
             )}
 
             {setup?.nextSteps && setup.nextSteps.length > 0 && (
-              <div style={{ marginTop: 8 }}>
-                <div style={{ fontSize: 12, fontWeight: 500, color: 'var(--text-muted)', marginBottom: 6 }}>
+              <div className="mt-2">
+                <div className="text-xs font-medium text-text-muted mb-1.5">
                   {t('blaze.nextSteps')}
                 </div>
                 {setup.nextSteps.map((step, i) => (
-                  <div key={i} style={{ fontSize: 12, color: 'var(--text-secondary)', padding: '3px 0' }}>
+                  <div key={i} className="text-xs text-text-secondary py-0.75">
                     {i + 1}. {step}
                   </div>
                 ))}
@@ -226,20 +218,24 @@ export default function BlazeChannel() {
         </div>
 
         {/* Account info */}
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.connectedAccount')}</h3>
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold mb-4">{t('blaze.connectedAccount')}</h3>
           {oauth?.profile ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div className="flex flex-col gap-3">
+              <div className="flex items-center gap-2.5">
                 {oauth.profile.avatarUrl && (
-                  <img src={oauth.profile.avatarUrl} alt={oauth.profile.displayName ? `${oauth.profile.displayName} ${t('common.avatar')}` : ''} style={{ width: 40, height: 40, borderRadius: '50%' }} />
+                  <img
+                    src={oauth.profile.avatarUrl}
+                    alt={oauth.profile.displayName ? `${oauth.profile.displayName} ${t('common.avatar')}` : ''}
+                    className="w-10 h-10 rounded-full"
+                  />
                 )}
                 <div>
-                  <div style={{ fontWeight: 600 }}>{oauth.profile.displayName}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>@{oauth.profile.username}</div>
+                  <div className="font-semibold">{oauth.profile.displayName}</div>
+                  <div className="text-xs text-text-muted">@{oauth.profile.username}</div>
                 </div>
               </div>
-              <div style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+              <div className="text-xs text-text-secondary">
                 <div>{t('blaze.scopes')} {oauth.scopes?.join(', ') || t('common.none')}</div>
                 {oauth.lastProfileSyncAt && (
                   <div>{t('blaze.lastSync')} {new Date(oauth.lastProfileSyncAt).toLocaleString(getLocale())}</div>
@@ -247,7 +243,7 @@ export default function BlazeChannel() {
               </div>
             </div>
           ) : (
-            <div style={{ color: 'var(--text-muted)', fontSize: 13 }}>
+            <div className="text-text-muted text-[13px]">
               {t('blaze.noAccount')}
             </div>
           )}
@@ -255,26 +251,14 @@ export default function BlazeChannel() {
       </div>
 
       {/* Redirect URI & Docs */}
-      <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.redirectUri')}</h3>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="glass-card p-5 mb-6">
+        <h3 className="text-sm font-semibold mb-4">{t('blaze.redirectUri')}</h3>
+        <div className="flex flex-col gap-3">
           <div>
             <label>{t('blaze.redirectUriLabel')}</label>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <div className="flex items-center gap-2">
               <code
-                className="mono"
-                style={{
-                  flex: 1,
-                  padding: '6px 10px',
-                  background: 'var(--bg-base)',
-                  border: '1px solid var(--border-subtle)',
-                  borderRadius: 'var(--radius-sm)',
-                  fontSize: 12,
-                  color: 'var(--text-secondary)',
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  whiteSpace: 'nowrap',
-                }}
+                className="mono flex-1 px-2.5 py-1.5 bg-bg-base border border-border-subtle rounded-sm text-xs text-text-secondary overflow-hidden text-ellipsis whitespace-nowrap"
               >
                 {setup?.redirectUri || t('common.notConfigured')}
               </code>
@@ -294,15 +278,14 @@ export default function BlazeChannel() {
           {setup?.docsLinks && setup.docsLinks.length > 0 && (
             <div>
               <label>{t('blaze.links')}</label>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginTop: 4 }}>
+              <div className="flex gap-2 flex-wrap mt-1">
                 {setup.docsLinks.map((link, i) => (
                   <a
                     key={i}
                     href={link.url}
                     target="_blank"
                     rel="noreferrer"
-                    className="btn btn-secondary btn-sm"
-                    style={{ textDecoration: 'none' }}
+                    className="btn btn-secondary btn-sm no-underline"
                   >
                     <ExternalLink size={12} />
                     {link.title}
@@ -316,8 +299,8 @@ export default function BlazeChannel() {
 
       {/* Scopes */}
       {setup?.recommendedScopes && setup.recommendedScopes.length > 0 && (
-        <div className="glass-card" style={{ padding: 20 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600, marginBottom: 16 }}>{t('blaze.recommendedScopes')}</h3>
+        <div className="glass-card p-5">
+          <h3 className="text-sm font-semibold mb-4">{t('blaze.recommendedScopes')}</h3>
           <div className="data-table-wrapper">
             <table className="data-table">
               <thead>

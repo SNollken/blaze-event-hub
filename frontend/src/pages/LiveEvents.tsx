@@ -100,7 +100,7 @@ export default function LiveEvents() {
     >
       {pollError && <ErrorBanner error={pollError} onRetry={() => { void reloadEvents(); void reloadStatus(); }} />}
       {/* Stats */}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+      <div className="stats-grid mb-6">
         <StatsCard
           title={t('events.runner')}
           value={eventsLoading ? t('common.loading') : events?.runnerRunning ? t('common.running') : t('common.stopped')}
@@ -150,50 +150,50 @@ export default function LiveEvents() {
       </div>
 
       {/* Event status details */}
-      <div className="glass-card" style={{ padding: 20, marginBottom: 24 }}>
-        <div className="section-header" style={{ marginBottom: 0 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('events.engineStatus')}</h3>
+      <div className="glass-card p-5 mb-6">
+        <div className="section-header">
+          <h3 className="text-sm font-semibold">{t('events.engineStatus')}</h3>
           <button className="btn btn-secondary btn-sm" onClick={() => { void reloadEvents(); void reloadStatus(); }}>
             <RefreshCw size={14} />
             {t('common.refresh')}
           </button>
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginTop: 16 }}>
+        <div className="grid grid-cols-3 gap-4 mt-4">
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.runnerStatus')}</div>
+            <div className="text-xs text-text-muted mb-1">{t('events.runnerStatus')}</div>
             <Badge variant={events?.runnerRunning ? 'success' : 'neutral'} dot>
               {events?.runnerRunning ? t('common.running') : t('common.stopped')}
             </Badge>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.clientStatus')}</div>
+            <div className="text-xs text-text-muted mb-1">{t('events.clientStatus')}</div>
             <Badge variant={events?.clientRunning ? 'success' : 'error'} dot>
               {events?.clientRunning ? t('common.connected') : t('common.disconnected')}
             </Badge>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.sessionId')}</div>
-            <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            <div className="text-xs text-text-muted mb-1">{t('events.sessionId')}</div>
+            <span className="mono text-xs text-text-secondary">
               {events?.sessionId || t('common.na')}
             </span>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.startedAt')}</div>
-            <span style={{ fontSize: 13 }}>
+            <div className="text-xs text-text-muted mb-1">{t('events.startedAt')}</div>
+            <span className="text-[13px]">
               {events?.startedAt
                 ? new Date(events.startedAt).toLocaleString(getLocale())
                 : t('common.na')}
             </span>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.lastType')}</div>
-            <span className="mono" style={{ fontSize: 12, color: 'var(--text-secondary)' }}>
+            <div className="text-xs text-text-muted mb-1">{t('events.lastType')}</div>
+            <span className="mono text-xs text-text-secondary">
               {events?.lastMessageType || t('common.na')}
             </span>
           </div>
           <div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 4 }}>{t('events.channel')}</div>
-            <span style={{ fontSize: 13 }}>
+            <div className="text-xs text-text-muted mb-1">{t('events.channel')}</div>
+            <span className="text-[13px]">
               {status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
             </span>
           </div>
@@ -201,21 +201,21 @@ export default function LiveEvents() {
       </div>
 
       {/* Log */}
-      <div className="glass-card" style={{ padding: 20 }}>
-        <div className="section-header" style={{ marginBottom: 12 }}>
-          <h3 style={{ fontSize: 14, fontWeight: 600 }}>{t('events.log')}</h3>
+      <div className="glass-card p-5">
+        <div className="section-header mb-3">
+          <h3 className="text-sm font-semibold">{t('events.log')}</h3>
           <Badge variant="neutral">{logs.length} {t('events.entries')}</Badge>
         </div>
         <div className="log-panel">
           {logs.length === 0 ? (
-            <div style={{ color: 'var(--text-muted)', textAlign: 'center', padding: 24 }}>
+            <div className="text-text-muted text-center p-6">
               {t('events.emptyLog')}
             </div>
           ) : (
             logs.map((log, i) => (
               <div key={i} className="log-line">
                 <span className="timestamp">{log.time}</span>
-                <span style={{ color: log.message.startsWith(t('events.errorPrefix')) ? 'var(--error)' : 'var(--text-secondary)' }}>
+                <span className={log.message.startsWith(t('events.errorPrefix')) ? 'text-error' : 'text-text-secondary'}>
                   {log.message}
                 </span>
               </div>

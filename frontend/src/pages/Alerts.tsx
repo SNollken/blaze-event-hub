@@ -138,7 +138,7 @@ export default function Alerts() {
   const alertColumns: Column<AlertEvent>[] = [
     {
       key: 'triggeredAt', header: t('alerts.colWhen'), width: 170,
-      render: (a) => <span className="mono" style={{ fontSize: 12 }}>{new Date(a.triggeredAt).toLocaleString(getLocale())}</span>,
+      render: (a) => <span className="mono text-xs">{new Date(a.triggeredAt).toLocaleString(getLocale())}</span>,
     },
     { key: 'ruleName', header: t('alerts.colRule'), sortable: true },
     { key: 'eventType', header: t('alerts.colEvent'), render: (a) => <Badge variant="neutral">{a.eventType}</Badge> },
@@ -179,14 +179,14 @@ export default function Alerts() {
   return (
     <Layout title={t('alerts.title')} subtitle={t('alerts.subtitle')}>
       {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
-      <div className="stats-grid" style={{ marginBottom: 24 }}>
+      <div className="stats-grid mb-6">
         <StatsCard title={t('alerts.activeRules')} value={statsLoading ? t('common.loading') : (stats?.enabledRules ?? 0)} icon={<Bell size={18} />} color="primary" subtitle={statsLoading ? '' : `${stats?.totalRules ?? 0} ${t('common.total')}`} />
         <StatsCard title={t('alerts.pending')} value={activeLoading ? t('common.loading') : (activeAlerts?.length ?? 0)} icon={<BellRing size={18} />} color="warning" subtitle={activeLoading ? '' : `${stats?.totalAlerts ?? 0} ${t('alerts.history')}`} />
         <StatsCard title={t('alerts.acknowledged')} value={statsLoading ? t('common.loading') : (stats?.acknowledgedAlerts ?? 0)} icon={<Check size={18} />} color="success" />
       </div>
 
       <div className="section-header">
-        <div className="tabs" style={{ marginBottom: 0 }}>
+        <div className="tabs mb-0">
           <button className={`tab ${activeTab === 'rules' ? 'active' : ''}`} onClick={() => setActiveTab('rules')}>{t('alerts.rulesTab')}</button>
           <button className={`tab ${activeTab === 'history' ? 'active' : ''}`} onClick={() => setActiveTab('history')}>{t('alerts.historyTab')}</button>
         </div>
