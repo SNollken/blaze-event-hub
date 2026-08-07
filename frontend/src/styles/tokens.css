@@ -30,7 +30,7 @@
 
   --color-text-primary: #E8E5DE;
   --color-text-secondary: #9CA0A6;
-  --color-text-muted: #64748B;
+  --color-text-muted: #7A8696;
   --color-text-inverse: #0A0A0F;
 
   --font-display: "Funnel Display", system-ui, sans-serif;
@@ -209,7 +209,7 @@
   }
 
   .btn-primary {
-    @apply bg-primary text-white hover:bg-primary-hover active:bg-primary-hover/90;
+    @apply bg-primary text-text-inverse hover:bg-primary-hover active:bg-primary-hover/90;
   }
 
   .btn-secondary {
@@ -633,7 +633,7 @@ code, .mono {
 }
 .badge-error {
   background: var(--error-subtle);
-  color: var(--error);
+  color: #F09070;
 }
 .badge-warning {
   background: var(--warning-subtle);
