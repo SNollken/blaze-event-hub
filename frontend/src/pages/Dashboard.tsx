@@ -51,7 +51,7 @@ export default function Dashboard() {
       <div className="stats-grid mb-6">
         <StatsCard
           title={t('dashboard.backend')}
-          value={status ? t('common.online') : t('common.offline')}
+          value={status ? t('dashboard.online') : t('dashboard.offline')}
           icon={<Server size={18} />}
           color={status ? 'success' : 'error'}
           subtitle={status ? `${status.appName} ${status.version}` : t('dashboard.unavailable')}

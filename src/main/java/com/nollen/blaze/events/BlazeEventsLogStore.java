@@ -20,7 +20,7 @@ public class BlazeEventsLogStore {
 	private final JdbcTemplate jdbc;
 	private final RowMapper<BlazeEventsLogEntry> mapper = (rs, rowNum) -> {
 		Timestamp ts = rs.getTimestamp("received_at");
-		java.time.Instant instant = ts != null ? ts.toInstant() : java.time.Instant.now();
+		Instant instant = ts != null ? ts.toInstant() : Instant.now();
 		return new BlazeEventsLogEntry(
 			rs.getString("id"),
 			instant,

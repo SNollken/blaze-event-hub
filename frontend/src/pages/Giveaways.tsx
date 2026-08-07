@@ -30,15 +30,6 @@ const statusColors: Record<GiveawayStatus, 'success' | 'warning' | 'error' | 'ne
   CANCELLED: 'error',
 };
 
-const statusLabels: Record<GiveawayStatus, string> = {
-  DRAFT: t('giveaways.statusDraft'),
-  OPEN: t('giveaways.statusOpen'),
-  CLOSED: t('giveaways.statusClosed'),
-  DRAWING: t('giveaways.statusDrawing'),
-  COMPLETED: t('giveaways.statusCompleted'),
-  CANCELLED: t('giveaways.statusCancelled'),
-};
-
 export default function Giveaways() {
   const fetchGiveaways = useCallback(() => getGiveaways(), []);
   const fetchStats = useCallback(() => getGiveawayStats(), []);
@@ -53,6 +44,15 @@ export default function Giveaways() {
   const [selectedResults, setSelectedResults] = useState<GiveawayResultsResponse | null>(null);
   const [participantName, setParticipantName] = useState('');
   const [createForm, setCreateForm] = useState({ title: '', description: '', maxEntries: 100 });
+
+  const statusLabels: Record<GiveawayStatus, string> = {
+    DRAFT: t('giveaways.statusDraft'),
+    OPEN: t('giveaways.statusOpen'),
+    CLOSED: t('giveaways.statusClosed'),
+    DRAWING: t('giveaways.statusDrawing'),
+    COMPLETED: t('giveaways.statusCompleted'),
+    CANCELLED: t('giveaways.statusCancelled'),
+  };
 
   const reloadAll = async () => {
     await Promise.all([reloadGiveaways(), reloadStats()]);

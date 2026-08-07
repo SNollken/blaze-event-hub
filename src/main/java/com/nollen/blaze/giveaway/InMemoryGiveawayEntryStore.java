@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CopyOnWriteArrayList;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
@@ -111,10 +112,10 @@ public class InMemoryGiveawayEntryStore {
 					FROM giveaway_entries
 					GROUP BY giveaway_id
 					""", (rs, rowNum) -> Map.entry(rs.getString("giveaway_id"), rs.getInt("total"))).stream()
-					.collect(java.util.stream.Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
+					.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 		}
 		return entriesByGiveaway.entrySet().stream()
-				.collect(java.util.stream.Collectors.toMap(
+				.collect(Collectors.toMap(
 						Map.Entry::getKey,
 						e -> e.getValue().size()));
 	}

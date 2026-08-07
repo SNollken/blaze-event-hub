@@ -31,12 +31,6 @@ const eventTypes: BlazeEventType[] = [
 
 const conditions: AlertCondition[] = ['ALWAYS', 'MIN_AMOUNT', 'RAID_MIN_SIZE'];
 
-const conditionLabels: Record<AlertCondition, string> = {
-  ALWAYS: t('alerts.conditionAlways'),
-  MIN_AMOUNT: t('alerts.conditionMinAmount'),
-  RAID_MIN_SIZE: t('alerts.conditionRaidMinSize'),
-};
-
 const severityFor = (acknowledged: boolean): 'success' | 'warning' => acknowledged ? 'success' : 'warning';
 
 // ponytail: async buttons disabled via actionLoading — no per-button loading spinner yet (1 action at a time)
@@ -66,6 +60,12 @@ export default function Alerts() {
     enabled: true,
     cooldownMs: 0,
   });
+
+  const conditionLabels: Record<AlertCondition, string> = {
+    ALWAYS: t('alerts.conditionAlways'),
+    MIN_AMOUNT: t('alerts.conditionMinAmount'),
+    RAID_MIN_SIZE: t('alerts.conditionRaidMinSize'),
+  };
 
   const reloadAll = async () => {
     await Promise.all([reloadRules(), reloadHistory(), reloadActive(), reloadStats()]);

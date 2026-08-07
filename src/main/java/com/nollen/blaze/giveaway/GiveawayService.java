@@ -14,6 +14,7 @@ import com.nollen.blaze.common.NotFoundException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 @Service
 public class GiveawayService {
@@ -82,6 +83,7 @@ public class GiveawayService {
 		return giveawayStore.save(updated);
 	}
 
+	@Transactional
 	public void deleteGiveaway(String id) {
 		Giveaway giveaway = getGiveaway(id);
 		if (giveaway.status() != GiveawayStatus.DRAFT && giveaway.status() != GiveawayStatus.CANCELLED) {
@@ -133,6 +135,7 @@ public class GiveawayService {
 		return giveawayStore.save(closed);
 	}
 
+	@Transactional
 	public synchronized GiveawayEntry enterGiveaway(String giveawayId, EnterGiveawayRequest request) {
 		// FIX BUG 1 & 2: synchronized prevents duplicate entries and stale entryCount.
 		// Re-read giveaway to get fresh entryCount (another thread may have incremented it).

@@ -50,12 +50,13 @@ public class BlazeOAuthController {
 			return html(HttpStatus.OK, successPage(response));
 		}
 		catch (OAuthException ex) {
-			if (json) {
-				throw ex;
+				if (json) {
+					throw ex;
+				}
+				log.error("OAuth callback failed (HTML path): {}", ex.getMessage(), ex);
+				HttpStatus status = HttpStatus.resolve(ex.getHttpStatus());
+				return html(status == null ? HttpStatus.BAD_REQUEST : status, errorPage("Nao foi possivel conectar a Blaze."));
 			}
-			HttpStatus status = HttpStatus.resolve(ex.getHttpStatus());
-			return html(status == null ? HttpStatus.BAD_REQUEST : status, errorPage("Nao foi possivel conectar a Blaze."));
-		}
 		catch (RuntimeException ex) {
 			if (json) {
 				throw ex;

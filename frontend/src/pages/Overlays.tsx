@@ -217,7 +217,7 @@ export default function Overlays() {
           <div className="section-header">
             <span className="section-title">
               {t('overlays.overlaysSection')}
-              <Badge variant="neutral" style={{ marginLeft: 8 } as React.CSSProperties}>{overlays.length}</Badge>
+              <Badge variant="neutral" className="ml-2">{overlays.length}</Badge>
             </span>
             <button className="btn btn-secondary btn-sm" onClick={() => loadOverlays(selectedProfileId)} disabled={actionLoading !== null}>
               <RefreshCw size={14} />
