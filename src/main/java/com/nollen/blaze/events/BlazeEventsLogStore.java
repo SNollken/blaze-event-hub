@@ -4,7 +4,6 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ConcurrentLinkedDeque;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -82,7 +81,7 @@ public class BlazeEventsLogStore {
 				.filter(e -> source == null || source.isBlank() || source.equalsIgnoreCase(e.source()))
 				.sorted((a, b) -> b.timestamp().compareTo(a.timestamp()))
 				.limit(limit > 0 ? limit : 50)
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 	public List<BlazeEventsLogEntry> listAll() {

@@ -1,8 +1,6 @@
 package com.nollen.blaze.giveaway;
 
 import java.util.List;
-import java.util.Map;
-
 import jakarta.validation.Valid;
 
 import org.springframework.web.bind.annotation.DeleteMapping;

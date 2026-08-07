@@ -2,7 +2,6 @@ package com.nollen.blaze.alert;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 import com.nollen.blaze.common.IdGenerator;
 import com.nollen.blaze.common.NotFoundException;
@@ -69,7 +68,7 @@ public class AlertRuleService {
 		return rules.stream()
 				.map(r -> new AlertRuleSnapshot(r.id(), r.name(), r.eventType(), r.condition(),
 						r.threshold(), r.template(), r.enabled(), r.cooldownMs()))
-				.collect(Collectors.toList());
+				.toList();
 	}
 
 	private AlertRule requireRule(String id) {

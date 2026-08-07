@@ -1,6 +1,9 @@
 package com.nollen.blaze.alert;
 
 import java.util.List;
+import java.util.Map;
+
+import com.nollen.blaze.events.BlazeEventType;
 
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -47,10 +50,10 @@ public class AlertController {
 	}
 
 	@GetMapping("/capabilities")
-java.util.Map<String, Object> capabilities() {
-		return java.util.Map.of(
-				"eventTypes", com.nollen.blaze.events.BlazeEventType.values(),
-				"conditions", AlertCondition.values(),
-				"maxAlerts", 1000);
+Map<String, Object> capabilities() {
+	return Map.of(
+			"eventTypes", BlazeEventType.values(),
+			"conditions", AlertCondition.values(),
+			"maxAlerts", AlertStore.MAX_ALERTS);
 	}
 }

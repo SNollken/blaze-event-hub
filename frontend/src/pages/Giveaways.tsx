@@ -154,7 +154,7 @@ export default function Giveaways() {
       </div>
 
       {loading && !giveaways ? <div className="skeleton-list" /> : (
-        <DataTable columns={giveawayColumns} data={visibleGiveaways} filterable filterKeys={['title', 'status']} emptyMessage={t('giveaways.empty')} />
+        <DataTable columns={giveawayColumns} data={visibleGiveaways} filterable filterKeys={['title', 'status']} emptyMessage={t('giveaways.empty')} ariaLabel={t('table.ariaGiveaways')} />
       )}
 
       <Modal

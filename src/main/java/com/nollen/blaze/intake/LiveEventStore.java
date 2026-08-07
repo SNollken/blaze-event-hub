@@ -1,6 +1,5 @@
 package com.nollen.blaze.intake;
 
-import java.util.ArrayList;
 import java.sql.Timestamp;
 import java.util.Comparator;
 import java.util.List;

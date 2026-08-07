@@ -207,6 +207,7 @@ export default function Overlays() {
           filterable
           filterKeys={['name']}
           emptyMessage={t('overlays.emptyProfiles')}
+          ariaLabel={t('table.ariaProfiles')}
         />
       )}
 
@@ -229,6 +230,7 @@ export default function Overlays() {
             filterable
             filterKeys={['name', 'type']}
             emptyMessage={t('overlays.emptyOverlays')}
+            ariaLabel={t('table.ariaOverlays')}
           />
         </div>
       )}

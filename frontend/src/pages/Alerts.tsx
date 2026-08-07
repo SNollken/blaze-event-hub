@@ -204,11 +204,11 @@ export default function Alerts() {
 
       {activeTab === 'rules' ? (
         rulesLoading && !rules ? <div className="skeleton-list" /> : (
-          <DataTable columns={ruleColumns} data={visibleRules} filterable filterKeys={['name', 'eventType', 'condition']} emptyMessage={t('alerts.emptyRules')} />
+          <DataTable columns={ruleColumns} data={visibleRules} filterable filterKeys={['name', 'eventType', 'condition']} emptyMessage={t('alerts.emptyRules')} ariaLabel={t('table.ariaAlertRules')} />
         )
       ) : (
         historyLoading && !history ? <div className="skeleton-list" /> : (
-          <DataTable columns={alertColumns} data={visibleHistory} filterable filterKeys={['ruleName', 'message', 'eventType']} emptyMessage={t('alerts.emptyHistory')} />
+          <DataTable columns={alertColumns} data={visibleHistory} filterable filterKeys={['ruleName', 'message', 'eventType']} emptyMessage={t('alerts.emptyHistory')} ariaLabel={t('table.ariaAlertHistory')} />
         )
       )}
 

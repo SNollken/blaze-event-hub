@@ -83,6 +83,11 @@ export const translations: Record<Locale, TranslationMap> = {
     'table.scope': 'Scope',
     'table.description': 'Description',
     'table.recommended': 'Recommended',
+    'table.ariaAlertRules': 'Alert rules',
+    'table.ariaAlertHistory': 'Alert history',
+    'table.ariaGiveaways': 'Giveaways',
+    'table.ariaProfiles': 'Overlay profiles',
+    'table.ariaOverlays': 'Overlays',
 
     // Dashboard
     'dashboard.title': 'Overview',
@@ -380,6 +385,11 @@ export const translations: Record<Locale, TranslationMap> = {
     'table.scope': 'Scope',
     'table.description': 'Descrição',
     'table.recommended': 'Recomendado',
+    'table.ariaAlertRules': 'Regras de alerta',
+    'table.ariaAlertHistory': 'Histórico de alertas',
+    'table.ariaGiveaways': 'Sorteios',
+    'table.ariaProfiles': 'Perfis de overlay',
+    'table.ariaOverlays': 'Overlays',
 
     // Dashboard
     'dashboard.title': 'Visão Geral',

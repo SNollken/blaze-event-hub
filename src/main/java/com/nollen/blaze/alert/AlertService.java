@@ -107,6 +107,6 @@ public class AlertService {
 				clock.instant(),
 				message,
 				false,
-				request.payload() == null ? java.util.Map.of() : java.util.Map.copyOf(request.payload()));
+				request.payload() == null ? Map.of() : Map.copyOf(request.payload()));
 	}
 }

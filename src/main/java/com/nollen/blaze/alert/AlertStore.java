@@ -21,7 +21,7 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class AlertStore {
 
-	private static final int MAX_ALERTS = 1000;
+	static final int MAX_ALERTS = 1000;
 	private static final Comparator<Alert> BY_TIME = Comparator.comparing(
 			(Alert a) -> a.triggeredAt() != null ? a.triggeredAt() : Instant.EPOCH).reversed();
 

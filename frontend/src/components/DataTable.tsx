@@ -18,6 +18,7 @@ interface DataTableProps<T = unknown> {
   filterKeys?: string[];
   emptyMessage?: string;
   onRowClick?: (row: T) => void;
+  ariaLabel?: string;
 }
 
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -34,6 +35,7 @@ export function DataTable<T>({
   filterKeys,
   emptyMessage = t('table.empty'),
   onRowClick,
+  ariaLabel,
 }: DataTableProps<T>) {
   const [filter, setFilter] = useState('');
   const [sortKey, setSortKey] = useState<string | null>(null);
@@ -88,7 +90,7 @@ export function DataTable<T>({
         </div>
       )}
       <div className="data-table-wrapper">
-        <table className="data-table">
+        <table className="data-table" aria-label={ariaLabel}>
           <thead>
             <tr>
               {columns.map((col) => (
