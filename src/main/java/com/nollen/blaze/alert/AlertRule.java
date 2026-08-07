@@ -1,7 +1,5 @@
 package com.nollen.blaze.alert;
 
-import java.time.Instant;
-
 import com.nollen.blaze.events.BlazeEventType;
 
 public record AlertRule(

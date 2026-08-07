@@ -82,7 +82,7 @@ public class BlazeEventsController {
 			return objectMapper.readValue(requestBody, EventSubscriptionRequest.class);
 		}
 		catch (JsonProcessingException ex) {
-			throw new IllegalArgumentException("Invalid Blaze Events subscription request");
+			throw new IllegalArgumentException("Invalid Blaze Events subscription request", ex);
 		}
 	}
 

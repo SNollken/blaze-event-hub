@@ -172,6 +172,7 @@ public class OverlayService {
 		return repository.saveOverlay(updated);
 	}
 
+	@Transactional
 	public void deleteOverlay(String overlayId) {
 		Overlay overlay = getOverlay(overlayId);
 		overlay.assets().forEach(asset -> assetStorage.delete(asset.id()));
@@ -281,6 +282,7 @@ public class OverlayService {
 		return OverlayManifestResponse.from(overlay);
 	}
 
+	@Transactional
 	public OverlayAsset addAsset(String overlayId, MultipartFile file) throws IOException {
 		Overlay overlay = getOverlay(overlayId);
 		validateAsset(file);
@@ -361,7 +363,7 @@ public class OverlayService {
 		} catch (IllegalArgumentException e) {
 			throw e;
 		} catch (IOException e) {
-			throw new IllegalArgumentException("Failed to read asset file for validation");
+			throw new IllegalArgumentException("Failed to read asset file for validation", e);
 		}
 	}
 

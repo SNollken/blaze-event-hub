@@ -85,10 +85,10 @@ public class BlazeOAuthService {
 			throw e;
 		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_EXCHANGE_UNAVAILABLE",
-					"Could not connect to Blaze to exchange the code for a token. Check network/firewall and try again.");
-			} catch (Exception e) {
+					"Could not connect to Blaze to exchange the code for a token. Check network/firewall and try again.", e);
+		} catch (Exception e) {
 			throw new OAuthException(502, "BLAZE_TOKEN_EXCHANGE_ERROR",
-					"Unexpected error exchanging code for token: " + e.getMessage());
+					"Unexpected error exchanging code for token: " + e.getMessage(), e);
 		}
 	}
 
@@ -136,10 +136,10 @@ public class BlazeOAuthService {
 			throw e;
 		} catch (ResourceAccessException e) {
 			throw new OAuthException(503, "BLAZE_TOKEN_REFRESH_UNAVAILABLE",
-					"Could not connect to Blaze to refresh the session. Check network/firewall and try again.");
-			} catch (Exception e) {
+					"Could not connect to Blaze to refresh the session. Check network/firewall and try again.", e);
+		} catch (Exception e) {
 			throw new OAuthException(502, "BLAZE_TOKEN_REFRESH_ERROR",
-					"Unexpected error refreshing the Blaze session.");
+					"Unexpected error refreshing the Blaze session.", e);
 		}
 	}
 

@@ -16,6 +16,12 @@ public class OAuthException extends RuntimeException {
         this.errorCode = errorCode;
     }
 
+    public OAuthException(int httpStatus, String errorCode, String message, Throwable cause) {
+        super(message, cause);
+        this.httpStatus = httpStatus;
+        this.errorCode = errorCode;
+    }
+
     public int getHttpStatus() {
         return httpStatus;
     }
