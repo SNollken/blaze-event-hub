@@ -28,7 +28,7 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 Copie os nomes de variaveis de `.env.example` para um `.env` local se for testar Blaze real. Nunca commite `.env`.
 
-O backend exige API key nos endpoints administrativos de `/api/**`, exceto health/status, callback OAuth e rotas publicas de overlay. Em dev, se `NOLLEN_API_KEY` nao estiver definida, a chave padrao e `dev-local-key`.
+O backend exige API key nos endpoints administrativos de `/api/**`, exceto health/status, callback OAuth e rotas publicas (`/api/public/**`, `/overlay/**`, `/assets/**`, `/vite.svg`). Em dev, se `NOLLEN_API_KEY` nao estiver definida, a chave padrao e `dev-local-key`.
 
 ```powershell
 $headers = @{ 'X-Nollen-Api-Key' = 'dev-local-key' }
@@ -59,9 +59,9 @@ O dashboard servido pelo Spring Boot e um Dashboard Shell MVP provisorio em HTML
 - Sessao OAuth usada pela tela: `GET /api/blaze/oauth/session`
 - Events usados pela tela: `GET /api/blaze/events/status`, `POST /api/blaze/events/start`, `POST /api/blaze/events/stop`, `POST /api/blaze/events/subscriptions/sync`
 - OAuth usado pela tela: `POST /api/blaze/oauth/start`
-- Canal usado pela tela: `GET/POST/PUT/DELETE /api/blaze/channel`
+- Canal usado pela tela: `GET/POST /api/blaze/channel`, `GET/PUT/DELETE /api/blaze/channel/{id}`
 - Live Events usados pela tela: `GET /api/live-events`, `GET /api/live-events/stats`, `POST /api/live-events/simulate`
-- Alertas usados pela tela: `GET/POST/DELETE /api/alerts/rules`, `GET /api/alerts/history`, `GET /api/alerts/active`, `POST /api/alerts/acknowledge/{id}`
+- Alertas usados pela tela: `GET/POST /api/alerts/rules`, `PUT/DELETE /api/alerts/rules/{id}`, `GET /api/alerts/history`, `GET /api/alerts/active`, `POST /api/alerts/acknowledge/{id}`
 - Sorteios usados pela tela: `GET/POST /api/giveaways`, `POST /api/giveaways/{id}/open`, `POST /api/giveaways/{id}/close`, `POST /api/giveaways/{id}/enter`, `POST /api/giveaways/{id}/draw`
 - Overlays usados pela tela: `GET /api/overlay-profiles`, `GET /api/overlay-profiles/{profileId}/overlays`, `GET /api/public/overlays/{publicToken}/manifest`
 - Runtime publico OBS: `GET /overlay/{publicToken}`
@@ -95,7 +95,7 @@ BLAZE_SCOPES=users.read,offline.access
 
 Scopes como `channel.moderate` e `users.bot` ficam reservados para fases futuras de chat/moderacao/bot, depois de haver necessidade real.
 
-Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `dev` e se o app foi reiniciado depois do checkout. O smoke minimo do dashboard deve validar:
+Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `main` e se o app foi reiniciado depois do checkout. O smoke minimo do dashboard deve validar:
 
 ```powershell
 $headers = @{ 'X-Nollen-Api-Key' = 'dev-local-key' }
@@ -145,33 +145,88 @@ Limitacoes atuais:
 
 ## Endpoints principais
 
+Saude, status e setup:
+
 - `GET /api/health`
 - `GET /api/status`
 - `GET /api/blaze/setup`
+
+OAuth:
+
+- `GET /api/blaze/oauth/session`
 - `POST /api/blaze/oauth/start`
 - `GET /api/blaze/oauth/callback?code=...&state=...`
 - `POST /api/blaze/oauth/refresh`
+- `POST /api/blaze/oauth/disconnect`
+
+Canal Blaze monitorado:
+
+- `GET /api/blaze/channel`
+- `GET /api/blaze/channel/{id}`
+- `POST /api/blaze/channel`
+- `PUT /api/blaze/channel/{id}`
+- `DELETE /api/blaze/channel/{id}`
+
+REST Blaze:
+
 - `GET /api/blaze/users/profile`
 - `GET /api/blaze/channels?slug=...`
 - `GET /api/blaze/chats/messages?channelId=...`
 - `POST /api/blaze/chats/messages`
+
+Events:
+
 - `GET /api/blaze/events/status`
 - `POST /api/blaze/events/start`
 - `POST /api/blaze/events/stop`
+- `GET /api/blaze/events/log`
+- `POST /api/blaze/events/simulate`
+- `GET /api/blaze/events/capabilities`
 - `POST /api/blaze/events/subscriptions/sync`
+
+Live Events (intake):
+
+- `GET /api/live-events`
+- `POST /api/live-events`
+- `GET /api/live-events/{id}`
+- `GET /api/live-events/stats`
+- `POST /api/live-events/simulate`
+
+Alertas:
+
 - `GET /api/alerts/rules`
 - `POST /api/alerts/rules`
+- `PUT /api/alerts/rules/{id}`
+- `DELETE /api/alerts/rules/{id}`
 - `GET /api/alerts/history`
 - `GET /api/alerts/active`
 - `POST /api/alerts/acknowledge/{id}`
+- `POST /api/alerts/evaluate`
+- `GET /api/alerts/stats`
+- `GET /api/alerts/capabilities`
+
+Sorteios:
+
 - `GET /api/giveaways`
 - `POST /api/giveaways`
+- `GET /api/giveaways/stats`
+- `GET /api/giveaways/capabilities`
+- `GET /api/giveaways/{id}`
+- `PUT /api/giveaways/{id}`
+- `DELETE /api/giveaways/{id}`
 - `POST /api/giveaways/{id}/open`
 - `POST /api/giveaways/{id}/close`
 - `POST /api/giveaways/{id}/enter`
 - `POST /api/giveaways/{id}/draw`
+- `GET /api/giveaways/{id}/results`
+
+Overlays:
+
 - `GET /api/overlay-profiles`
 - `POST /api/overlay-profiles`
+- `GET /api/overlay-profiles/{profileId}`
+- `PUT /api/overlay-profiles/{profileId}`
+- `DELETE /api/overlay-profiles/{profileId}`
 - `GET /api/overlay-profiles/{profileId}/overlays`
 - `POST /api/overlay-profiles/{profileId}/overlays`
 - `GET /api/overlays/{overlayId}`
@@ -181,10 +236,18 @@ Limitacoes atuais:
 - `POST /api/overlays/{overlayId}/layers`
 - `PUT /api/overlays/{overlayId}/layers/{layerId}`
 - `DELETE /api/overlays/{overlayId}/layers/{layerId}`
-- `POST /api/overlays/{overlayId}/assets`
+- `POST /api/overlays/{overlayId}/assets` (multipart)
 - `GET /api/public/overlays/{publicToken}/manifest`
 - `GET /api/public/overlays/{publicToken}/assets/{assetId}`
 - `GET /overlay/{publicToken}`
+
+Runtime overlays (config):
+
+- `GET /api/overlay-runtimes`
+- `GET /api/overlay-runtimes/{id}`
+- `POST /api/overlay-runtimes`
+- `PUT /api/overlay-runtimes/{id}`
+- `DELETE /api/overlay-runtimes/{id}`
 
 ## Arquitetura de overlays
 
@@ -212,7 +275,7 @@ npm run build
 npm audit --audit-level=moderate
 ```
 
-A suite cobre health/status, propriedades seguras, OAuth, REST client, Events, alerts, giveaways, overlays e smoke tests React.
+A suite cobre health/status, propriedades seguras, OAuth, REST client, Events, alerts, giveaways, overlays e smoke tests React. Inclui testes de integracao dos stores em PostgreSQL real via Testcontainers (14 casos), alem dos testes em H2.
 
 ## Proximos passos
 
