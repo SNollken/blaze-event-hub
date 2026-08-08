@@ -87,10 +87,21 @@ public class RateLimitFilter extends OncePerRequestFilter {
 		}
 	}
 
+	/**
+	 * Chave do cliente para o rate limit. Atrás do Render (ou qualquer reverse
+	 * proxy único confiável), o edge ANEXA o IP real do cliente como ÚLTIMA
+	 * entrada de X-Forwarded-For. Pegar a primeira entrada deixaria um atacante
+	 * enviar o próprio header X-Forwarded-For e ganhar um bucket novo por
+	 * request, burlando o limite trivialmente. Sem XFF, cai para o peer TCP.
+	 */
 	private static String clientKey(HttpServletRequest request) {
 		String forwarded = request.getHeader("X-Forwarded-For");
 		if (forwarded != null && !forwarded.isBlank()) {
-			return forwarded.split(",")[0].trim();
+			String[] hops = forwarded.split(",");
+			String last = hops[hops.length - 1].trim();
+			if (!last.isEmpty()) {
+				return last;
+			}
 		}
 		return request.getRemoteAddr();
 	}

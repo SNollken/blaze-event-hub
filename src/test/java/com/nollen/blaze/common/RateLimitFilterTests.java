@@ -86,6 +86,22 @@ class RateLimitFilterTests {
 	}
 
 	@Test
+	void spoofedXForwardedForCannotBypassTheLimit() throws Exception {
+		// O edge do Render ANEXA o IP real do cliente como ÚLTIMA entrada de
+		// X-Forwarded-For. O filtro precisa chavear por essa entrada, não pela
+		// primeira (controlada pelo atacante): com o comportamento antigo,
+		// bastava mandar um XFF aleatório por request para ganhar um bucket
+		// novo e burlar o limite.
+		mockMvc.perform(post("/api/blaze/oauth/start").header("X-Forwarded-For", "spoofed-1, 10.0.0.1"))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/blaze/oauth/start").header("X-Forwarded-For", "spoofed-2, 10.0.0.1"))
+				.andExpect(status().isOk());
+		mockMvc.perform(post("/api/blaze/oauth/start").header("X-Forwarded-For", "spoofed-3, 10.0.0.1"))
+				.andExpect(status().isTooManyRequests())
+				.andExpect(header().string("Retry-After", "60"));
+	}
+
+	@Test
 	void callbackAndSessionAreNotRateLimited() throws Exception {
 		// GETs (callback público + session) nunca são bloqueados por limite de frequência.
 		for (int i = 0; i < 5; i++) {
