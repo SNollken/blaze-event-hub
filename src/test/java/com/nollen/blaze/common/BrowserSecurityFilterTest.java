@@ -40,10 +40,23 @@ class BrowserSecurityFilterTest {
 	}
 
 	@Test
-	void doesNotAddCacheControlForStaticPaths() throws ServletException, IOException {
-		MockHttpServletRequest request = new MockHttpServletRequest("GET", "/dashboard");
-		MockHttpServletResponse response = new MockHttpServletResponse();
-		filter.doFilterInternal(request, response, (req, resp) -> { });
-		assertThat(response.getHeader("Cache-Control")).isNull();
+	void addsNoCacheForHtmlEntryPoints() throws ServletException, IOException {
+		for (String path : new String[] {"/", "/dashboard", "/blaze", "/events", "/overlay/abc123"}) {
+			MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+			MockHttpServletResponse response = new MockHttpServletResponse();
+			filter.doFilterInternal(request, response, (req, resp) -> { });
+			assertThat(response.getHeader("Cache-Control")).as("Cache-Control for %s", path).isEqualTo("no-cache");
+		}
+	}
+
+	@Test
+	void addsImmutableLongLivedCacheForHashedAssets() throws ServletException, IOException {
+		for (String path : new String[] {"/assets/index-2mK_JS8L.js", "/assets/index-pQldHEI4.css", "/assets/funnel-sans-latin-400-normal.woff2"}) {
+			MockHttpServletRequest request = new MockHttpServletRequest("GET", path);
+			MockHttpServletResponse response = new MockHttpServletResponse();
+			filter.doFilterInternal(request, response, (req, resp) -> { });
+			assertThat(response.getHeader("Cache-Control")).as("Cache-Control for %s", path)
+					.isEqualTo("public, max-age=31536000, immutable");
+		}
 	}
 }
