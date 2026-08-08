@@ -57,6 +57,8 @@ java -jar target/nollen-blaze-0.0.1-SNAPSHOT.jar
 
 O Maven copia `frontend/dist` para `target/classes/static` na fase `process-resources` (plugin `maven-resources-plugin`, execution `copy-frontend-dist`). Se `frontend/dist` nao existir, o build do backend segue normalmente e `/` mostra o shell MVP como fallback.
 
+**Atencao (producao):** o SPA envia a API key no header `X-Nollen-Api-Key` (ver `frontend/src/api/client.ts`). Em producao, defina `VITE_NOLLEN_API_KEY` no ambiente de **build** (ex.: env vars da Render) com o MESMO valor de `NOLLEN_API_KEY` do backend. Sem isso, o build embute o fallback `dev-local-key` e toda a UI recebe 401 do `ApiKeyFilter`. Essa chave nao e um segredo real (qualquer visitante a ve no header das requests do browser) — ela so bloqueia clientes nao-browser; os segredos de verdade (`BLAZE_CLIENT_SECRET`, tokens OAuth) ficam exclusivamente no backend.
+
 Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans e JetBrains Mono, OFL): nenhum request externo para Google Fonts, de acordo com o CSP `default-src 'self'` + `font-src 'self' data:`.
 
 ## Dashboard Shell MVP
