@@ -49,6 +49,30 @@ describe('frontend smoke', () => {
     expect((await screen.findAllByText('Blaze Channel')).length).toBeGreaterThan(0);
   });
 
+  it('rota legada /live-events redireciona para /events', async () => {
+    renderRoute('/live-events');
+    expect(await screen.findByText('Mensagens Vistas')).toBeInTheDocument();
+    expect(screen.queryByText('404')).not.toBeInTheDocument();
+  });
+
+  it('rota legada /alerts-dashboard redireciona para /alerts', async () => {
+    renderRoute('/alerts-dashboard');
+    expect(await screen.findByText('Nenhuma regra configurada.')).toBeInTheDocument();
+    expect(screen.queryByText('404')).not.toBeInTheDocument();
+  });
+
+  it('rota legada /giveaways-dashboard redireciona para /giveaways', async () => {
+    renderRoute('/giveaways-dashboard');
+    expect(await screen.findByText('Nenhum sorteio criado.')).toBeInTheDocument();
+    expect(screen.queryByText('404')).not.toBeInTheDocument();
+  });
+
+  it('rota legada /overlays-dashboard redireciona para /overlays', async () => {
+    renderRoute('/overlays-dashboard');
+    expect(await screen.findByText('Nenhum perfil criado.')).toBeInTheDocument();
+    expect(screen.queryByText('404')).not.toBeInTheDocument();
+  });
+
   it('renderiza alerts conectado a API', async () => {
     renderRoute('/alerts');
     expect((await screen.findAllByText('Alertas')).length).toBeGreaterThan(0);

@@ -9,6 +9,7 @@ import '@fontsource/funnel-sans/400.css';
 import '@fontsource/funnel-sans/500.css';
 import '@fontsource/funnel-sans/600.css';
 import '@fontsource/funnel-sans/700.css';
+import '@fontsource/jetbrains-mono/400.css';
 import { initI18n } from './i18n';
 import { initTheme } from './hooks/useTheme';
 

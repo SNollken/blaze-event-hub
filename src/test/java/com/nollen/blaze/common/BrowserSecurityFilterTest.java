@@ -25,6 +25,8 @@ class BrowserSecurityFilterTest {
 		assertThat(response.getHeader("Referrer-Policy")).isEqualTo("strict-origin-when-cross-origin");
 		assertThat(response.getHeader("Content-Security-Policy")).isNotNull();
 		assertThat(response.getHeader("Content-Security-Policy")).contains("default-src 'self'");
+		// @fontsource self-hosted fonts load from /assets plus small inlined data: subsets
+		assertThat(response.getHeader("Content-Security-Policy")).contains("font-src 'self' data:");
 		assertThat(response.getHeader("Permissions-Policy")).isNotNull();
 		assertThat(response.getHeader("frame-ancestors")).isNull();
 	}

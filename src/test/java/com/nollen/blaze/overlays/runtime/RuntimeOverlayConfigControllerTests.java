@@ -124,11 +124,12 @@ class RuntimeOverlayConfigControllerTests {
 
 	@Test
 	void overlaysDashboardEndpoint() throws Exception {
+		// Serves the SPA entry: React build when bundled (redirects /overlays-dashboard
+		// to /overlays client-side), MVP panel fallback otherwise. Both carry the title.
 		mockMvc.perform(get("/overlays-dashboard"))
 				.andExpect(status().isOk())
 				.andExpect(content().contentTypeCompatibleWith(MediaType.TEXT_HTML))
-				.andExpect(content().string(containsString("Dashboard Shell MVP")))
-				.andExpect(content().string(containsString("Overlays")));
+				.andExpect(content().string(containsString("NollenBlaze")));
 	}
 
 	private String extractId(String jsonResponse) {

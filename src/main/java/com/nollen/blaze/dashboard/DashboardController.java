@@ -14,9 +14,15 @@ public class DashboardController {
 		this.shell = shell;
 	}
 
-	@GetMapping({"/", "/dashboard", "/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"})
+	@GetMapping({"/", "/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"})
 	@ResponseBody
 	ResponseEntity<String> dashboard() {
 		return shell.response();
+	}
+
+	@GetMapping("/dashboard")
+	@ResponseBody
+	ResponseEntity<String> legacyMvpPanel() {
+		return shell.mvpPanel();
 	}
 }

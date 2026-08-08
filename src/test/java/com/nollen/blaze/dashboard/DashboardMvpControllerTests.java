@@ -34,19 +34,25 @@ class DashboardMvpControllerTests {
 	private ObjectMapper objectMapper;
 
 	@Test
-	void rootAndDashboardServeProvisionalPanel() throws Exception {
+	void rootServesSpaShellAndDashboardServesLegacyPanel() throws Exception {
+		// "/" serves the SPA entry (React build when present, MVP fallback otherwise);
+		// both carry the NollenBlaze title, so this assertion holds in both cases.
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("NollenBlaze")))
-				.andExpect(content().string(containsString("Dashboard Shell MVP")))
-				.andExpect(content().string(containsString("data-section-target=\"overview\"")))
-				.andExpect(content().string(containsString("/dashboard.js")));
+				.andExpect(content().string(containsString("NollenBlaze")));
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("NollenBlaze")))
+				.andExpect(content().string(containsString("Dashboard Shell MVP")))
+				.andExpect(content().string(containsString("data-section-target=\"overview\"")))
 				.andExpect(content().string(containsString("Conta Blaze")))
+				.andExpect(content().string(containsString("/dashboard.js")))
 				.andExpect(content().string(containsString("/dashboard.css")));
+
+		mockMvc.perform(get("/dashboard.html"))
+				.andExpect(status().isOk())
+				.andExpect(content().string(containsString("Dashboard Shell MVP")));
 
 		mockMvc.perform(get("/dashboard.js"))
 				.andExpect(status().isOk())
@@ -62,6 +68,20 @@ class DashboardMvpControllerTests {
 			mockMvc.perform(get(path))
 					.andExpect(status().isOk())
 					.andExpect(content().string(containsString("NollenBlaze")));
+		}
+	}
+
+	@Test
+	void spaRoutesServeReactBuildWhenFrontendIsBundled() throws Exception {
+		org.junit.jupiter.api.Assumptions.assumeTrue(
+				new org.springframework.core.io.ClassPathResource("static/index.html").exists(),
+				"frontend/dist not bundled — run `cd frontend && npm run build` and rebuild first");
+
+		for (String path : new String[] {"/", "/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"}) {
+			mockMvc.perform(get(path))
+					.andExpect(status().isOk())
+					.andExpect(content().string(containsString("<div id=\"root\">")))
+					.andExpect(content().string(containsString("/assets/")));
 		}
 	}
 
