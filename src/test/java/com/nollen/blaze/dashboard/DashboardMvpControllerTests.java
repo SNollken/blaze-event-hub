@@ -57,6 +57,15 @@ class DashboardMvpControllerTests {
 	}
 
 	@Test
+	void spaDeepLinkRoutesServeShell() throws Exception {
+		for (String path : new String[] {"/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"}) {
+			mockMvc.perform(get(path))
+					.andExpect(status().isOk())
+					.andExpect(content().string(containsString("NollenBlaze")));
+		}
+	}
+
+	@Test
 	void mvpRoutesWorkWithoutRealCredentials() throws Exception {
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())

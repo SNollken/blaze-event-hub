@@ -14,7 +14,7 @@ public class DashboardController {
 		this.shell = shell;
 	}
 
-	@GetMapping({"/", "/dashboard", "/events", "/channel", "/alerts", "/giveaways", "/overlays"})
+	@GetMapping({"/", "/dashboard", "/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"})
 	@ResponseBody
 	ResponseEntity<String> dashboard() {
 		return shell.response();

@@ -44,6 +44,11 @@ describe('frontend smoke', () => {
     expect((await screen.findAllByText('Blaze Channel')).length).toBeGreaterThan(0);
   });
 
+  it('rota legada /channel redireciona para /blaze', async () => {
+    renderRoute('/channel');
+    expect((await screen.findAllByText('Blaze Channel')).length).toBeGreaterThan(0);
+  });
+
   it('renderiza alerts conectado a API', async () => {
     renderRoute('/alerts');
     expect((await screen.findAllByText('Alertas')).length).toBeGreaterThan(0);

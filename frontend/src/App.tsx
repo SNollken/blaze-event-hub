@@ -1,5 +1,5 @@
 import { lazy, Suspense } from 'react';
-import { Routes, Route } from 'react-router-dom';
+import { Routes, Route, Navigate } from 'react-router-dom';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { t } from './i18n';
 
@@ -25,6 +25,8 @@ export default function App() {
           <Route path="/" element={<Dashboard />} />
           <Route path="/events" element={<LiveEvents />} />
           <Route path="/blaze" element={<BlazeChannel />} />
+          {/* legacy route: old dashboard shell linked to /channel */}
+          <Route path="/channel" element={<Navigate to="/blaze" replace />} />
           <Route path="/alerts" element={<Alerts />} />
           <Route path="/giveaways" element={<Giveaways />} />
           <Route path="/overlays" element={<Overlays />} />
