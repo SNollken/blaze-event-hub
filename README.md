@@ -10,8 +10,8 @@ Backend limpo do NollenBlaze para integracao server-side com blaze.stream, OAuth
 - Spring Web, Validation, Actuator, JDBC
 - H2 para dev/testes
 - RestClient para HTTP
-- Dashboard Shell MVP estatico em `src/main/resources/static/dashboard.html`
-- Frontend React + Vite em `frontend/`
+- Dashboard Shell MVP estatico em `src/main/resources/static/dashboard.html` (fallback em `/dashboard`)
+- Frontend React + Vite em `frontend/` — build e embutido no jar e servido pelo Spring em `/`
 - Storage H2 para Alerts, Events log, Canal Blaze, Live Events, Giveaways e Overlays
 
 ## Como rodar
@@ -45,12 +45,26 @@ npm run dev
 
 O Vite roda em `http://localhost:5173` e faz proxy de `/api` para `http://localhost:8080`.
 
+### Build unico (jar com o frontend)
+
+O build de producao embute o React (`frontend/dist`) dentro do jar do Spring Boot:
+
+```bash
+cd frontend && npm install && npm run build && cd ..
+./mvnw clean package
+java -jar target/nollen-blaze-0.0.1-SNAPSHOT.jar
+```
+
+O Maven copia `frontend/dist` para `target/classes/static` na fase `process-resources` (plugin `maven-resources-plugin`, execution `copy-frontend-dist`). Se `frontend/dist` nao existir, o build do backend segue normalmente e `/` mostra o shell MVP como fallback.
+
+Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans e JetBrains Mono, OFL): nenhum request externo para Google Fonts, de acordo com o CSP `default-src 'self'` + `font-src 'self' data:`.
+
 ## Dashboard Shell MVP
 
 O dashboard servido pelo Spring Boot e um Dashboard Shell MVP provisorio em HTML/CSS/JS simples. Ele existe para organizar a navegacao real do produto ate o design final no OpenDesign, sem criar backend pesado nem mexer no fluxo OAuth.
 
-- Tela inicial: `http://localhost:8080/`
-- Dashboard: `http://localhost:8080/dashboard`
+- Tela inicial: `http://localhost:8080/` (SPA React quando embutido no jar; shell MVP como fallback)
+- Dashboard MVP: `http://localhost:8080/dashboard`
 - Frontend dev: `http://localhost:5173/`
 - Arquivos do shell: `src/main/resources/static/dashboard.html`, `dashboard.css` e `dashboard.js`
 - Health usado pela tela: `GET /api/health`
@@ -68,11 +82,17 @@ O dashboard servido pelo Spring Boot e um Dashboard Shell MVP provisorio em HTML
 
 O shell tem sidebar esquerda com Visao geral, Conta Blaze, Canal monitorado, Events, Live Events, Alertas, Sorteios, Overlays, Configuracoes e Diagnostico. Endpoints ausentes, protegidos ou com erro sao tratados como "nao disponivel" ou "erro ao carregar", sem jogar JSON bruto na tela.
 
-O frontend nao recebe `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais. As rotas antigas `/alerts-dashboard`, `/giveaways-dashboard`, `/live-events` e `/overlays-dashboard` continuam respondendo pelo mesmo shell do dashboard.
+O frontend nao recebe `clientSecret`, `accessToken`, `refreshToken` ou valores reais de credenciais. As rotas antigas `/alerts-dashboard`, `/giveaways-dashboard`, `/live-events` e `/overlays-dashboard` servem a entrada da SPA quando o React esta embutido no jar (o React redireciona para `/alerts`, `/giveaways`, `/events` e `/overlays` no cliente); sem o build do frontend, continuam respondendo pelo shell MVP.
 
 ## Frontend React
 
-O frontend React + Vite permanece em `frontend/` para desenvolvimento e testes da experiencia anterior. Nesta fase, `/` e `/dashboard` no backend priorizam o shell MVP estatico para navegacao provisoria do produto.
+O frontend React + Vite em `frontend/` e a UI principal do produto. Com `npm run build` + `./mvnw clean package`, o `dist` e copiado para `target/classes/static` e o Spring serve o SPA em `/` e em todas as rotas de pagina (`/events`, `/blaze`, `/alerts`, `/giveaways`, `/overlays`) — cada rota de pagina e mapeada explicitamente no `DashboardController`, que entrega o `index.html` da SPA. `/dashboard` e `/dashboard.html` mantem o shell MVP como painel de diagnostico. Se `frontend/dist` nao existir no momento do build, o backend segue funcionando e `/` mostra o shell MVP como fallback.
+
+- Rotas legadas com redirect no cliente: `/channel` → `/blaze`, `/live-events` → `/events`, `/alerts-dashboard` → `/alerts`, `/giveaways-dashboard` → `/giveaways`, `/overlays-dashboard` → `/overlays`
+- Tema escuro unico via CSS custom properties (`src/index.css`), sem dependencia de CDN externa
+- Tipografia: Funnel Display (titulos), Funnel Sans (UI) e JetBrains Mono (codigo) self-hosted
+- Layout responsivo auditado em 375px e 768px sem overflow horizontal
+- Testes: `npm test` (vitest + jsdom + testing-library), typecheck `tsc --noEmit`
 
 ## MVP 2 - Configuracao assistida da Blaze
 

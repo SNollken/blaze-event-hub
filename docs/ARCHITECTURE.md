@@ -69,9 +69,11 @@ A implementacao atual e `NoopBlazeEventsClient`. A conexao Socket.IO real fica p
 
 ## Frontend
 
-O frontend React fica em `frontend/` (Vite + TypeScript + Tailwind v4, i18n pt-BR/EN, lazy loading por rota e proxy `/api` para `localhost:8080` em desenvolvimento). Rotas da SPA: `/` (Dashboard), `/events`, `/blaze` (Blaze Channel), `/alerts`, `/giveaways` e `/overlays`; `/channel` e rota legada que redireciona para `/blaze`.
+O frontend React fica em `frontend/` (Vite + TypeScript + Tailwind v4, i18n pt-BR/EN, lazy loading por rota e proxy `/api` para `localhost:8080` em desenvolvimento). Rotas da SPA: `/` (Dashboard), `/events`, `/blaze` (Blaze Channel), `/alerts`, `/giveaways` e `/overlays`. Rotas legadas com redirect no cliente: `/channel` → `/blaze`, `/live-events` → `/events`, `/alerts-dashboard` → `/alerts`, `/giveaways-dashboard` → `/giveaways`, `/overlays-dashboard` → `/overlays`.
 
-O `DashboardController` serve o shell HTML provisorio (`static/dashboard.html`) para `/`, `/dashboard`, `/events`, `/blaze`, `/channel`, `/alerts`, `/giveaways` e `/overlays`; paginas legadas `/live-events` e `/alerts-dashboard` tambem servem o shell. Em producao o build da SPA e servido pelo pipeline de deploy (Render) — ver "Decisoes pendentes".
+O build da SPA e embutido no jar: o `maven-resources-plugin` (execution `copy-frontend-dist`, fase `process-resources`) copia `frontend/dist` para `target/classes/static`. `DashboardShell` serve `static/index.html` quando presente e cai para o shell MVP (`static/dashboard.html`) quando o frontend nao foi buildado. O `DashboardController` mapeia `/`, `/events`, `/blaze`, `/channel`, `/alerts`, `/giveaways` e `/overlays` para a entrada da SPA, e mantem `/dashboard` no shell MVP como painel de diagnostico; os controllers de paginas legadas (`/live-events`, `/alerts-dashboard`, `/giveaways-dashboard`, `/overlays-dashboard`) tambem servem a entrada da SPA.
+
+Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans, JetBrains Mono) — nenhum request externo, compativel com o CSP (`default-src 'self'`, `font-src 'self' data:`). O layout foi auditado em 375px/768px sem overflow horizontal.
 
 ## Overlays
 
