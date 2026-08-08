@@ -15,7 +15,6 @@ export const translations: Record<Locale, TranslationMap> = {
     // App
     'app.title': 'NollenBlaze',
     'app.notFound': 'Page not found.',
-    'app.loading': 'Loading...',
 
     // Navigation
     'nav.dashboard': 'Overview',
@@ -37,7 +36,6 @@ export const translations: Record<Locale, TranslationMap> = {
     // Common
     'common.cancel': 'Cancel',
     'common.close': 'Close',
-    'common.save': 'Save',
     'common.refresh': 'Refresh',
     'common.copy': 'Copy',
     'common.view': 'View',
@@ -69,7 +67,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.recommended': 'Recommended',
     'common.total': 'total',
     'common.avatar': 'avatar',
-    'common.profile': 'profile',
 
     // Errors
     'error.failed': 'Something went wrong loading this screen.',
@@ -99,13 +96,9 @@ export const translations: Record<Locale, TranslationMap> = {
     'dashboard.offline': 'Offline',
     'dashboard.unavailable': 'Unavailable',
     'dashboard.blazeOAuth': 'Blaze OAuth',
-    'dashboard.connected': 'Connected',
-    'dashboard.disconnected': 'Disconnected',
     'dashboard.noAccount': 'No connected account.',
     'dashboard.nextAction': 'Next action:',
     'dashboard.eventsSocket': 'Events Socket',
-    'dashboard.running': 'Running',
-    'dashboard.stopped': 'Stopped',
     'dashboard.clientConnected': 'Client connected',
     'dashboard.clientDisconnected': 'Client disconnected',
     'dashboard.overlays': 'Overlays',
@@ -321,7 +314,6 @@ export const translations: Record<Locale, TranslationMap> = {
     // App
     'app.title': 'NollenBlaze',
     'app.notFound': 'Página não encontrada.',
-    'app.loading': 'Carregando...',
 
     // Navigation
     'nav.dashboard': 'Visão Geral',
@@ -343,7 +335,6 @@ export const translations: Record<Locale, TranslationMap> = {
     // Common
     'common.cancel': 'Cancelar',
     'common.close': 'Fechar',
-    'common.save': 'Salvar',
     'common.refresh': 'Atualizar',
     'common.copy': 'Copiar',
     'common.view': 'Ver',
@@ -375,7 +366,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.recommended': 'Recomendado',
     'common.total': 'total',
     'common.avatar': 'avatar',
-    'common.profile': 'perfil',
 
     // Errors
     'error.failed': 'Algo deu errado ao carregar esta tela.',
@@ -405,13 +395,9 @@ export const translations: Record<Locale, TranslationMap> = {
     'dashboard.offline': 'Offline',
     'dashboard.unavailable': 'Indisponível',
     'dashboard.blazeOAuth': 'Blaze OAuth',
-    'dashboard.connected': 'Conectado',
-    'dashboard.disconnected': 'Desconectado',
     'dashboard.noAccount': 'Nenhuma conta conectada.',
     'dashboard.nextAction': 'Próxima ação:',
     'dashboard.eventsSocket': 'Events Socket',
-    'dashboard.running': 'Rodando',
-    'dashboard.stopped': 'Parado',
     'dashboard.clientConnected': 'Cliente conectado',
     'dashboard.clientDisconnected': 'Cliente desconectado',
     'dashboard.overlays': 'Overlays',
