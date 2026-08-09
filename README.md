@@ -61,6 +61,22 @@ O Maven copia `frontend/dist` para `target/classes/static` na fase `process-reso
 
 Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans e JetBrains Mono, OFL): nenhum request externo para Google Fonts, de acordo com o CSP `default-src 'self'` + `font-src 'self' data:`.
 
+### Producao (Supabase/PostgreSQL)
+
+O jar inclui o driver PostgreSQL (scope `runtime`). Para apontar para o Supabase, defina no ambiente de **runtime** (ex.: Render):
+
+| Variavel | Valor |
+|----------|-------|
+| `NOLLEN_DB_URL` | `jdbc:postgresql://<projeto>.pooler.supabase.com:6543/postgres?sslmode=require` — **`sslmode=require` e obrigatorio**; nao ha outra camada que force TLS |
+| `NOLLEN_DB_USER` | usuario do Supabase (ATENCAO: e `NOLLEN_DB_USER`, nao `NOLLEN_DB_USERNAME`) |
+| `NOLLEN_DB_PASSWORD` | senha do Supabase |
+| `NOLLEN_API_KEY` | chave real (o default `dev-change-me-in-production` NAO deve ir para prod) |
+| `VITE_NOLLEN_API_KEY` | **ambiente de BUILD**, mesmo valor de `NOLLEN_API_KEY` (ver acima) |
+| `SESSION_COOKIE_SECURE` | `true` |
+| `BLAZE_CLIENT_ID` / `BLAZE_CLIENT_SECRET` / `BLAZE_REDIRECT_URI` | credenciais OAuth da Blaze |
+
+O schema e criado pelo proprio app no boot (`spring.sql.init.mode=always` roda `schema.sql`, incluindo indices). RLS do Supabase nao e usado nem necessario: o frontend nao acessa o Supabase; todo acesso a dados passa pelo backend com credencial de servico unica.
+
 ## Dashboard Shell MVP
 
 O dashboard servido pelo Spring Boot e um Dashboard Shell MVP provisorio em HTML/CSS/JS simples. Ele existe para organizar a navegacao real do produto ate o design final no OpenDesign, sem criar backend pesado nem mexer no fluxo OAuth.
