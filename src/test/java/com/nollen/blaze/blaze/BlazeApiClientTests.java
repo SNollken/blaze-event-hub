@@ -94,4 +94,25 @@ class BlazeApiClientTests {
 				.extracting(ex -> ((BlazeApiException) ex).status())
 				.isEqualTo(429);
 	}
+
+	@Test
+	void networkFailureMapsTo502() {
+		// Real RestClient against a closed port: connection refused throws
+		// ResourceAccessException, which must surface as 502 (Blaze unreachable),
+		// not fall through to the generic 500 handler.
+		// NOTE: BlazeApiClient overrides the builder baseUrl with
+		// properties.getApiBaseUrl(), so the unreachable host goes in the property.
+		properties.setApiBaseUrl("http://127.0.0.1:9");
+		BlazeApiClient realClient = new BlazeApiClient(properties, tokenStore,
+				new BlazeApiHeaders(properties, Clock.systemUTC()),
+				RestClient.builder());
+
+		assertThatThrownBy(realClient::getCurrentUserProfile)
+				.isInstanceOf(BlazeApiException.class)
+				.satisfies(ex -> {
+					BlazeApiException apiEx = (BlazeApiException) ex;
+					assertThat(apiEx.status()).isEqualTo(502);
+					assertThat(apiEx.safeMessage()).isEqualTo("Blaze API is unreachable");
+				});
+	}
 }

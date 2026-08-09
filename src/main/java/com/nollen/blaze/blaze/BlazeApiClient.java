@@ -11,6 +11,7 @@ import org.springframework.core.ParameterizedTypeReference;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 import org.springframework.web.client.RestClientResponseException;
 
@@ -53,6 +54,9 @@ public class BlazeApiClient {
 		catch (RestClientResponseException ex) {
 			throw BlazeApiException.from(ex);
 		}
+		catch (ResourceAccessException ex) {
+			throw BlazeApiException.unreachable(ex);
+		}
 	}
 
 	public Map<String, Object> getChatMessages(String channelId) {
@@ -69,6 +73,9 @@ public class BlazeApiClient {
 		}
 		catch (RestClientResponseException ex) {
 			throw BlazeApiException.from(ex);
+		}
+		catch (ResourceAccessException ex) {
+			throw BlazeApiException.unreachable(ex);
 		}
 	}
 
@@ -92,6 +99,9 @@ public class BlazeApiClient {
 		catch (RestClientResponseException ex) {
 			throw BlazeApiException.from(ex);
 		}
+		catch (ResourceAccessException ex) {
+			throw BlazeApiException.unreachable(ex);
+		}
 	}
 
 	private Map<String, Object> get(String path, TokenSnapshot token) {
@@ -104,6 +114,9 @@ public class BlazeApiClient {
 		}
 		catch (RestClientResponseException ex) {
 			throw BlazeApiException.from(ex);
+		}
+		catch (ResourceAccessException ex) {
+			throw BlazeApiException.unreachable(ex);
 		}
 	}
 

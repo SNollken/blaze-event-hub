@@ -3,6 +3,8 @@ spring:
     name: nollen-blaze
   config:
     import: "optional:file:.env[.properties]"
+  lifecycle:
+    timeout-per-shutdown-phase: 30s
   datasource:
     url: ${NOLLEN_DB_URL:jdbc:h2:file:./data/nollenblaze-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
     driver-class-name: org.h2.Driver
@@ -14,6 +16,9 @@ spring:
 
 server:
   port: ${SERVER_PORT:8080}
+  # Graceful shutdown: Render sends SIGTERM on deploy; without this, in-flight
+  # requests (including 10s Blaze API calls and JDBC writes) are cut mid-flight.
+  shutdown: graceful
   servlet:
     session:
       cookie:
