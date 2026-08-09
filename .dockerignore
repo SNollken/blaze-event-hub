@@ -1,0 +1,42 @@
+# Git
+.git
+.gitignore
+.gitattributes
+
+# Build outputs
+target/
+frontend/dist/
+frontend/node_modules/
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment files (never include secrets in Docker image)
+.env
+.env.local
+.env.production
+*.env
+
+# Logs
+*.log
+logs/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Hermes / agent files
+.hermes/
+*.md
+!README.md
+
+# Data
+data/
+*.db
+*.sqlite
+
+# Temporary
+tmp/
+temp/
