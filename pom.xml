@@ -75,7 +75,9 @@
 		<dependency>
 			<groupId>org.postgresql</groupId>
 			<artifactId>postgresql</artifactId>
-			<scope>test</scope>
+			<!-- runtime: production connects to Supabase/PostgreSQL. With test scope the
+				 packaged jar had no PG driver and could not leave H2 (redeploy blocker). -->
+			<scope>runtime</scope>
 		</dependency>
 	</dependencies>
 
