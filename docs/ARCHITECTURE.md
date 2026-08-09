@@ -23,6 +23,12 @@ O perfil `dev` usa H2 file em `./data/nollenblaze-dev` (MODE=PostgreSQL). Testes
 
 Nota: `db/migration/common/V11__add_runtime_overlay_configs.sql` e um artefato historico da epoca em que o branch de producao usava Flyway. Este branch nao tem dependencia Flyway; o schema vem do `schema.sql`, que ja contem a tabela `runtime_overlay_configs`. O arquivo foi mantido apenas como referencia de DDL.
 
+Producao (Supabase/PostgreSQL): o driver `org.postgresql:postgresql` tem scope `runtime` e vai dentro do jar (rodada 50 — antes era `test`, o que impedia o jar de conectar em PG). A conexao usa credencial de servico unica via `NOLLEN_DB_URL`/`NOLLEN_DB_USER`/`NOLLEN_DB_PASSWORD`; a URL DEVE incluir `sslmode=require` (nao ha outra camada que force TLS).
+
+Retencao e limites (rodada 50): `blaze_events_log` tem retencao no path JDBC (mantem as 2000 linhas mais recentes — log diagnostico); listagens de `live_events` e `alerts` sao limitadas as 500 linhas mais recentes (`LIST_LIMIT`/`MAX_ALERTS`); `/api/blaze/events/log?limit=` tem teto de 500. Indices em hot paths: `live_events(dedup_key)` (dedup roda em TODO evento ingerido), `live_events(occurred_at)`, `alerts(rule_id, triggered_at)` (cooldown check), `blaze_events_log(received_at)`.
+
+RLS (Supabase) nao e fronteira de protecao aqui: o frontend nao fala com o Supabase (zero `@supabase/*`), todo acesso a dados e backend JDBC com credencial privilegiada. A fronteira real e o backend (`ApiKeyFilter` + logica das APIs). Auditoria rodada 50: zero policies RLS no schema/migrations, e isso e correto para esta arquitetura.
+
 ## API Security
 
 `ApiKeyFilter` protege endpoints administrativos de `/api/**` com `X-Nollen-Api-Key` ou `Authorization: Bearer *** (comparacao em tempo constante via `MessageDigest.isEqual`). Rotas publicas continuam liberadas:
@@ -34,7 +40,9 @@ Nota: `db/migration/common/V11__add_runtime_overlay_configs.sql` e um artefato h
 - `GET /overlay/**`
 - `GET /assets/**` e `/vite.svg` (assets estaticos do build da SPA)
 
-`BrowserSecurityFilter` adiciona headers de seguranca: CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy e Cache-Control no-store para `/api/`. `RateLimitFilter` aplica janela deslizante de 1 minuto por IP em `POST /api/blaze/oauth/*` (429 + Retry-After; configuravel via `NOLLEN_RATE_LIMIT_PER_MINUTE`, default 30).
+`BrowserSecurityFilter` adiciona headers de seguranca: CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy e Cache-Control no-store para `/api/`. `RateLimitFilter` aplica janela deslizante de 1 minuto por IP em `POST /api/blaze/oauth/*` (429 + Retry-After; configuravel via `NOLLEN_RATE_LIMIT_PER_MINUTE`, default 30; chave = ULTIMA entrada de `X-Forwarded-For`, a anexada pelo edge do Render).
+
+Modelo de confianca (auditoria rodada 50): o app e single-tenant "atras da URL". A API key viaja no bundle JS publico (baked em build time via `VITE_NOLLEN_API_KEY`) — qualquer visitante consegue le-la. Ela protege contra CSRF de terceiros (nao ha cookie de sessao; CORS nao configurado; header customizado exige preflight) e contra bots, mas NAO protege contra quem conhece a URL. Aceito por design; segredos reais ficam so no backend. O bloco `server.servlet.session.cookie` em application.yml e config inerte hoje (nenhuma sessao e criada) — armadilha futura: se sessoes forem introduzidas, definir `SESSION_COOKIE_SECURE=true` e `server.forward-headers-strategy`.
 
 ## OAuth
 
@@ -95,3 +103,6 @@ Nao existe endpoint `/overlay/live` como arquitetura principal.
 - Cliente Socket.IO real e politica de reconexao.
 - Teste E2E contra blaze.stream com credenciais reais.
 - Reconciliacao do deploy de producao (Render) com este branch — o build live atual nao e reproduzivel a partir do repo (ver TODO.md, rodada 20).
+- Fixacao de conta OAuth (risco MED, auditoria rodada 50): o callback e publico e o `state` nao esta vinculado a uma sessao de browser (nao ha sessoes). Engenharia social (operador abre URL de callback forjada com a conta do atacante) pode trocar a conta conectada globalmente. Mitigacoes possiveis: sessao efemera entre `/start` e o callback, ou confirmacao explicita pos-callback. Hoje o dashboard mostra o perfil conectado — o operador deve conferir o userId apos conectar.
+- ~~`RestBlazeOAuthGateway` nao trata erros de rede~~ — RESOLVIDO (rodada 50, commit `a28345d`): os 3 calls mapeiam `ResourceAccessException` para `OAuthException(502, BLAZE_UNREACHABLE)` com mensagem acionavel, mesmo padrao do `BlazeApiClient`.
+- Retencao de `live_events`: tabela cresce sem limite (listagens sao limitadas a 500, mas as linhas ficam). Definir politica (ex.: apagar > 30 dias) quando o volume justificar.
