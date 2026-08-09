@@ -77,11 +77,12 @@ public class AlertStore {
 
 	public List<Alert> findActive() {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM alerts WHERE acknowledged = FALSE ORDER BY triggered_at DESC", mapper);
+			return jdbc.query("SELECT * FROM alerts WHERE acknowledged = FALSE ORDER BY triggered_at DESC LIMIT ?", mapper, MAX_ALERTS);
 		}
 		return alerts.stream()
 				.filter(a -> !a.acknowledged())
 				.sorted(BY_TIME)
+				.limit(MAX_ALERTS)
 				.toList();
 	}
 
@@ -97,16 +98,17 @@ public class AlertStore {
 
 	public List<Alert> findByEventType(String eventTypeId) {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM alerts WHERE event_type = ? ORDER BY triggered_at DESC", mapper, eventTypeId);
+			return jdbc.query("SELECT * FROM alerts WHERE event_type = ? ORDER BY triggered_at DESC LIMIT ?", mapper, eventTypeId, MAX_ALERTS);
 		}
 		return alerts.stream()
 				.filter(a -> a.eventType() != null && a.eventType().id().equals(eventTypeId))
 				.sorted(BY_TIME)
+				.limit(MAX_ALERTS)
 				.toList();
 	}
 	public Optional<Alert> findLastByRuleId(String ruleId) {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM alerts WHERE rule_id = ? ORDER BY triggered_at DESC", mapper, ruleId)
+			return jdbc.query("SELECT * FROM alerts WHERE rule_id = ? ORDER BY triggered_at DESC LIMIT 1", mapper, ruleId)
 					.stream().findFirst();
 		}
 		return alerts.stream()

@@ -161,6 +161,33 @@ class PostgresStoreIntegrationTests {
 	}
 
 	@Test
+	void alertStoreListQueriesHonorLimitsOnPostgres() {
+		// Exercises the JDBC LIMIT clauses added in round 50 on real PG
+		// (H2 unit tests never run these paths — syntax errors would surface
+		// only in production without this test).
+		alertStore.save(new Alert("pg-la-1", "rule-la", "Rule A",
+				BlazeEventType.CHANNEL_FOLLOW, Instant.ofEpochSecond(4_000_001),
+				"unacked 1", false, Map.of()));
+		alertStore.save(new Alert("pg-la-2", "rule-la", "Rule A",
+				BlazeEventType.CHANNEL_FOLLOW, Instant.ofEpochSecond(4_000_002),
+				"unacked 2", false, Map.of()));
+		alertStore.save(new Alert("pg-la-3", "rule-la", "Rule A",
+				BlazeEventType.CHANNEL_CHAT_MESSAGE, Instant.ofEpochSecond(4_000_003),
+				"acked", true, Map.of()));
+
+		List<Alert> active = alertStore.findActive();
+		assertEquals(2, active.size());
+		assertEquals("pg-la-2", active.getFirst().id(), "newest unacked first");
+
+		List<Alert> byType = alertStore.findByEventType(BlazeEventType.CHANNEL_FOLLOW.id());
+		assertEquals(2, byType.size());
+
+		Optional<Alert> last = alertStore.findLastByRuleId("rule-la");
+		assertTrue(last.isPresent());
+		assertEquals("pg-la-3", last.get().id(), "LIMIT 1 must keep the newest row");
+	}
+
+	@Test
 	void alertRuleStoreSaveFindOnPostgres() {
 		AlertRule rule = new AlertRule("pg-rule-1", "Donation Alert",
 				BlazeEventType.CHANNEL_CHAT_MESSAGE, AlertCondition.ALWAYS,
