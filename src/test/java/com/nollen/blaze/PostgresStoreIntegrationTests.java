@@ -374,4 +374,46 @@ class PostgresStoreIntegrationTests {
 		assertNotNull(last);
 		assertEquals(now.plusSeconds(10), last);
 	}
+
+	@Test
+	void schemaCreatesHotPathIndexesOnPostgres() {
+		// schema.sql must create the dedup/cooldown/log indexes on real PG —
+		// existsByDedupKey runs on every ingested event, so a missing index
+		// silently degrades to full table scans as live_events grows.
+		List<String> indexes = jdbc.queryForList(
+				"SELECT indexname FROM pg_indexes WHERE schemaname = 'public'", String.class);
+		assertTrue(indexes.contains("idx_live_events_dedup_key"), "missing idx_live_events_dedup_key: " + indexes);
+		assertTrue(indexes.contains("idx_live_events_occurred_at"), "missing idx_live_events_occurred_at");
+		assertTrue(indexes.contains("idx_alerts_rule_triggered"), "missing idx_alerts_rule_triggered");
+		assertTrue(indexes.contains("idx_blaze_events_log_received_at"), "missing idx_blaze_events_log_received_at");
+	}
+
+	@Test
+	void liveEventListIsBoundedOnPostgres() {
+		int total = LiveEventStore.LIST_LIMIT + 10;
+		for (int i = 0; i < total; i++) {
+			liveEventStore.save(new LiveEvent("pg-cap-" + i, LiveEventType.TEST,
+					LiveEventSource.SIMULATED, LiveEventStatus.ACCEPTED,
+					Map.of(), Instant.ofEpochSecond(2_000_000L + i), "cap-dedup-" + i));
+		}
+		assertEquals(total, liveEventStore.count());
+		// JDBC path honors LIMIT — the capped window keeps the newest rows
+		List<LiveEvent> page = liveEventStore.listAll();
+		assertEquals(LiveEventStore.LIST_LIMIT, page.size());
+		assertEquals("pg-cap-" + (total - 1), page.getFirst().id());
+	}
+
+	@Test
+	void blazeEventsLogRetentionOnPostgres() {
+		eventsLogStore.clear();
+		int total = BlazeEventsLogStore.MAX_PERSISTED + 50;
+		for (int i = 0; i < total; i++) {
+			eventsLogStore.append(new BlazeEventsLogEntry(
+					"pg-ret-" + i, Instant.ofEpochSecond(3_000_000L + i), "chat", "simulate", "msg" + i, null));
+		}
+		// JDBC path now trims to MAX_PERSISTED newest rows (previously grew forever)
+		assertEquals(BlazeEventsLogStore.MAX_PERSISTED, eventsLogStore.count());
+		Instant last = eventsLogStore.findLastTimestamp();
+		assertEquals(Instant.ofEpochSecond(3_000_000L + total - 1), last);
+	}
 }

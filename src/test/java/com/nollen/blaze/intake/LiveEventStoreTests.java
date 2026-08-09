@@ -46,6 +46,21 @@ class LiveEventStoreTests {
 	}
 
 	@Test
+	void listAllCapsAtListLimit() {
+		int total = LiveEventStore.LIST_LIMIT + 20;
+		for (int i = 0; i < total; i++) {
+			store.save(new LiveEvent("ev-" + i, LiveEventType.TEST, LiveEventSource.SIMULATED,
+					LiveEventStatus.ACCEPTED, Map.of(), Instant.ofEpochSecond(1000 + i), null));
+		}
+
+		var all = store.listAll();
+		assertEquals(LiveEventStore.LIST_LIMIT, all.size());
+		// newest first: the capped window keeps the most recent events
+		assertEquals("ev-" + (total - 1), all.get(0).id());
+		assertEquals(total, store.count(), "cap is on listing, not on stored rows");
+	}
+
+	@Test
 	void countByStatusWorks() {
 		store.save(new LiveEvent("a", LiveEventType.TEST, LiveEventSource.INTERNAL_TEST,
 				LiveEventStatus.ACCEPTED, Map.of(), Instant.now(), null));

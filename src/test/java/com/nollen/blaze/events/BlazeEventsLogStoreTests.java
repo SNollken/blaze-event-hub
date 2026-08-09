@@ -45,6 +45,16 @@ class BlazeEventsLogStoreTests {
 	}
 
 	@Test
+	void listCapsLimitAtMaxQueryLimit() {
+		// even a huge limit cannot fetch more than MAX_QUERY_LIMIT rows
+		for (int i = 0; i < 10; i++) {
+			store.append(new BlazeEventsLogEntry("cap-" + i, Instant.now(), "chat", "simulate", "msg", null));
+		}
+		assertThat(store.list(null, null, Integer.MAX_VALUE).size())
+				.isLessThanOrEqualTo(BlazeEventsLogStore.MAX_QUERY_LIMIT);
+	}
+
+	@Test
 	void clearRemovesAll() {
 		store.append(new BlazeEventsLogEntry("1", Instant.now(), "chat", "simulate", "msg", null));
 		store.clear();

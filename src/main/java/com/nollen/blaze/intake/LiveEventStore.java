@@ -18,6 +18,11 @@ import org.springframework.stereotype.Repository;
 @Repository
 public class LiveEventStore {
 
+	// Listing queries are bounded: live_events has no retention, so an unbounded
+	// SELECT * eventually OOMs the JVM / blows up the JSON payload. 500 most
+	// recent rows is plenty for the streamer dashboard (stats use COUNT queries).
+	public static final int LIST_LIMIT = 500;
+
 	private final ConcurrentHashMap<String, LiveEvent> events = new ConcurrentHashMap<>();
 	private final JdbcTemplate jdbc;
 	private final RowMapper<LiveEvent> mapper = (rs, rowNum) -> {
@@ -69,51 +74,56 @@ public class LiveEventStore {
 
 	public List<LiveEvent> listAll() {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM live_events ORDER BY occurred_at DESC", mapper);
+			return jdbc.query("SELECT * FROM live_events ORDER BY occurred_at DESC LIMIT ?", mapper, LIST_LIMIT);
 		}
 		return events.values().stream()
 				.sorted(Comparator.comparing(LiveEvent::timestamp).reversed())
+				.limit(LIST_LIMIT)
 				.toList();
 	}
 
 	public List<LiveEvent> findByType(LiveEventType type) {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM live_events WHERE type = ? ORDER BY occurred_at DESC", mapper, type.name());
+			return jdbc.query("SELECT * FROM live_events WHERE type = ? ORDER BY occurred_at DESC LIMIT ?", mapper, type.name(), LIST_LIMIT);
 		}
 		return events.values().stream()
 				.filter(e -> e.type() == type)
 				.sorted(Comparator.comparing(LiveEvent::timestamp).reversed())
+				.limit(LIST_LIMIT)
 				.toList();
 	}
 
 	public List<LiveEvent> findBySource(LiveEventSource source) {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM live_events WHERE source = ? ORDER BY occurred_at DESC", mapper, source.name());
+			return jdbc.query("SELECT * FROM live_events WHERE source = ? ORDER BY occurred_at DESC LIMIT ?", mapper, source.name(), LIST_LIMIT);
 		}
 		return events.values().stream()
 				.filter(e -> e.source() == source)
 				.sorted(Comparator.comparing(LiveEvent::timestamp).reversed())
+				.limit(LIST_LIMIT)
 				.toList();
 	}
 
 	public List<LiveEvent> findByStatus(LiveEventStatus status) {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM live_events WHERE status = ? ORDER BY occurred_at DESC", mapper, status.name());
+			return jdbc.query("SELECT * FROM live_events WHERE status = ? ORDER BY occurred_at DESC LIMIT ?", mapper, status.name(), LIST_LIMIT);
 		}
 		return events.values().stream()
 				.filter(e -> e.status() == status)
 				.sorted(Comparator.comparing(LiveEvent::timestamp).reversed())
+				.limit(LIST_LIMIT)
 				.toList();
 	}
 
 	public List<LiveEvent> findByTypeAndSource(LiveEventType type, LiveEventSource source) {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM live_events WHERE type = ? AND source = ? ORDER BY occurred_at DESC",
-					mapper, type.name(), source.name());
+			return jdbc.query("SELECT * FROM live_events WHERE type = ? AND source = ? ORDER BY occurred_at DESC LIMIT ?",
+					mapper, type.name(), source.name(), LIST_LIMIT);
 		}
 		return events.values().stream()
 				.filter(e -> e.type() == type && e.source() == source)
 				.sorted(Comparator.comparing(LiveEvent::timestamp).reversed())
+				.limit(LIST_LIMIT)
 				.toList();
 	}
 

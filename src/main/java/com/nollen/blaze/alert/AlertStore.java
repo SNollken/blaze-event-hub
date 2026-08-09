@@ -87,10 +87,11 @@ public class AlertStore {
 
 	public List<Alert> findAll() {
 		if (jdbc != null) {
-			return jdbc.query("SELECT * FROM alerts ORDER BY triggered_at DESC", mapper);
+			return jdbc.query("SELECT * FROM alerts ORDER BY triggered_at DESC LIMIT ?", mapper, MAX_ALERTS);
 		}
 		return alerts.stream()
 				.sorted(BY_TIME)
+				.limit(MAX_ALERTS)
 				.toList();
 	}
 

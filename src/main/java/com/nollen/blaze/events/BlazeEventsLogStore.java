@@ -15,6 +15,13 @@ import org.springframework.stereotype.Repository;
 public class BlazeEventsLogStore {
 
 	private static final int MAX_ENTRIES = 500;
+	// Listing cap: /api/blaze/events/log?limit=... is public API surface; without
+	// a ceiling a single request can fetch the whole (unbounded) table.
+	public static final int MAX_QUERY_LIMIT = 500;
+	// JDBC retention: the in-memory path trims at MAX_ENTRIES, but the JDBC path
+	// appended forever. Keep the newest MAX_PERSISTED rows; this table is
+	// diagnostic only (last events + engine start/stop).
+	public static final int MAX_PERSISTED = 2000;
 
 	private final ConcurrentLinkedDeque<BlazeEventsLogEntry> entries = new ConcurrentLinkedDeque<>();
 	private final JdbcTemplate jdbc;
@@ -49,8 +56,8 @@ public class BlazeEventsLogStore {
 				jdbc.update(
 					"INSERT INTO blaze_events_log (received_at, event_type, source, message, raw_payload, id) VALUES (?, ?, ?, ?, ?, ?)",
 					receivedAt, entry.eventType(), entry.source(), entry.message(), entry.data(), entry.id());
+				applyRetention();
 			}
-
 			return;
 		}
 		entries.addLast(entry);
@@ -60,8 +67,8 @@ public class BlazeEventsLogStore {
 	}
 
 	public List<BlazeEventsLogEntry> list(String eventType, String source, int limit) {
+		int resolvedLimit = Math.min(limit > 0 ? limit : 50, MAX_QUERY_LIMIT);
 		if (jdbc != null) {
-			int resolvedLimit = limit > 0 ? limit : 50;
 			if (eventType != null && !eventType.isBlank() && source != null && !source.isBlank()) {
 				return jdbc.query("SELECT * FROM blaze_events_log WHERE LOWER(event_type) = LOWER(?) AND LOWER(source) = LOWER(?) ORDER BY received_at DESC LIMIT ?",
 						mapper, eventType, source, resolvedLimit);
@@ -80,7 +87,7 @@ public class BlazeEventsLogStore {
 				.filter(e -> eventType == null || eventType.isBlank() || eventType.equalsIgnoreCase(e.eventType()))
 				.filter(e -> source == null || source.isBlank() || source.equalsIgnoreCase(e.source()))
 				.sorted((a, b) -> b.timestamp().compareTo(a.timestamp()))
-				.limit(limit > 0 ? limit : 50)
+				.limit(resolvedLimit)
 				.toList();
 	}
 
@@ -116,5 +123,20 @@ public class BlazeEventsLogStore {
 				.map(BlazeEventsLogEntry::timestamp)
 				.max(Instant::compareTo)
 				.orElse(null);
+	}
+
+	/**
+	 * Keeps the JDBC table bounded: deletes everything except the newest
+	 * MAX_PERSISTED rows. Runs only after a fresh INSERT (not on upsert-update),
+	 * and only when the table actually exceeded the cap.
+	 */
+	private void applyRetention() {
+		Long total = jdbc.queryForObject("SELECT COUNT(*) FROM blaze_events_log", Long.class);
+		if (total == null || total <= MAX_PERSISTED) {
+			return;
+		}
+		jdbc.update(
+			"DELETE FROM blaze_events_log WHERE id NOT IN (SELECT id FROM blaze_events_log ORDER BY received_at DESC LIMIT ?)",
+			MAX_PERSISTED);
 	}
 }

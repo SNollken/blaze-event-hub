@@ -120,3 +120,11 @@ CREATE TABLE IF NOT EXISTS runtime_overlay_configs (
 	position_height INT NOT NULL,
 	opacity DOUBLE PRECISION NOT NULL
 );
+
+-- Hot-path indexes. existsByDedupKey runs on EVERY ingested event and the
+-- cooldown check queries alerts by (rule_id, triggered_at); without these the
+-- queries full-scan tables that grow forever (no retention on live_events).
+CREATE INDEX IF NOT EXISTS idx_live_events_dedup_key ON live_events (dedup_key);
+CREATE INDEX IF NOT EXISTS idx_live_events_occurred_at ON live_events (occurred_at);
+CREATE INDEX IF NOT EXISTS idx_alerts_rule_triggered ON alerts (rule_id, triggered_at);
+CREATE INDEX IF NOT EXISTS idx_blaze_events_log_received_at ON blaze_events_log (received_at);
