@@ -6,6 +6,7 @@ import com.nollen.blaze.config.BlazeProperties;
 import org.springframework.http.HttpStatusCode;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.ResourceAccessException;
 import org.springframework.web.client.RestClient;
 
 @Component
@@ -21,7 +22,9 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 
 	@Override
 	public GeneratedAuthUrl generateAuthUrl(OAuthGenerateAuthUrlRequest request) {
-		GenerateAuthUrlResponse response = restClient.post()
+		GenerateAuthUrlResponse response;
+		try {
+			response = restClient.post()
 				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/generate-auth-url")
 				.contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
@@ -38,6 +41,10 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 							"Blaze returned an internal error generating the URL: " + truncate(body, 200));
 				})
 				.body(GenerateAuthUrlResponse.class);
+		}
+		catch (ResourceAccessException ex) {
+			throw unreachable("generate the authorization URL", ex);
+		}
 		if (response == null) {
 			throw new IllegalStateException("Empty Blaze OAuth generate-auth-url response");
 		}
@@ -55,7 +62,8 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 				request.redirectUri(),
 				request.grantType());
 
-		return restClient.post()
+		try {
+			return restClient.post()
 				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/token")
 				.contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
@@ -77,6 +85,10 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 							"Blaze returned an internal error during token exchange: " + truncate(responseBody, 200));
 				})
 				.body(OAuthTokenResponse.class);
+		}
+		catch (ResourceAccessException ex) {
+			throw unreachable("exchange the authorization code", ex);
+		}
 	}
 
 	@Override
@@ -87,7 +99,8 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 				request.clientSecret(),
 				request.refreshToken());
 
-		return restClient.post()
+		try {
+			return restClient.post()
 				.uri(properties.getAuthBaseUrl() + "/bapi/oauth2/refresh")
 				.contentType(MediaType.APPLICATION_JSON)
 				.accept(MediaType.APPLICATION_JSON)
@@ -104,6 +117,21 @@ public class RestBlazeOAuthGateway implements BlazeOAuthGateway {
 							"Blaze returned an internal error during token refresh: " + truncate(responseBody, 200));
 				})
 				.body(OAuthTokenResponse.class);
+		}
+		catch (ResourceAccessException ex) {
+			throw unreachable("refresh the token", ex);
+		}
+	}
+
+	/**
+	 * Network-level failure (connect timeout, refused, DNS). Without this mapping
+	 * the exception falls through to the generic 500 handler and the OAuth page
+	 * shows "Unexpected server error" with no hint that Blaze itself is down.
+	 */
+	private static OAuthException unreachable(String action, ResourceAccessException ex) {
+		return new OAuthException(502, "BLAZE_UNREACHABLE",
+				"Could not reach Blaze to " + action + ". The Blaze service may be down or unreachable. Try again in a few minutes.",
+				ex);
 	}
 
 	private static String truncate(String value, int max) {
