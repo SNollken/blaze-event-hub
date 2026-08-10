@@ -10,6 +10,8 @@ import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
 import org.springframework.stereotype.Component;
 import org.springframework.web.filter.OncePerRequestFilter;
@@ -18,6 +20,8 @@ import org.springframework.web.filter.OncePerRequestFilter;
 public class ApiKeyFilter extends OncePerRequestFilter {
 
 	public static final String HEADER_NAME = "X-Nollen-Api-Key";
+
+	private static final Logger log = LoggerFactory.getLogger(ApiKeyFilter.class);
 
 	private static final List<String> PUBLIC_PREFIXES = List.of(
 			"/api/health",
@@ -32,6 +36,13 @@ public class ApiKeyFilter extends OncePerRequestFilter {
 
 	public ApiKeyFilter(ApiSecurityProperties properties) {
 		this.properties = properties;
+		String configuredKey = properties.getApiKey();
+		if (configuredKey == null || configuredKey.isBlank()) {
+			// Fail-open is intentional (the key is public by design — it only blocks
+			// bots/CSRF, real secrets live server-side), but an UNSET key means the
+			// API is wide open with zero friction for scripts. Make it visible.
+			log.warn("nollen.security.api-key is blank: /api/** is OPEN. Set NOLLEN_API_KEY in production.");
+		}
 	}
 
 	@Override

@@ -3,8 +3,13 @@ package com.nollen.blaze.common;
 import jakarta.servlet.ServletException;
 
 import org.junit.jupiter.api.Test;
+import org.slf4j.LoggerFactory;
 import org.springframework.mock.web.MockHttpServletRequest;
 import org.springframework.mock.web.MockHttpServletResponse;
+
+import ch.qos.logback.classic.Level;
+import ch.qos.logback.classic.spi.ILoggingEvent;
+import ch.qos.logback.core.read.ListAppender;
 
 import com.nollen.blaze.config.ApiSecurityProperties;
 
@@ -106,5 +111,23 @@ class ApiKeyFilterTest {
 		MockHttpServletResponse response = new MockHttpServletResponse();
 		filter.doFilterInternal(request, response, (req, resp) -> { });
 		assertThat(response.getStatus()).isEqualTo(401);
+	}
+
+	@Test
+	void blankConfiguredKeyLogsStartupWarning() {
+		ch.qos.logback.classic.Logger logger =
+				(ch.qos.logback.classic.Logger) LoggerFactory.getLogger(ApiKeyFilter.class);
+		ListAppender<ILoggingEvent> appender = new ListAppender<>();
+		appender.start();
+		logger.addAppender(appender);
+		try {
+			filter("");
+			assertThat(appender.list).anySatisfy(event -> {
+				assertThat(event.getLevel()).isEqualTo(Level.WARN);
+				assertThat(event.getFormattedMessage()).contains("/api/** is OPEN");
+			});
+		} finally {
+			logger.detachAppender(appender);
+		}
 	}
 }

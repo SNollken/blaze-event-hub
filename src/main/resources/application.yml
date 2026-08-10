@@ -15,7 +15,9 @@ spring:
       mode: always
 
 server:
-  port: ${SERVER_PORT:8080}
+  # Render injects PORT (e.g. 10000) into Docker containers; SERVER_PORT wins
+  # when set explicitly (local dev, custom deploys). Nested placeholder on purpose.
+  port: ${SERVER_PORT:${PORT:8080}}
   # Graceful shutdown: Render sends SIGTERM on deploy; without this, in-flight
   # requests (including 10s Blaze API calls and JDBC writes) are cut mid-flight.
   shutdown: graceful

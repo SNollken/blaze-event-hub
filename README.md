@@ -61,6 +61,20 @@ O Maven copia `frontend/dist` para `target/classes/static` na fase `process-reso
 
 Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans e JetBrains Mono, OFL): nenhum request externo para Google Fonts, de acordo com o CSP `default-src 'self'` + `font-src 'self' data:`.
 
+### Deploy na Render (Docker)
+
+O servico na Render roda via `Dockerfile` multi-stage (Node 20 builda o frontend, Maven builda o jar, JRE 21 roda). Dois pontos criticos:
+
+1. **`VITE_NOLLEN_API_KEY` e obrigatorio no BUILD**: a chave e embutida no bundle em build time. No Render, marque a variavel como disponivel no build; ela chega ao Dockerfile como `--build-arg` (declarado no stage do frontend). **Sem ela o build FALHA de proposito** (fail-fast) — antes o bundle era gerado com o fallback `dev-local-key` e toda a UI recebia 401 em silencio.
+2. **Porta**: o Render injeta `PORT` (ex.: 10000) no container; o app obedece na ordem `SERVER_PORT` > `PORT` > `8080` (`application.yml`). O health check do container usa a mesma porta.
+
+Build local da imagem (o build-arg e obrigatorio):
+
+```bash
+docker build --build-arg VITE_NOLLEN_API_KEY=<mesmo valor de NOLLEN_API_KEY> -t nollen-blaze .
+docker run --rm -e PORT=8080 -p 8080:8080 nollen-blaze
+```
+
 ### Producao (Supabase/PostgreSQL)
 
 O jar inclui o driver PostgreSQL (scope `runtime`). Para apontar para o Supabase, defina no ambiente de **runtime** (ex.: Render):
@@ -70,7 +84,7 @@ O jar inclui o driver PostgreSQL (scope `runtime`). Para apontar para o Supabase
 | `NOLLEN_DB_URL` | `jdbc:postgresql://<projeto>.pooler.supabase.com:6543/postgres?sslmode=require` — **`sslmode=require` e obrigatorio**; nao ha outra camada que force TLS |
 | `NOLLEN_DB_USER` | usuario do Supabase (ATENCAO: e `NOLLEN_DB_USER`, nao `NOLLEN_DB_USERNAME`) |
 | `NOLLEN_DB_PASSWORD` | senha do Supabase |
-| `NOLLEN_API_KEY` | chave real (o default `dev-change-me-in-production` NAO deve ir para prod) |
+| `NOLLEN_API_KEY` | chave real (o default `dev-local-key` NAO deve ir para prod) |
 | `VITE_NOLLEN_API_KEY` | **ambiente de BUILD**, mesmo valor de `NOLLEN_API_KEY` (ver acima) |
 | `SESSION_COOKIE_SECURE` | `true` |
 | `BLAZE_CLIENT_ID` / `BLAZE_CLIENT_SECRET` / `BLAZE_REDIRECT_URI` | credenciais OAuth da Blaze |
