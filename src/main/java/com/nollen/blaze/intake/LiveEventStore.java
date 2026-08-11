@@ -1,6 +1,8 @@
 package com.nollen.blaze.intake;
 
 import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +24,14 @@ public class LiveEventStore {
 	// SELECT * eventually OOMs the JVM / blows up the JSON payload. 500 most
 	// recent rows is plenty for the streamer dashboard (stats use COUNT queries).
 	public static final int LIST_LIMIT = 500;
+
+	// Time-based retention: stream-event history is only useful for a limited
+	// window. Listings are already bounded (LIST_LIMIT) but the rows themselves
+	// lived forever — the table and every COUNT query grew without bound.
+	// RETENTION_MIN_ROWS avoids running the DELETE on small tables; the
+	// occurred_at index (r50) keeps the DELETE cheap when it does run.
+	public static final int RETENTION_DAYS = 30;
+	public static final int RETENTION_MIN_ROWS = 1000;
 
 	private final ConcurrentHashMap<String, LiveEvent> events = new ConcurrentHashMap<>();
 	private final JdbcTemplate jdbc;
@@ -57,6 +67,7 @@ public class LiveEventStore {
 				jdbc.update(
 					"INSERT INTO live_events (type, source, status, payload, occurred_at, dedup_key, id) VALUES (?, ?, ?, ?, ?, ?, ?)",
 					event.type().name(), event.source().name(), event.status().name(), JsonData.write(event.payload()), occurredAt, event.dedupKey(), event.id());
+				applyRetention(Instant.now());
 			}
 
 			return event;
@@ -176,5 +187,20 @@ public class LiveEventStore {
 			return;
 		}
 		events.clear();
+	}
+
+	/**
+	 * Deletes rows older than {@link #RETENTION_DAYS} days. Runs only after a
+	 * fresh INSERT (not on upsert-update) and only when the table actually
+	 * holds more than {@link #RETENTION_MIN_ROWS} rows — same shape as
+	 * {@code BlazeEventsLogStore.applyRetention} (r50).
+	 */
+	void applyRetention(Instant now) {
+		Long total = jdbc.queryForObject("SELECT COUNT(*) FROM live_events", Long.class);
+		if (total == null || total <= RETENTION_MIN_ROWS) {
+			return;
+		}
+		Timestamp cutoff = Timestamp.from(now.minus(RETENTION_DAYS, ChronoUnit.DAYS));
+		jdbc.update("DELETE FROM live_events WHERE occurred_at < ?", cutoff);
 	}
 }

@@ -25,7 +25,7 @@ Nota: `db/migration/common/V11__add_runtime_overlay_configs.sql` e um artefato h
 
 Producao (Supabase/PostgreSQL): o driver `org.postgresql:postgresql` tem scope `runtime` e vai dentro do jar (rodada 50 — antes era `test`, o que impedia o jar de conectar em PG). A conexao usa credencial de servico unica via `NOLLEN_DB_URL`/`NOLLEN_DB_USER`/`NOLLEN_DB_PASSWORD`; a URL DEVE incluir `sslmode=require` (nao ha outra camada que force TLS).
 
-Retencao e limites (rodada 50): `blaze_events_log` tem retencao no path JDBC (mantem as 2000 linhas mais recentes — log diagnostico); listagens de `live_events` e `alerts` sao limitadas as 500 linhas mais recentes (`LIST_LIMIT`/`MAX_ALERTS`); `/api/blaze/events/log?limit=` tem teto de 500. Indices em hot paths: `live_events(dedup_key)` (dedup roda em TODO evento ingerido), `live_events(occurred_at)`, `alerts(rule_id, triggered_at)` (cooldown check), `blaze_events_log(received_at)`.
+Retencao e limites (rodadas 50 e 52): `blaze_events_log` tem retencao no path JDBC (mantem as 2000 linhas mais recentes — log diagnostico); `live_events` tem retencao temporal no path JDBC (apaga linhas com `occurred_at` > 30 dias; roda apos INSERT fresco e so quando a tabela passa de 1000 linhas); listagens de `live_events` e `alerts` sao limitadas as 500 linhas mais recentes (`LIST_LIMIT`/`MAX_ALERTS`); `/api/blaze/events/log?limit=` tem teto de 500. Indices em hot paths: `live_events(dedup_key)` (dedup roda em TODO evento ingerido), `live_events(occurred_at)` (retencao usa este indice), `alerts(rule_id, triggered_at)` (cooldown check), `blaze_events_log(received_at)`.
 
 RLS (Supabase) nao e fronteira de protecao aqui: o frontend nao fala com o Supabase (zero `@supabase/*`), todo acesso a dados e backend JDBC com credencial privilegiada. A fronteira real e o backend (`ApiKeyFilter` + logica das APIs). Auditoria rodada 50: zero policies RLS no schema/migrations, e isso e correto para esta arquitetura.
 
@@ -46,9 +46,9 @@ Modelo de confianca (auditoria rodada 50): o app e single-tenant "atras da URL".
 
 ## OAuth
 
-1. `POST /api/blaze/oauth/start` chama o gateway Blaze `generate-auth-url`.
-2. O backend guarda `state` e `codeVerifier`.
-3. `GET /api/blaze/oauth/callback` valida `state`, troca `code` por token e salva snapshot seguro.
+1. `POST /api/blaze/oauth/start` chama o gateway Blaze `generate-auth-url` e cria/reusa a sessao HTTP do browser, guardando o id da sessao junto do `state` pendente.
+2. O backend guarda `state`, `codeVerifier` e o binding com a sessao que iniciou o fluxo.
+3. `GET /api/blaze/oauth/callback` valida `state` E exige que o callback chegue na mesma sessao que iniciou o fluxo (anti-fixacao, rodada 52); depois troca `code` por token e salva snapshot seguro. O `state` e consumido antes da checagem de binding (single-use preservado).
 4. `POST /api/blaze/oauth/refresh` usa o refresh token atual e substitui pelo novo token retornado (refresh concorrente serializado por lock local com re-check de token).
 
 Nenhum endpoint retorna token bruto.
@@ -103,6 +103,6 @@ Nao existe endpoint `/overlay/live` como arquitetura principal.
 - Cliente Socket.IO real e politica de reconexao.
 - Teste E2E contra blaze.stream com credenciais reais.
 - Reconciliacao do deploy de producao (Render) com este branch — o build live atual nao e reproduzivel a partir do repo (ver TODO.md, rodada 20).
-- Fixacao de conta OAuth (risco MED, auditoria rodada 50): o callback e publico e o `state` nao esta vinculado a uma sessao de browser (nao ha sessoes). Engenharia social (operador abre URL de callback forjada com a conta do atacante) pode trocar a conta conectada globalmente. Mitigacoes possiveis: sessao efemera entre `/start` e o callback, ou confirmacao explicita pos-callback. Hoje o dashboard mostra o perfil conectado — o operador deve conferir o userId apos conectar.
+- ~~Fixacao de conta OAuth (risco MED, auditoria rodada 50)~~ — RESOLVIDO (rodada 52, commit `43483f9`): o `state` pendente agora guarda o id da sessao HTTP que iniciou o fluxo e o callback so e aceito na mesma sessao (fail-closed; state consumido antes da checagem para preservar single-use). Provado por teste de ataque (callback cross-session retorna 400 e nao armazena token) e E2E com cookie jars reais contra o jar de producao.
 - ~~`RestBlazeOAuthGateway` nao trata erros de rede~~ — RESOLVIDO (rodada 50, commit `a28345d`): os 3 calls mapeiam `ResourceAccessException` para `OAuthException(502, BLAZE_UNREACHABLE)` com mensagem acionavel, mesmo padrao do `BlazeApiClient`.
-- Retencao de `live_events`: tabela cresce sem limite (listagens sao limitadas a 500, mas as linhas ficam). Definir politica (ex.: apagar > 30 dias) quando o volume justificar.
+- ~~Retencao de `live_events`: tabela cresce sem limite~~ — RESOLVIDO (rodada 52): retencao temporal de 30 dias no path JDBC, com guarda de 1000 linhas para nao rodar DELETE em tabela pequena. Provado por teste de integracao PostgreSQL (1000 linhas velhas apagadas, recentes preservadas) e E2E no jar real (stats 1005 -> 6 apos um evento novo).

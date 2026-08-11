@@ -44,7 +44,9 @@ import org.testcontainers.junit.jupiter.Container;
 import org.testcontainers.junit.jupiter.Testcontainers;
 import org.testcontainers.utility.DockerImageName;
 
+import java.sql.Timestamp;
 import java.time.Instant;
+import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -428,6 +430,40 @@ class PostgresStoreIntegrationTests {
 		List<LiveEvent> page = liveEventStore.listAll();
 		assertEquals(LiveEventStore.LIST_LIMIT, page.size());
 		assertEquals("pg-cap-" + (total - 1), page.getFirst().id());
+	}
+
+	@Test
+	void liveEventRetentionDeletesRowsOlderThanWindowOnPostgres() {
+		Instant now = Instant.now();
+		// Recent rows (inside the 30-day window) — must survive retention.
+		for (int i = 0; i < 5; i++) {
+			liveEventStore.save(new LiveEvent("pg-keep-" + i, LiveEventType.TEST,
+					LiveEventSource.SIMULATED, LiveEventStatus.ACCEPTED,
+					Map.of(), now.minus(i, ChronoUnit.DAYS), "ret-keep-" + i));
+		}
+		// Fill the table with rows OLDER than the retention window, bypassing
+		// the store so retention does not fire mid-batch (guard = 1000 rows).
+		for (int i = 0; i < LiveEventStore.RETENTION_MIN_ROWS; i++) {
+			jdbc.update(
+					"INSERT INTO live_events (id, type, source, status, payload, occurred_at, dedup_key) VALUES (?, ?, ?, ?, ?, ?, ?)",
+					"pg-old-" + i, LiveEventType.TEST.name(), LiveEventSource.SIMULATED.name(),
+					LiveEventStatus.ACCEPTED.name(), "{}",
+					Timestamp.from(now.minus(LiveEventStore.RETENTION_DAYS + 1L, ChronoUnit.DAYS)),
+					"ret-old-" + i);
+		}
+		assertEquals(LiveEventStore.RETENTION_MIN_ROWS + 5, liveEventStore.count());
+
+		// A fresh save crosses the guard and fires retention: only rows inside
+		// the 30-day window survive (5 recent + the one just saved).
+		liveEventStore.save(new LiveEvent("pg-new", LiveEventType.TEST,
+				LiveEventSource.SIMULATED, LiveEventStatus.ACCEPTED,
+				Map.of(), now, "ret-new"));
+
+		assertEquals(6, liveEventStore.count());
+		assertTrue(liveEventStore.findById("pg-new").isPresent());
+		assertTrue(liveEventStore.findById("pg-keep-0").isPresent());
+		assertTrue(liveEventStore.findById("pg-old-0").isEmpty());
+		assertTrue(liveEventStore.findById("pg-old-999").isEmpty());
 	}
 
 	@Test
