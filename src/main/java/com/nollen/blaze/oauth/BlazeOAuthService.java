@@ -35,7 +35,7 @@ public class BlazeOAuthService {
 		this.clock = clock;
 	}
 
-	public OAuthStartResponse start() {
+	public OAuthStartResponse start(String browserSessionId) {
 		requireOAuthConfiguration();
 		GeneratedAuthUrl generated = gateway.generateAuthUrl(new OAuthGenerateAuthUrlRequest(
 				properties.getClientId(),
@@ -46,11 +46,14 @@ public class BlazeOAuthService {
 				|| !StringUtils.hasText(generated.codeVerifier())) {
 			throw new IllegalStateException("Blaze OAuth generate-auth-url returned an incomplete response");
 		}
-		stateStore.save(new OAuthState(generated.state(), generated.codeVerifier(), Instant.now(clock)));
+		// Bind the pending state to the browser session that started the flow so the
+		// callback can only be completed by the same browser (see OAuthState javadoc).
+		stateStore.save(new OAuthState(generated.state(), generated.codeVerifier(), Instant.now(clock), browserSessionId));
 		return new OAuthStartResponse(generated.authorizationUrl(), properties.getScopes());
 	}
 
-	public OAuthCallbackResponse callback(String code, String state, String error, String errorDescription) {
+	public OAuthCallbackResponse callback(String code, String state, String error, String errorDescription,
+			String browserSessionId) {
 		// Blaze rejeitou a autorizacao
 		if (error != null && !error.isBlank()) {
 			String desc = errorDescription != null && !errorDescription.isBlank()
@@ -71,6 +74,15 @@ public class BlazeOAuthService {
 		OAuthState stored = stateStore.consume(state)
 				.orElseThrow(() -> new OAuthException(400, "OAUTH_CALLBACK_INVALID",
 						"OAuth authorization expired, already used, or lost due to backend restart. Return to the dashboard and click Start OAuth again."));
+		// Account-fixation protection: the callback must arrive in the same browser
+		// session that called /start. The state is already consumed above, so the
+		// check is fail-closed and stays single-use. An attacker cannot consume a
+		// foreign state (they never learn its value), so a rejected cross-session
+		// attempt only burns the attacker's own pending authorization.
+		if (stored.sessionId() == null || browserSessionId == null || !stored.sessionId().equals(browserSessionId)) {
+			throw new OAuthException(400, "OAUTH_CALLBACK_INVALID",
+					"OAuth callback was received in a different browser session than the one that started the flow. Return to the dashboard and click Start OAuth again.");
+		}
 		try {
 			OAuthTokenResponse response = gateway.exchangeCode(new OAuthTokenExchangeRequest(
 					properties.getClientId(),

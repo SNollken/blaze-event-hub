@@ -2,6 +2,9 @@ package com.nollen.blaze.oauth;
 
 import com.nollen.blaze.common.OAuthException;
 
+import jakarta.servlet.http.HttpServletRequest;
+import jakarta.servlet.http.HttpSession;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpHeaders;
@@ -31,8 +34,10 @@ public class BlazeOAuthController {
 	}
 
 	@PostMapping("/start")
-	OAuthStartResponse start() {
-		return oAuthService.start();
+	OAuthStartResponse start(HttpServletRequest request) {
+		// Create (or reuse) the browser session and bind the pending OAuth state
+		// to it — the callback will only be accepted in this same session.
+		return oAuthService.start(request.getSession(true).getId());
 	}
 
 	@GetMapping("/callback")
@@ -40,10 +45,13 @@ public class BlazeOAuthController {
 			@RequestParam(value = "state", required = false) String state,
 			@RequestParam(value = "error", required = false) String error,
 			@RequestParam(value = "error_description", required = false) String errorDescription,
-			@RequestHeader(value = HttpHeaders.ACCEPT, required = false) String accept) {
+			@RequestHeader(value = HttpHeaders.ACCEPT, required = false) String accept,
+			HttpServletRequest request) {
 		boolean json = acceptsJson(accept);
+		HttpSession httpSession = request.getSession(false);
+		String browserSessionId = httpSession == null ? null : httpSession.getId();
 		try {
-			OAuthCallbackResponse response = oAuthService.callback(code, state, error, errorDescription);
+			OAuthCallbackResponse response = oAuthService.callback(code, state, error, errorDescription, browserSessionId);
 			if (json) {
 				return ResponseEntity.ok(response);
 			}

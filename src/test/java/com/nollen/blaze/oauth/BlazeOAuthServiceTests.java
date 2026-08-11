@@ -46,7 +46,7 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void startCallsGenerateAuthUrl() {
-		OAuthStartResponse response = service.start();
+		OAuthStartResponse response = service.start("browser-session-1");
 
 		assertThat(gateway.lastGenerateRequest).isNotNull();
 		assertThat(gateway.lastGenerateRequest.clientId()).isEqualTo("client-id");
@@ -60,7 +60,7 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void startReturnsAuthorizationUrl() {
-		OAuthStartResponse response = service.start();
+		OAuthStartResponse response = service.start("browser-session-1");
 
 		assertThat(response.authorizationUrl()).isNotNull();
 		assertThat(response.authorizationUrl()).isNotEmpty();
@@ -69,7 +69,7 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void startDoesNotContainSecrets() {
-		OAuthStartResponse response = service.start();
+		OAuthStartResponse response = service.start("browser-session-1");
 
 		String body = response.toString();
 		assertThat(body).doesNotContain("client-secret");
@@ -82,7 +82,7 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void startPersistsState() {
-		service.start();
+		service.start("browser-session-1");
 
 		assertThat(stateStore.size()).isEqualTo(1);
 		assertThat(stateStore.consume("blaze-state-1")).isPresent();
@@ -90,40 +90,40 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void callbackRejectsInvalidState() {
-		service.start();
-		assertThatThrownBy(() -> service.callback("code-1", "wrong-state", null, null))
+		service.start("browser-session-1");
+		assertThatThrownBy(() -> service.callback("code-1", "wrong-state", null, null, "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("OAuth authorization expired");
 	}
 
 	@Test
 	void callbackRejectsMissingCode() {
-		service.start();
+		service.start("browser-session-1");
 
-		assertThatThrownBy(() -> service.callback("", gateway.lastGeneratedState, null, null))
+		assertThatThrownBy(() -> service.callback("", gateway.lastGeneratedState, null, null, "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("callback incomplete");
 	}
 
 	@Test
 	void callbackRejectsMissingState() {
-		assertThatThrownBy(() -> service.callback("code-1", null, null, null))
+		assertThatThrownBy(() -> service.callback("code-1", null, null, null, "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("callback incomplete");
 	}
 
 	@Test
 	void callbackRejectsOAuthError() {
-		assertThatThrownBy(() -> service.callback(null, null, "access_denied", "User denied authorization"))
+		assertThatThrownBy(() -> service.callback(null, null, "access_denied", "User denied authorization", "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("access_denied");
 	}
 
 	@Test
 	void callbackStoresTokenWithoutReturningRawToken() {
-		service.start();
+		service.start("browser-session-1");
 
-		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		assertThat(response.status()).isEqualTo("stored");
 		assertThat(response.refreshTokenPresent()).isTrue();
@@ -137,10 +137,10 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void callbackUsesCodeVerifierFromBlaze() {
-		service.start();
+		service.start("browser-session-1");
 		String expectedVerifier = gateway.lastGeneratedVerifier;
 
-		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		// The token exchange must use the verifier paired with the returned state.
 		assertThat(gateway.lastTokenRequest).isNotNull();
@@ -149,8 +149,8 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void refreshReplacesRefreshToken() {
-		service.start();
-		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		service.start("browser-session-1");
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		OAuthActionResponse response = service.refresh();
 
@@ -161,8 +161,8 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void concurrentRefreshCallsAreSerialized() throws Exception {
-		service.start();
-		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		service.start("browser-session-1");
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		// Two threads call refresh simultaneously; the lock must serialize them
 		// so gateway.refresh is invoked exactly once.
@@ -178,8 +178,8 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void refreshPreservesRefreshTokenWhenBlazeDoesNotReturnANewOne() {
-		service.start();
-		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		service.start("browser-session-1");
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 		gateway.refreshTokenOnRefresh = null;
 
 		OAuthActionResponse response = service.refresh();
@@ -202,8 +202,8 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void sessionWithTokenAndProfileIsReadyForEvents() {
-		service.start();
-		service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		service.start("browser-session-1");
+		service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		OAuthSessionResponse session = service.session();
 
@@ -217,9 +217,9 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackProfileFailureKeepsTokenConnected() {
 		profileClient.throwError = true;
-		service.start();
+		service.start("browser-session-1");
 
-		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		assertThat(response.profilePresent()).isFalse();
 		assertThat(response.profileSyncStatus()).isEqualTo("unavailable");
@@ -230,11 +230,11 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void disconnectClearsTokenProfileAndPendingStates() {
-		service.start();
+		service.start("browser-session-1");
 		String secondState;
-		service.start();
+		service.start("browser-session-1");
 		secondState = gateway.lastGeneratedState;
-		service.callback("auth-code-1", "blaze-state-1", null, null);
+		service.callback("auth-code-1", "blaze-state-1", null, null, "browser-session-1");
 
 		OAuthActionResponse response = service.disconnect();
 
@@ -248,9 +248,9 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackWithOAuthErrorFromGatewayReturnsOAuthException() {
 		gateway.setThrowOAuthError();
-		service.start();
+		service.start("browser-session-1");
 
-		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null))
+		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null, "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("Blaze rejected code exchange");
 	}
@@ -258,17 +258,17 @@ class BlazeOAuthServiceTests {
 	@Test
 	void callbackWithNetworkErrorFromGatewayReturnsOAuthException() {
 		gateway.setThrowNetworkError();
-		service.start();
+		service.start("browser-session-1");
 
-		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null))
+		assertThatThrownBy(() -> service.callback("code-1", gateway.lastGeneratedState, null, null, "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("connect to Blaze");
 	}
 
 	@Test
 	void callbackResponseNeverContainsSecrets() {
-		service.start();
-		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null);
+		service.start("browser-session-1");
+		OAuthCallbackResponse response = service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "browser-session-1");
 
 		String body = response.toString();
 		assertThat(body).doesNotContain("client-secret");
@@ -280,13 +280,13 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void twoStartsKeepBothStatesPending() {
-		service.start();
+		service.start("browser-session-1");
 		String firstState = gateway.lastGeneratedState;
 		String firstVerifier = gateway.lastGeneratedVerifier;
-		service.start();
+		service.start("browser-session-1");
 		String secondState = gateway.lastGeneratedState;
 
-		service.callback("auth-code-1", firstState, null, null);
+		service.callback("auth-code-1", firstState, null, null, "browser-session-1");
 
 		assertThat(gateway.lastTokenRequest.codeVerifier()).isEqualTo(firstVerifier);
 		assertThat(stateStore.find(firstState)).isEmpty();
@@ -295,15 +295,60 @@ class BlazeOAuthServiceTests {
 
 	@Test
 	void tokenExchangeFailureConsumesState() {
-		service.start();
+		service.start("browser-session-1");
 		String state = gateway.lastGeneratedState;
 		gateway.setThrowOAuthError();
 
-		assertThatThrownBy(() -> service.callback("code-1", state, null, null))
+		assertThatThrownBy(() -> service.callback("code-1", state, null, null, "browser-session-1"))
 				.isInstanceOf(OAuthException.class)
 				.hasMessageContaining("Blaze rejected code exchange");
 
 		assertThat(stateStore.find(state)).isEmpty();
+	}
+
+	@Test
+	void callbackFromDifferentBrowserSessionIsRejectedAndStoresNothing() {
+		// Account-fixation attack: the victim starts the flow in their own browser
+		// session; an attacker who somehow replays the callback from another session
+		// must not be able to store their token globally.
+		service.start("browser-session-1");
+
+		assertThatThrownBy(() -> service.callback("auth-code-1", gateway.lastGeneratedState, null, null, "attacker-session"))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("different browser session");
+
+		assertThat(tokenStore.current()).isEmpty();
+		assertThat(profileStore.current()).isEmpty();
+		assertThat(gateway.lastTokenRequest).isNull();
+	}
+
+	@Test
+	void callbackWithoutBrowserSessionIsRejected() {
+		service.start("browser-session-1");
+
+		assertThatThrownBy(() -> service.callback("auth-code-1", gateway.lastGeneratedState, null, null, null))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("different browser session");
+
+		assertThat(tokenStore.current()).isEmpty();
+	}
+
+	@Test
+	void rejectedCrossSessionCallbackStillConsumesTheState() {
+		// Fail-closed: a rejected attempt must not leave the state reusable. The
+		// attacker can only burn their own pending authorization (they never learn
+		// foreign state values), so this cannot grief a legitimate flow.
+		service.start("browser-session-1");
+		String state = gateway.lastGeneratedState;
+
+		assertThatThrownBy(() -> service.callback("auth-code-1", state, null, null, "attacker-session"))
+				.isInstanceOf(OAuthException.class);
+
+		assertThat(stateStore.find(state)).isEmpty();
+		assertThatThrownBy(() -> service.callback("auth-code-1", state, null, null, "browser-session-1"))
+				.isInstanceOf(OAuthException.class)
+				.hasMessageContaining("OAuth authorization expired");
+		assertThat(tokenStore.current()).isEmpty();
 	}
 
 	private static class FakeOAuthGateway implements BlazeOAuthGateway {

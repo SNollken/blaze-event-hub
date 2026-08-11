@@ -23,16 +23,17 @@ class InMemoryOAuthStateStoreTests {
 
 	@Test
 	void savesStateAndCodeVerifier() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
 
 		assertThat(store.find("state-1")).isPresent();
 		assertThat(store.find("state-1").orElseThrow().codeVerifier()).isEqualTo("verifier-1");
+		assertThat(store.find("state-1").orElseThrow().sessionId()).isEqualTo("session-1");
 	}
 
 	@Test
 	void consumeRemovesOnlyTheRequestedState() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
-		store.save(new OAuthState("state-2", "verifier-2", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
+		store.save(new OAuthState("state-2", "verifier-2", clock.instant(), "session-2"));
 
 		assertThat(store.consume("state-1")).isPresent();
 
@@ -43,8 +44,8 @@ class InMemoryOAuthStateStoreTests {
 
 	@Test
 	void supportsMultiplePendingStates() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
-		store.save(new OAuthState("state-2", "verifier-2", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
+		store.save(new OAuthState("state-2", "verifier-2", clock.instant(), "session-2"));
 
 		assertThat(store.find("state-1")).isPresent();
 		assertThat(store.find("state-2")).isPresent();
@@ -53,7 +54,7 @@ class InMemoryOAuthStateStoreTests {
 
 	@Test
 	void doesNotExpireBeforeTtl() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
 
 		clock.advanceSeconds(599);
 
@@ -62,7 +63,7 @@ class InMemoryOAuthStateStoreTests {
 
 	@Test
 	void expiresAfterTtl() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
 
 		clock.advanceSeconds(601);
 
@@ -72,7 +73,7 @@ class InMemoryOAuthStateStoreTests {
 
 	@Test
 	void consumeDoesNotReturnExpiredState() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
 
 		clock.advanceSeconds(601);
 
@@ -81,8 +82,8 @@ class InMemoryOAuthStateStoreTests {
 
 	@Test
 	void clearRemovesPendingStates() {
-		store.save(new OAuthState("state-1", "verifier-1", clock.instant()));
-		store.save(new OAuthState("state-2", "verifier-2", clock.instant()));
+		store.save(new OAuthState("state-1", "verifier-1", clock.instant(), "session-1"));
+		store.save(new OAuthState("state-2", "verifier-2", clock.instant(), "session-2"));
 
 		store.clear();
 

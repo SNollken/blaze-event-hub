@@ -13,6 +13,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMock
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.http.HttpHeaders;
+import org.springframework.mock.web.MockHttpSession;
 import org.springframework.test.web.servlet.MockMvc;
 
 import static org.hamcrest.Matchers.containsString;
@@ -95,10 +96,12 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void callbackReturnsFriendlyHtmlForBrowserWithoutSensitiveValues() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		MockHttpSession session = new MockHttpSession();
+		mockMvc.perform(post("/api/blaze/oauth/start").session(session))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(session)
 						.param("code", "auth-code-1")
 						.param("state", "blaze-state-1")
 						.header(HttpHeaders.ACCEPT, "text/html"))
@@ -116,10 +119,12 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void callbackReturnsSafeJsonWhenRequested() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		MockHttpSession session = new MockHttpSession();
+		mockMvc.perform(post("/api/blaze/oauth/start").session(session))
 				.andExpect(status().isOk());
 
 		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(session)
 						.param("code", "auth-code-1")
 						.param("state", "blaze-state-1")
 						.header(HttpHeaders.ACCEPT, "application/json"))
@@ -179,13 +184,15 @@ class BlazeOAuthControllerTests {
 
 	@Test
 	void jsonCallbackErrorSanitizesRemoteSensitiveText() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		MockHttpSession session = new MockHttpSession();
+		mockMvc.perform(post("/api/blaze/oauth/start").session(session))
 				.andExpect(status().isOk());
 		given(gateway.exchangeCode(any(OAuthTokenExchangeRequest.class)))
 				.willThrow(new OAuthException(400, "BLAZE_TOKEN_EXCHANGE_REJECTED",
 						"remote error code=auth-code-1 state=blaze-state-1 codeVerifier=verifier-1 authorizationUrl=https://blaze.stream/oauth?state=blaze-state-1 accessToken=access-token-1 refreshToken=refresh-token-1 clientSecret=client-secret"));
 
 		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(session)
 						.param("code", "auth-code-1")
 						.param("state", "blaze-state-1")
 						.header(HttpHeaders.ACCEPT, "application/json"))
@@ -199,10 +206,55 @@ class BlazeOAuthControllerTests {
 				.andExpect(content().string(not(containsString("https://blaze.stream/oauth"))));
 	}
 
+	@Test
+	void callbackFromDifferentBrowserSessionIsRejectedAndStoresNoToken() throws Exception {
+		// Account-fixation attack: the attacker starts the flow in their own browser
+		// session, authorizes their own Blaze account, and social-engineers the
+		// streamer into opening the finished callback URL. The callback arrives in
+		// the streamer's browser session (a different one) and must be rejected
+		// without storing the attacker's token globally.
+		MockHttpSession attackerSession = new MockHttpSession();
+		mockMvc.perform(post("/api/blaze/oauth/start").session(attackerSession))
+				.andExpect(status().isOk());
+
+		MockHttpSession victimSession = new MockHttpSession();
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(victimSession)
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "application/json"))
+				.andExpect(status().isBadRequest())
+				.andExpect(jsonPath("$.code").value("OAUTH_CALLBACK_INVALID"));
+
+		mockMvc.perform(get("/api/blaze/oauth/session").session(victimSession))
+				.andExpect(status().isOk())
+				.andExpect(jsonPath("$.connected").value(false))
+				.andExpect(jsonPath("$.tokenPresent").value(false))
+				.andExpect(jsonPath("$.profilePresent").value(false));
+	}
+
+	@Test
+	void crossSessionCallbackShowsFriendlyErrorPageInBrowser() throws Exception {
+		MockHttpSession attackerSession = new MockHttpSession();
+		mockMvc.perform(post("/api/blaze/oauth/start").session(attackerSession))
+				.andExpect(status().isOk());
+
+		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(new MockHttpSession())
+						.param("code", "auth-code-1")
+						.param("state", "blaze-state-1")
+						.header(HttpHeaders.ACCEPT, "text/html"))
+				.andExpect(status().isBadRequest())
+				.andExpect(header().string(HttpHeaders.CONTENT_TYPE, containsString("text/html")))
+				.andExpect(content().string(containsString("Nao foi possivel conectar a Blaze")));
+	}
+
 	private void connectWithJsonCallback() throws Exception {
-		mockMvc.perform(post("/api/blaze/oauth/start"))
+		MockHttpSession session = new MockHttpSession();
+		mockMvc.perform(post("/api/blaze/oauth/start").session(session))
 				.andExpect(status().isOk());
 		mockMvc.perform(get("/api/blaze/oauth/callback")
+						.session(session)
 						.param("code", "auth-code-1")
 						.param("state", "blaze-state-1")
 						.header(HttpHeaders.ACCEPT, "application/json"))
