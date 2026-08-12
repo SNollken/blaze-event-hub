@@ -8,11 +8,11 @@
 		<version>3.5.3</version>
 		<relativePath/> <!-- lookup parent from repository -->
 	</parent>
-	<groupId>com.nollen</groupId>
-	<artifactId>nollen-blaze</artifactId>
+	<groupId>com.blaze</groupId>
+	<artifactId>eventhub</artifactId>
 	<version>0.0.1-SNAPSHOT</version>
-	<name>NollenBlaze</name>
-	<description>Backend limpo do NollenBlaze</description>
+	<name>Blaze Event Hub</name>
+	<description>Blaze Event Hub — dashboard de eventos, alertas, sorteios e overlays para streamers Blaze.stream</description>
 	<url/>
 	<licenses>
 		<license/>
