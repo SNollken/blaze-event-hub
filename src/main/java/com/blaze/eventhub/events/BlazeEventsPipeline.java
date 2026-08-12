@@ -1,0 +1,129 @@
+package com.blaze.eventhub.events;
+
+import java.time.Clock;
+import java.time.Instant;
+import java.util.HashMap;
+import java.util.Map;
+
+import com.blaze.eventhub.common.JsonData;
+import com.blaze.eventhub.alert.AlertService;
+import com.blaze.eventhub.alert.EvaluateEventRequest;
+import com.blaze.eventhub.common.IdGenerator;
+import com.blaze.eventhub.intake.LiveEventService;
+import com.blaze.eventhub.intake.LiveEventSource;
+import com.blaze.eventhub.intake.LiveEventType;
+
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.springframework.stereotype.Component;
+
+@Component
+public class BlazeEventsPipeline {
+
+	private static final Logger log = LoggerFactory.getLogger(BlazeEventsPipeline.class);
+	private final BlazeEventsLogStore logStore;
+	private final IdGenerator idGenerator;
+	private final Clock clock;
+	private final AlertService alertService;
+	private final LiveEventService liveEventService;
+
+	public BlazeEventsPipeline(BlazeEventsLogStore logStore, IdGenerator idGenerator, Clock clock,
+			AlertService alertService, LiveEventService liveEventService) {
+		this.logStore = logStore;
+		this.idGenerator = idGenerator;
+		this.clock = clock;
+		this.alertService = alertService;
+		this.liveEventService = liveEventService;
+	}
+
+	public boolean acceptEnvelope(BlazeEventEnvelope envelope) {
+		if (envelope == null) {
+			return false;
+		}
+		BlazeEventType eventType = resolveBlazeEventType(envelope.subscriptionType(), envelope.messageType());
+		if (eventType == null) {
+			// Non-subscription messages (session_welcome etc.) are logged but not dispatched.
+			logEntry(
+					envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
+					envelope.messageType() != null ? envelope.messageType() : "unknown",
+					"Event received: " + (envelope.messageType() != null ? envelope.messageType() : "unknown"));
+			return false;
+		}
+		Map<String, Object> payload = envelope.payload() == null ? Map.of() : new HashMap<>(envelope.payload());
+		// ponytail: dedupKey includes messageType so distinct event types in the same
+		// Blaze session (follow, chat, subscribe...) are not collapsed into one ACCEPTED.
+		// True per-message deduplication needs a unique messageId, which the envelope does
+		// not expose; messageType is the finest identity available. Revisit when the
+		// feed includes a stable per-message id.
+		String messageType = envelope.messageType() != null ? envelope.messageType() : "unknown";
+		dispatch(eventType, payload, "blaze:" + (envelope.sessionId() != null ? envelope.sessionId() : idGenerator.newId()) + ":" + messageType);
+		logEntry(
+				envelope.subscriptionType() != null ? envelope.subscriptionType() : "unknown",
+				envelope.messageType() != null ? envelope.messageType() : "unknown",
+				"Event received: " + (envelope.messageType() != null ? envelope.messageType() : "unknown"));
+		return true;
+	}
+
+	public BlazeEventsLogEntry simulate(String eventType, String message) {
+		Instant now = Instant.now(clock);
+		String resolvedType = eventType != null && !eventType.isBlank() ? eventType : "channel.chat.message";
+		String resolvedMessage = message != null && !message.isBlank() ? message : "Simulated event: " + resolvedType;
+		BlazeEventsLogEntry entry = new BlazeEventsLogEntry(
+				idGenerator.newId(),
+				now,
+				resolvedType,
+				"simulate",
+				resolvedMessage,
+				JsonData.write(Map.of("simulated", true, "eventType", resolvedType, "timestamp", now.toString())));
+		logStore.append(entry);
+		dispatch(resolveBlazeEventType(resolvedType, resolvedType), Map.of(
+				"message", resolvedMessage,
+				"simulated", true,
+				"eventType", resolvedType,
+				"timestamp", now.toString()), "simulate:" + resolvedType + ":" + now);
+		return entry;
+	}
+
+	private void logEntry(String source, String eventType, String message) {
+		BlazeEventsLogEntry entry = new BlazeEventsLogEntry(
+				idGenerator.newId(),
+				Instant.now(clock),
+				eventType,
+				source,
+				message,
+				null);
+		logStore.append(entry);
+	}
+
+	private void dispatch(BlazeEventType eventType, Map<String, Object> payload, String dedupKey) {
+		if (eventType == null) {
+			return;
+		}
+		liveEventService.create(toLiveEventType(eventType), LiveEventSource.BLAZE_EVENT_PLACEHOLDER, payload, dedupKey);
+		alertService.evaluateEvent(new EvaluateEventRequest(eventType, payload));
+	}
+
+	private static BlazeEventType resolveBlazeEventType(String subscriptionType, String messageType) {
+		for (String candidate : new String[] { subscriptionType, messageType }) {
+			if (candidate == null || candidate.isBlank()) {
+				continue;
+			}
+			try {
+				return BlazeEventType.from(candidate);
+			}
+			catch (IllegalArgumentException e) {
+				log.debug("Unrecognized Blaze event type '{}' (subscriptionType={}, messageType={}) — not dispatched", candidate, subscriptionType, messageType, e);
+			}
+		}
+		return null;
+	}
+
+	private static LiveEventType toLiveEventType(BlazeEventType eventType) {
+		return switch (eventType) {
+		case CHANNEL_FOLLOW, CHANNEL_UNFOLLOW -> LiveEventType.FOLLOW;
+		case CHANNEL_SUBSCRIBE, CHANNEL_SUBSCRIPTION_GIFT -> LiveEventType.SUBSCRIPTION;
+		case CHANNEL_VOTE -> LiveEventType.VOTE;
+		case CHANNEL_CHAT_MESSAGE, CHANNEL_CHAT_CLEAR, CHANNEL_CHAT_MESSAGE_DELETE -> LiveEventType.CHAT_MESSAGE;
+		};
+	}
+}

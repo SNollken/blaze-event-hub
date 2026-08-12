@@ -1,19 +1,19 @@
 spring:
   application:
-    name: nollen-blaze
+    name: blaze-event-hub
   config:
     import: "optional:file:.env[.properties]"
   lifecycle:
     timeout-per-shutdown-phase: 30s
   datasource:
-    url: ${NOLLEN_DB_URL:jdbc:h2:file:./data/nollenblaze-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
+    url: ${BEH_DB_URL:jdbc:h2:file:./data/blazeeventhub-dev;MODE=PostgreSQL;DATABASE_TO_LOWER=TRUE;AUTO_SERVER=TRUE}
     # Sem driver-class-name hardcoded: Spring Boot infere do JDBC URL (jdbc:h2 ->
     # H2, jdbc:postgresql -> PG). Hardcodar org.h2.Driver aqui fazia o boot
-    # falhar quando NOLLEN_DB_URL apontava pro Supabase (deploy Render
+    # falhar quando BEH_DB_URL apontava pro Supabase (deploy Render
     # update_failed em 2026-08-12). Os testes PG mascaravam o bug porque
     # PostgresStoreIntegrationTests sobrescreve o driver via DynamicPropertySource.
-    username: ${NOLLEN_DB_USER:sa}
-    password: ${NOLLEN_DB_PASSWORD:}
+    username: ${BEH_DB_USER:sa}
+    password: ${BEH_DB_PASSWORD:}
   sql:
     init:
       mode: always
@@ -41,10 +41,10 @@ management:
     health:
       show-details: never
 
-nollen:
+beh:
   security:
-    api-key: ${NOLLEN_API_KEY:dev-local-key}
-    rate-limit-per-minute: ${NOLLEN_RATE_LIMIT_PER_MINUTE:30}
+    api-key: ${BEH_API_KEY:dev-local-key}
+    rate-limit-per-minute: ${BEH_RATE_LIMIT_PER_MINUTE:30}
   blaze:
     client-id: ${BLAZE_CLIENT_ID:}
     client-secret: ${BLAZE_CLIENT_SECRET:}

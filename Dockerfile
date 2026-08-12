@@ -12,8 +12,8 @@ FROM node:20-alpine AS frontend-build
 # The API key is baked into the SPA bundle at BUILD time (import.meta.env).
 # Render passes build-time env vars as --build-arg; without this ARG the
 # bundle silently falls back to 'dev-local-key' and every /api/** call 401s.
-ARG VITE_NOLLEN_API_KEY
-ENV VITE_NOLLEN_API_KEY=${VITE_NOLLEN_API_KEY}
+ARG VITE_BEH_API_KEY
+ENV VITE_BEH_API_KEY=${VITE_BEH_API_KEY}
 
 WORKDIR /app/frontend
 COPY frontend/package.json frontend/package-lock.json ./
@@ -21,8 +21,8 @@ RUN npm ci --no-audit --no-fund
 COPY frontend/ ./
 
 # Fail fast instead of deploying a bundle that 401s on every API call.
-RUN if [ -z "$VITE_NOLLEN_API_KEY" ]; then \
-      echo "ERROR: VITE_NOLLEN_API_KEY build arg is required (must equal the backend NOLLEN_API_KEY). See README 'Build único'." >&2; \
+RUN if [ -z "$VITE_BEH_API_KEY" ]; then \
+      echo "ERROR: VITE_BEH_API_KEY build arg is required (must equal the backend BEH_API_KEY). See README 'Build único'." >&2; \
       exit 1; \
     fi
 RUN npm run build

@@ -1,6 +1,6 @@
-# NollenBlaze
+# Blaze Event Hub
 
-Backend limpo do NollenBlaze para integracao server-side com blaze.stream, OAuth, REST APIs, Events e overlays publicos por manifesto.
+Backend limpo do Blaze Event Hub para integracao server-side com blaze.stream, OAuth, REST APIs, Events e overlays publicos por manifesto.
 
 ## Stack
 
@@ -28,10 +28,10 @@ $env:Path="$env:JAVA_HOME\bin;$env:Path"
 
 Copie os nomes de variaveis de `.env.example` para um `.env` local se for testar Blaze real. Nunca commite `.env`.
 
-O backend exige API key nos endpoints administrativos de `/api/**`, exceto health/status, callback OAuth e rotas publicas (`/api/public/**`, `/overlay/**`, `/assets/**`, `/vite.svg`). Em dev, se `NOLLEN_API_KEY` nao estiver definida, a chave padrao e `dev-local-key`.
+O backend exige API key nos endpoints administrativos de `/api/**`, exceto health/status, callback OAuth e rotas publicas (`/api/public/**`, `/overlay/**`, `/assets/**`, `/vite.svg`). Em dev, se `BEH_API_KEY` nao estiver definida, a chave padrao e `dev-local-key`.
 
 ```powershell
-$headers = @{ 'X-Nollen-Api-Key' = 'dev-local-key' }
+$headers = @{ 'X-BEH-Api-Key' = 'dev-local-key' }
 Invoke-WebRequest http://localhost:8080/api/alerts/stats -Headers $headers -UseBasicParsing
 ```
 
@@ -57,7 +57,7 @@ java -jar target/nollen-blaze-0.0.1-SNAPSHOT.jar
 
 O Maven copia `frontend/dist` para `target/classes/static` na fase `process-resources` (plugin `maven-resources-plugin`, execution `copy-frontend-dist`). Se `frontend/dist` nao existir, o build do backend segue normalmente e `/` mostra o shell MVP como fallback.
 
-**Atencao (producao):** o SPA envia a API key no header `X-Nollen-Api-Key` (ver `frontend/src/api/client.ts`). Em producao, defina `VITE_NOLLEN_API_KEY` no ambiente de **build** (ex.: env vars da Render) com o MESMO valor de `NOLLEN_API_KEY` do backend. Sem isso, o build embute o fallback `dev-local-key` e toda a UI recebe 401 do `ApiKeyFilter`. Essa chave nao e um segredo real (qualquer visitante a ve no header das requests do browser) — ela so bloqueia clientes nao-browser; os segredos de verdade (`BLAZE_CLIENT_SECRET`, tokens OAuth) ficam exclusivamente no backend.
+**Atencao (producao):** o SPA envia a API key no header `X-BEH-Api-Key` (ver `frontend/src/api/client.ts`). Em producao, defina `VITE_BEH_API_KEY` no ambiente de **build** (ex.: env vars da Render) com o MESMO valor de `BEH_API_KEY` do backend. Sem isso, o build embute o fallback `dev-local-key` e toda a UI recebe 401 do `ApiKeyFilter`. Essa chave nao e um segredo real (qualquer visitante a ve no header das requests do browser) — ela so bloqueia clientes nao-browser; os segredos de verdade (`BLAZE_CLIENT_SECRET`, tokens OAuth) ficam exclusivamente no backend.
 
 Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans e JetBrains Mono, OFL): nenhum request externo para Google Fonts, de acordo com o CSP `default-src 'self'` + `font-src 'self' data:`.
 
@@ -65,13 +65,13 @@ Fontes sao self-hosted via `@fontsource` (Funnel Display/Sans e JetBrains Mono, 
 
 O servico na Render roda via `Dockerfile` multi-stage (Node 20 builda o frontend, Maven builda o jar, JRE 21 roda). Dois pontos criticos:
 
-1. **`VITE_NOLLEN_API_KEY` e obrigatorio no BUILD**: a chave e embutida no bundle em build time. No Render, marque a variavel como disponivel no build; ela chega ao Dockerfile como `--build-arg` (declarado no stage do frontend). **Sem ela o build FALHA de proposito** (fail-fast) — antes o bundle era gerado com o fallback `dev-local-key` e toda a UI recebia 401 em silencio.
+1. **`VITE_BEH_API_KEY` e obrigatorio no BUILD**: a chave e embutida no bundle em build time. No Render, marque a variavel como disponivel no build; ela chega ao Dockerfile como `--build-arg` (declarado no stage do frontend). **Sem ela o build FALHA de proposito** (fail-fast) — antes o bundle era gerado com o fallback `dev-local-key` e toda a UI recebia 401 em silencio.
 2. **Porta**: o Render injeta `PORT` (ex.: 10000) no container; o app obedece na ordem `SERVER_PORT` > `PORT` > `8080` (`application.yml`). O health check do container usa a mesma porta.
 
 Build local da imagem (o build-arg e obrigatorio):
 
 ```bash
-docker build --build-arg VITE_NOLLEN_API_KEY=<mesmo valor de NOLLEN_API_KEY> -t nollen-blaze .
+docker build --build-arg VITE_BEH_API_KEY=<mesmo valor de BEH_API_KEY> -t blaze-event-hub .
 docker run --rm -e PORT=8080 -p 8080:8080 nollen-blaze
 ```
 
@@ -81,11 +81,11 @@ O jar inclui o driver PostgreSQL (scope `runtime`). Para apontar para o Supabase
 
 | Variavel | Valor |
 |----------|-------|
-| `NOLLEN_DB_URL` | `jdbc:postgresql://<projeto>.pooler.supabase.com:6543/postgres?sslmode=require` — **`sslmode=require` e obrigatorio**; nao ha outra camada que force TLS |
-| `NOLLEN_DB_USER` | usuario do Supabase (ATENCAO: e `NOLLEN_DB_USER`, nao `NOLLEN_DB_USERNAME`) |
-| `NOLLEN_DB_PASSWORD` | senha do Supabase |
-| `NOLLEN_API_KEY` | chave real (o default `dev-local-key` NAO deve ir para prod) |
-| `VITE_NOLLEN_API_KEY` | **ambiente de BUILD**, mesmo valor de `NOLLEN_API_KEY` (ver acima) |
+| `BEH_DB_URL` | `jdbc:postgresql://<projeto>.pooler.supabase.com:6543/postgres?sslmode=require` — **`sslmode=require` e obrigatorio**; nao ha outra camada que force TLS |
+| `BEH_DB_USER` | usuario do Supabase (ATENCAO: e `BEH_DB_USER`, nao `BEH_DB_USERNAME`) |
+| `BEH_DB_PASSWORD` | senha do Supabase |
+| `BEH_API_KEY` | chave real (o default `dev-local-key` NAO deve ir para prod) |
+| `VITE_BEH_API_KEY` | **ambiente de BUILD**, mesmo valor de `BEH_API_KEY` (ver acima) |
 | `SESSION_COOKIE_SECURE` | `true` |
 | `BLAZE_CLIENT_ID` / `BLAZE_CLIENT_SECRET` / `BLAZE_REDIRECT_URI` | credenciais OAuth da Blaze |
 
@@ -150,7 +150,7 @@ Scopes como `channel.moderate` e `users.bot` ficam reservados para fases futuras
 Se `/` ou `/dashboard` retornar 500, confirme primeiro se a branch ativa e `main` e se o app foi reiniciado depois do checkout. O smoke minimo do dashboard deve validar:
 
 ```powershell
-$headers = @{ 'X-Nollen-Api-Key' = 'dev-local-key' }
+$headers = @{ 'X-BEH-Api-Key' = 'dev-local-key' }
 Invoke-WebRequest http://localhost:8080/ -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/dashboard -UseBasicParsing
 Invoke-WebRequest http://localhost:8080/api/health -UseBasicParsing

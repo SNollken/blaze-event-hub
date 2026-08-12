@@ -1,5 +1,5 @@
 const BASE = '';
-const API_KEY = import.meta.env.VITE_NOLLEN_API_KEY || 'dev-local-key';
+const API_KEY = import.meta.env.VITE_BEH_API_KEY || 'dev-local-key';
 
 interface ApiErrorResponse {
   message?: string;
@@ -13,7 +13,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
       'Content-Type': 'application/json',
       Accept: 'application/json',
       ...(callerHeaders || {}),
-      'X-Nollen-Api-Key': API_KEY,
+      'X-BEH-Api-Key': API_KEY,
     },
   });
   if (!res.ok) {

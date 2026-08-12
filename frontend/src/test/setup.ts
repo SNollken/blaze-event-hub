@@ -12,7 +12,7 @@ const now = '2026-06-29T12:00:00Z';
 
 const responses: Record<string, unknown> = {
   '/api/status': {
-    appName: 'NollenBlaze',
+    appName: 'Blaze Event Hub',
     version: '0.1.0',
     javaVersion: '21',
     blazeOAuthConfigured: true,
@@ -60,7 +60,7 @@ const responses: Record<string, unknown> = {
     nextRecommendedAction: null,
   },
   '/api/blaze/setup': {
-    appName: 'NollenBlaze',
+    appName: 'Blaze Event Hub',
     environment: 'test',
     clientIdConfigured: true,
     clientIdMasked: 'abc...',

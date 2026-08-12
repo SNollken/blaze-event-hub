@@ -13,7 +13,7 @@ export interface TranslationMap {
 export const translations: Record<Locale, TranslationMap> = {
   en: {
     // App
-    'app.title': 'NollenBlaze',
+    'app.title': 'Blaze Event Hub',
     'app.notFound': 'Page not found.',
 
     // Navigation
@@ -90,7 +90,7 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Dashboard
     'dashboard.title': 'Overview',
-    'dashboard.subtitle': 'NollenBlaze Dashboard',
+    'dashboard.subtitle': 'Blaze Event Hub Dashboard',
     'dashboard.backend': 'Backend',
     'dashboard.online': 'Online',
     'dashboard.offline': 'Offline',
@@ -312,7 +312,7 @@ export const translations: Record<Locale, TranslationMap> = {
 
   'pt-BR': {
     // App
-    'app.title': 'NollenBlaze',
+    'app.title': 'Blaze Event Hub',
     'app.notFound': 'Página não encontrada.',
 
     // Navigation
@@ -389,7 +389,7 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Dashboard
     'dashboard.title': 'Visão Geral',
-    'dashboard.subtitle': 'Painel do NollenBlaze',
+    'dashboard.subtitle': 'Painel do Blaze Event Hub',
     'dashboard.backend': 'Backend',
     'dashboard.online': 'Online',
     'dashboard.offline': 'Offline',

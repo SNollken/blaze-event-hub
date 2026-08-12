@@ -1,0 +1,59 @@
+package com.blaze.eventhub.alert;
+
+import java.util.List;
+import java.util.Map;
+
+import com.blaze.eventhub.events.BlazeEventType;
+
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RestController;
+import jakarta.validation.Valid;
+
+@RestController
+@RequestMapping("/api/alerts")
+public class AlertController {
+
+	private final AlertService service;
+
+	public AlertController(AlertService service) {
+		this.service = service;
+	}
+
+	@GetMapping("/active")
+	List<Alert> activeAlerts() {
+		return service.getActiveAlerts();
+	}
+
+	@GetMapping("/history")
+	List<Alert> history(@RequestParam(required = false) String eventType) {
+		return service.getAlertHistory(eventType);
+	}
+
+	@PostMapping("/acknowledge/{id}")
+	Alert acknowledge(@PathVariable String id) {
+		return service.acknowledge(id);
+	}
+
+	@PostMapping("/evaluate")
+	List<Alert> evaluate(@Valid @RequestBody EvaluateEventRequest request) {
+		return service.evaluateEvent(request);
+	}
+
+	@GetMapping("/stats")
+	AlertStatsResponse stats() {
+		return service.getStats();
+	}
+
+	@GetMapping("/capabilities")
+Map<String, Object> capabilities() {
+	return Map.of(
+			"eventTypes", BlazeEventType.values(),
+			"conditions", AlertCondition.values(),
+			"maxAlerts", AlertStore.MAX_ALERTS);
+	}
+}
