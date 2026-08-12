@@ -37,7 +37,10 @@ public class LiveEventStore {
 	private final JdbcTemplate jdbc;
 	private final RowMapper<LiveEvent> mapper = (rs, rowNum) -> {
 		Timestamp ts = rs.getTimestamp("occurred_at");
-		java.time.Instant instant = ts != null ? ts.toInstant() : java.time.Instant.now();
+		// Null-safe fallback: a NULL occurred_at means corrupted data; EPOCH sorts the
+		// row as oldest (consistent with the other stores) so retention deletes it
+		// first instead of it masquerading as the newest event.
+		Instant instant = ts != null ? ts.toInstant() : Instant.EPOCH;
 		return new LiveEvent(
 			rs.getString("id"),
 			LiveEventType.valueOf(rs.getString("type")),

@@ -196,6 +196,8 @@ public class InMemoryOverlayRepository implements OverlayRepository {
 	}
 
 	private static Instant toInstant(Timestamp ts) {
-		return ts != null ? ts.toInstant() : Instant.now();
+		// EPOCH (not now()) for consistency with the other stores' null-safe
+		// RowMappers: corrupted rows sort as oldest, never masquerade as fresh.
+		return ts != null ? ts.toInstant() : Instant.EPOCH;
 	}
 }

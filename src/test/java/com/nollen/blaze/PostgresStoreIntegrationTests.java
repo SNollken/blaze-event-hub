@@ -467,6 +467,33 @@ class PostgresStoreIntegrationTests {
 	}
 
 	@Test
+	void nullTimestampsReadBackAsEpochOnPostgres() {
+		// The schema declares NOT NULL, but a corrupted or hand-edited row could
+		// still carry NULL. The RowMappers must fall back to Instant.EPOCH (the
+		// OLDEST possible value), not Instant.now() — with now() a corrupted row
+		// would masquerade as the newest event and escape retention forever.
+		// Relax the constraint inside this rolled-back transaction to simulate it.
+		jdbc.execute("ALTER TABLE live_events ALTER COLUMN occurred_at DROP NOT NULL");
+		jdbc.update(
+				"INSERT INTO live_events (id, type, source, status, payload, occurred_at, dedup_key) VALUES (?, ?, ?, ?, ?, NULL, ?)",
+				"pg-null-ts", LiveEventType.TEST.name(), LiveEventSource.SIMULATED.name(),
+				LiveEventStatus.ACCEPTED.name(), "{}", "null-ts");
+		LiveEvent event = liveEventStore.findById("pg-null-ts").orElseThrow();
+		assertEquals(Instant.EPOCH, event.timestamp());
+		// Corrupted row must sort as OLDEST (listings are newest-first).
+		List<LiveEvent> page = liveEventStore.listAll();
+		assertEquals("pg-null-ts", page.getLast().id());
+
+		jdbc.execute("ALTER TABLE blaze_events_log ALTER COLUMN received_at DROP NOT NULL");
+		jdbc.update(
+				"INSERT INTO blaze_events_log (received_at, event_type, source, message, raw_payload, id) VALUES (NULL, ?, ?, ?, ?, ?)",
+				"chat", "simulate", "corrupted-row", null, "pg-null-log");
+		List<BlazeEventsLogEntry> logEntries = eventsLogStore.list(null, null, 10);
+		assertEquals(1, logEntries.size());
+		assertEquals(Instant.EPOCH, logEntries.getFirst().timestamp());
+	}
+
+	@Test
 	void blazeEventsLogRetentionOnPostgres() {
 		eventsLogStore.clear();
 		int total = BlazeEventsLogStore.MAX_PERSISTED + 50;

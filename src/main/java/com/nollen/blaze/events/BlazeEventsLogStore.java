@@ -27,7 +27,9 @@ public class BlazeEventsLogStore {
 	private final JdbcTemplate jdbc;
 	private final RowMapper<BlazeEventsLogEntry> mapper = (rs, rowNum) -> {
 		Timestamp ts = rs.getTimestamp("received_at");
-		Instant instant = ts != null ? ts.toInstant() : Instant.now();
+		// Null-safe fallback: EPOCH (not now()) so a corrupted row is treated as the
+		// OLDEST entry — retention evicts it first instead of keeping it forever.
+		Instant instant = ts != null ? ts.toInstant() : Instant.EPOCH;
 		return new BlazeEventsLogEntry(
 			rs.getString("id"),
 			instant,
