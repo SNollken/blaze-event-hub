@@ -42,7 +42,7 @@ $optional = @(
 $allOk = $true
 
 Write-Host ""
-Write-Host "=== check-env: NollenBlaze ===" -ForegroundColor Cyan
+Write-Host "=== check-env: Blaze Event Hub ===" -ForegroundColor Cyan
 
 foreach ($key in $mandatory) {
     $val = $vars[$key]

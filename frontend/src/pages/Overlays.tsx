@@ -15,7 +15,7 @@ import {
   deleteOverlayProfile,
   deleteOverlay,
 } from '../api/client';
-import type { OverlayProfile, Overlay } from '../api/types';
+import type { OverlayProfile, Overlay, OverlayLayer } from '../api/types';
 import {
   Layers,
   Plus,
@@ -27,6 +27,12 @@ import {
   LayoutIcon,
   RefreshCw,
 } from 'lucide-react';
+
+const layerTypeLabel = (layer: OverlayLayer): string => {
+  if (layer.type === 'SHAPE') return t('overlays.layerShape');
+  if (layer.type === 'IMAGE') return t('overlays.layerImage');
+  return t('overlays.layerText');
+};
 
 export default function Overlays() {
   const fetchProfiles = useCallback(() => getOverlayProfiles(), []);
@@ -186,7 +192,7 @@ export default function Overlays() {
           value={overlays.length}
           icon={<Layers size={18} />}
           color="accent"
-          subtitle={selectedProfileId ? `${t('overlays.profileSelected')} ${selectedProfileId}` : t('overlays.noProfileSelected')}
+          subtitle={selectedProfileId ? `${t('overlays.profileSelected')} ${profiles?.find((p) => p.id === selectedProfileId)?.name ?? ''}`.trim() : t('overlays.noProfileSelected')}
         />
       </div>
 
@@ -305,7 +311,7 @@ export default function Overlays() {
                   {selectedOverlay.layers.map((layer) => (
                     <div key={layer.id} className="flex items-center gap-2 text-xs text-text-secondary">
                       <Badge variant="neutral">{layer.type}</Badge>
-                      <span>{layer.text || layer.assetId || `#${layer.id}`}</span>
+                      <span>{layer.text || layerTypeLabel(layer)}</span>
                       <span className="mono">{t('overlays.zIndex')}{layer.zIndex}</span>
                     </div>
                   ))}

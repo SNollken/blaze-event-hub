@@ -22,8 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-		"nollen.blaze.client-id=",
-		"nollen.blaze.client-secret=",
+		"beh.blaze.client-id=",
+		"beh.blaze.client-secret=",
 })
 class DashboardMvpControllerTests {
 
@@ -34,32 +34,17 @@ class DashboardMvpControllerTests {
 	private ObjectMapper objectMapper;
 
 	@Test
-	void rootServesSpaShellAndDashboardServesLegacyPanel() throws Exception {
-		// "/" serves the SPA entry (React build when present, MVP fallback otherwise);
+	void rootAndDashboardServeSpaShell() throws Exception {
+		// "/" serves the SPA entry (React build when present, placeholder otherwise);
 		// both carry the Blaze Event Hub title, so this assertion holds in both cases.
 		mockMvc.perform(get("/"))
 				.andExpect(status().isOk())
 				.andExpect(content().string(containsString("Blaze Event Hub")));
 
+		// "/dashboard" is a legacy path that now serves the same SPA shell.
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("Blaze Event Hub")))
-				.andExpect(content().string(containsString("Dashboard Shell MVP")))
-				.andExpect(content().string(containsString("data-section-target=\"overview\"")))
-				.andExpect(content().string(containsString("Conta Blaze")))
-				.andExpect(content().string(containsString("/dashboard.js")))
-				.andExpect(content().string(containsString("/dashboard.css")));
-
-		mockMvc.perform(get("/dashboard.html"))
-				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("Dashboard Shell MVP")));
-
-		mockMvc.perform(get("/dashboard.js"))
-				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("API_KEY")))
-				.andExpect(content().string(not(containsString("accessToken"))))
-				.andExpect(content().string(not(containsString("refreshToken"))))
-				.andExpect(content().string(not(containsString("clientSecret"))));
+				.andExpect(content().string(containsString("Blaze Event Hub")));
 	}
 
 	@Test
@@ -93,7 +78,7 @@ class DashboardMvpControllerTests {
 
 		mockMvc.perform(get("/dashboard"))
 				.andExpect(status().isOk())
-				.andExpect(content().string(containsString("Dashboard Shell MVP")));
+				.andExpect(content().string(containsString("Blaze Event Hub")));
 
 		mockMvc.perform(get("/api/health"))
 				.andExpect(status().isOk())

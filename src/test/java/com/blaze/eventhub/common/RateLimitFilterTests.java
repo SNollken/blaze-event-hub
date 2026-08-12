@@ -33,10 +33,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
 		"beh.security.rate-limit-per-minute=2",
-		"nollen.blaze.client-id=client-id",
-		"nollen.blaze.client-secret=client-secret",
-		"nollen.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
-		"nollen.blaze.scopes=users.read,offline.access"
+		"beh.blaze.client-id=client-id",
+		"beh.blaze.client-secret=client-secret",
+		"beh.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"beh.blaze.scopes=users.read,offline.access"
 })
 class RateLimitFilterTests {
 

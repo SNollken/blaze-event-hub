@@ -26,6 +26,7 @@ export default function App() {
           <Route path="/events" element={<LiveEvents />} />
           <Route path="/blaze" element={<BlazeChannel />} />
           {/* legacy routes: old dashboard shell paths redirect to React pages */}
+          <Route path="/dashboard" element={<Navigate to="/" replace />} />
           <Route path="/channel" element={<Navigate to="/blaze" replace />} />
           <Route path="/live-events" element={<Navigate to="/events" replace />} />
           <Route path="/alerts-dashboard" element={<Navigate to="/alerts" replace />} />

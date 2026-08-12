@@ -1,12 +1,12 @@
 @echo off
-REM run-local.bat — NollenBlaze local runner
+REM run-local.bat — Blaze Event Hub local runner
 REM Le .env, seta vars e chama mvnw.cmd.
 REM NUNCA imprime valores sensiveis.
 
 for /f "tokens=1,* delims== eol=#" %%A in (%~dp0..\.env) do if not "%%A"=="" if not "%%B"=="" set "%%A=%%B"
 
 echo.
-echo === run-local: NollenBlaze ===
+echo === run-local: Blaze Event Hub ===
 echo Variaveis carregadas do .env
 echo   BLAZE_CLIENT_ID     : [configurado]
 echo   BLAZE_CLIENT_SECRET : [SEGURADO]

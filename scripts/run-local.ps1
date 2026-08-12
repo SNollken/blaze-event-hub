@@ -41,7 +41,7 @@ if ($missing.Count -gt 0) {
 }
 
 Write-Host ""
-Write-Host "=== run-local: NollenBlaze ===" -ForegroundColor Cyan
+Write-Host "=== run-local: Blaze Event Hub ===" -ForegroundColor Cyan
 Write-Host "Variaveis carregadas do .env:"
 
 $loadedKeys = @("BLAZE_CLIENT_ID","BLAZE_CLIENT_SECRET","BLAZE_REDIRECT_URI","BLAZE_AUTH_BASE_URL","BLAZE_API_BASE_URL","BLAZE_SOCKET_URL","BLAZE_SOCKET_PATH","BLAZE_SCOPES","BLAZE_MONITORED_CHANNEL_ID")

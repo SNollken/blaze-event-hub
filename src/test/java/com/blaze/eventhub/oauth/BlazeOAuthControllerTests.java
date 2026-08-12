@@ -28,10 +28,10 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-		"nollen.blaze.client-id=client-id",
-		"nollen.blaze.client-secret=client-secret",
-		"nollen.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
-		"nollen.blaze.scopes=users.read,offline.access"
+		"beh.blaze.client-id=client-id",
+		"beh.blaze.client-secret=client-secret",
+		"beh.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"beh.blaze.scopes=users.read,offline.access"
 })
 @AutoConfigureMockMvc
 class BlazeOAuthControllerTests {

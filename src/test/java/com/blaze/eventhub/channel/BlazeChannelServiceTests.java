@@ -16,11 +16,11 @@ class BlazeChannelServiceTests {
 
 	@Test
 	void createChannelConfig() {
-		CreateBlazeChannelRequest request = new CreateBlazeChannelRequest("Nollen", "ch-123", "blaze", true);
+		CreateBlazeChannelRequest request = new CreateBlazeChannelRequest("Canal de Teste", "ch-123", "blaze", true);
 		BlazeChannelConfig config = service.create(request);
 
 		assertThat(config.id()).isNotBlank();
-		assertThat(config.name()).isEqualTo("Nollen");
+		assertThat(config.name()).isEqualTo("Canal de Teste");
 		assertThat(config.channelId()).isEqualTo("ch-123");
 		assertThat(config.platform()).isEqualTo("blaze");
 		assertThat(config.monitored()).isTrue();

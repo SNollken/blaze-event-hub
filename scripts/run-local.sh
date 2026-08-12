@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# run-local.sh — NollenBlaze local runner
+# run-local.sh — Blaze Event Hub local runner
 # Carrega .env e passa como -D para spring-boot:run.
 # NUNCA imprime valores sensiveis.
 set -e
@@ -33,7 +33,7 @@ while IFS='=' read -r key val; do
 done < <(grep -E '^BLAZE_' "$ENV_FILE" | grep -v '^#' | sed 's/\r$//')
 
 echo ""
-echo "=== run-local: NollenBlaze ==="
+echo "=== run-local: Blaze Event Hub ==="
 echo "Props injetadas via spring-boot.run.jvmArguments"
 echo "  BLAZE_CLIENT_ID     : [configurado]"
 echo "  BLAZE_CLIENT_SECRET : [SEGURADO]"

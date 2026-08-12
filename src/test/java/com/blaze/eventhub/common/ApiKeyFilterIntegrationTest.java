@@ -19,8 +19,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
 		"beh.security.api-key=test-integration-key",
-		"nollen.blaze.client-id=",
-		"nollen.blaze.client-secret=",
+		"beh.blaze.client-id=",
+		"beh.blaze.client-secret=",
 })
 class ApiKeyFilterIntegrationTest {
 

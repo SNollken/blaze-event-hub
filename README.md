@@ -52,10 +52,10 @@ O build de producao embute o React (`frontend/dist`) dentro do jar do Spring Boo
 ```bash
 cd frontend && npm install && npm run build && cd ..
 ./mvnw clean package
-java -jar target/nollen-blaze-0.0.1-SNAPSHOT.jar
+java -jar target/eventhub-0.0.1-SNAPSHOT.jar
 ```
 
-O Maven copia `frontend/dist` para `target/classes/static` na fase `process-resources` (plugin `maven-resources-plugin`, execution `copy-frontend-dist`). Se `frontend/dist` nao existir, o build do backend segue normalmente e `/` mostra o shell MVP como fallback.
+O Maven copia `frontend/dist` para `target/classes/static` na fase `process-resources` (plugin `maven-resources-plugin`, execution `copy-frontend-dist`). Se `frontend/dist` nao existir, o build do backend segue normalmente e `/` mostra uma pagina pedindo o build do frontend.
 
 **Atencao (producao):** o SPA envia a API key no header `X-BEH-Api-Key` (ver `frontend/src/api/client.ts`). Em producao, defina `VITE_BEH_API_KEY` no ambiente de **build** (ex.: env vars da Render) com o MESMO valor de `BEH_API_KEY` do backend. Sem isso, o build embute o fallback `dev-local-key` e toda a UI recebe 401 do `ApiKeyFilter`. Essa chave nao e um segredo real (qualquer visitante a ve no header das requests do browser) — ela so bloqueia clientes nao-browser; os segredos de verdade (`BLAZE_CLIENT_SECRET`, tokens OAuth) ficam exclusivamente no backend.
 
@@ -72,7 +72,7 @@ Build local da imagem (o build-arg e obrigatorio):
 
 ```bash
 docker build --build-arg VITE_BEH_API_KEY=<mesmo valor de BEH_API_KEY> -t blaze-event-hub .
-docker run --rm -e PORT=8080 -p 8080:8080 nollen-blaze
+docker run --rm -e PORT=8080 -p 8080:8080 blaze-event-hub
 ```
 
 ### Producao (Supabase/PostgreSQL)

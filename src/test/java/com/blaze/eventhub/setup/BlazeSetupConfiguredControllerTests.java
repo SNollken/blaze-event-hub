@@ -15,11 +15,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-		"nollen.blaze.client-id=abc123456789xyz",
-		"nollen.blaze.client-secret=placeholder-backend-credential-123",
-		"nollen.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
-		"nollen.blaze.scopes=users.read,offline.access",
-		"nollen.blaze.monitored-channel-id=channel-1234567890"
+		"beh.blaze.client-id=abc123456789xyz",
+		"beh.blaze.client-secret=placeholder-backend-credential-123",
+		"beh.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"beh.blaze.scopes=users.read,offline.access",
+		"beh.blaze.monitored-channel-id=channel-1234567890"
 })
 @AutoConfigureMockMvc
 class BlazeSetupConfiguredControllerTests {

@@ -19,11 +19,11 @@
 
 ## Persistencia
 
-O perfil `dev` usa H2 file em `./data/nollenblaze-dev` (MODE=PostgreSQL). Testes usam H2 in-memory, e ha testes de integracao com PostgreSQL real via Testcontainers. As tabelas sao criadas por `schema.sql` (`spring.sql.init.mode=always`) e cobrem: alert_rules, alerts, blaze_events_log, blaze_channels, event_subscriptions, live_events, giveaways, giveaway_entries, overlay_profiles, overlays, overlay_asset_bytes e runtime_overlay_configs. Stores JDBC preservam fallback in-memory para testes unitarios diretos.
+O perfil `dev` usa H2 file em `./data/blazeeventhub-dev` (MODE=PostgreSQL). Testes usam H2 in-memory, e ha testes de integracao com PostgreSQL real via Testcontainers. As tabelas sao criadas por `schema.sql` (`spring.sql.init.mode=always`) e cobrem: alert_rules, alerts, blaze_events_log, blaze_channels, event_subscriptions, live_events, giveaways, giveaway_entries, overlay_profiles, overlays, overlay_asset_bytes e runtime_overlay_configs. Stores JDBC preservam fallback in-memory para testes unitarios diretos.
 
 Nota: `db/migration/common/V11__add_runtime_overlay_configs.sql` e um artefato historico da epoca em que o branch de producao usava Flyway. Este branch nao tem dependencia Flyway; o schema vem do `schema.sql`, que ja contem a tabela `runtime_overlay_configs`. O arquivo foi mantido apenas como referencia de DDL.
 
-Producao (Supabase/PostgreSQL): o driver `org.postgresql:postgresql` tem scope `runtime` e vai dentro do jar (rodada 50 — antes era `test`, o que impedia o jar de conectar em PG). A conexao usa credencial de servico unica via `NOLLEN_DB_URL`/`NOLLEN_DB_USER`/`NOLLEN_DB_PASSWORD`; a URL DEVE incluir `sslmode=require` (nao ha outra camada que force TLS).
+Producao (Supabase/PostgreSQL): o driver `org.postgresql:postgresql` tem scope `runtime` e vai dentro do jar (rodada 50 — antes era `test`, o que impedia o jar de conectar em PG). A conexao usa credencial de servico unica via `BEH_DB_URL`/`BEH_DB_USER`/`BEH_DB_PASSWORD`; a URL DEVE incluir `sslmode=require` (nao ha outra camada que force TLS).
 
 Retencao e limites (rodadas 50 e 52): `blaze_events_log` tem retencao no path JDBC (mantem as 2000 linhas mais recentes — log diagnostico); `live_events` tem retencao temporal no path JDBC (apaga linhas com `occurred_at` > 30 dias; roda apos INSERT fresco e so quando a tabela passa de 1000 linhas); listagens de `live_events` e `alerts` sao limitadas as 500 linhas mais recentes (`LIST_LIMIT`/`MAX_ALERTS`); `/api/blaze/events/log?limit=` tem teto de 500. Indices em hot paths: `live_events(dedup_key)` (dedup roda em TODO evento ingerido), `live_events(occurred_at)` (retencao usa este indice), `alerts(rule_id, triggered_at)` (cooldown check), `blaze_events_log(received_at)`.
 
@@ -31,7 +31,7 @@ RLS (Supabase) nao e fronteira de protecao aqui: o frontend nao fala com o Supab
 
 ## API Security
 
-`ApiKeyFilter` protege endpoints administrativos de `/api/**` com `X-Nollen-Api-Key` ou `Authorization: Bearer *** (comparacao em tempo constante via `MessageDigest.isEqual`). Rotas publicas continuam liberadas:
+`ApiKeyFilter` protege endpoints administrativos de `/api/**` com `X-BEH-Api-Key` ou `Authorization: Bearer *** (comparacao em tempo constante via `MessageDigest.isEqual`). Rotas publicas continuam liberadas:
 
 - `GET /api/health`
 - `GET /api/status`
@@ -40,9 +40,9 @@ RLS (Supabase) nao e fronteira de protecao aqui: o frontend nao fala com o Supab
 - `GET /overlay/**`
 - `GET /assets/**` e `/vite.svg` (assets estaticos do build da SPA)
 
-`BrowserSecurityFilter` adiciona headers de seguranca: CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy e Cache-Control no-store para `/api/`. `RateLimitFilter` aplica janela deslizante de 1 minuto por IP em `POST /api/blaze/oauth/*` (429 + Retry-After; configuravel via `NOLLEN_RATE_LIMIT_PER_MINUTE`, default 30; chave = ULTIMA entrada de `X-Forwarded-For`, a anexada pelo edge do Render).
+`BrowserSecurityFilter` adiciona headers de seguranca: CSP, X-Frame-Options DENY, X-Content-Type-Options nosniff, Referrer-Policy, Permissions-Policy e Cache-Control no-store para `/api/`. `RateLimitFilter` aplica janela deslizante de 1 minuto por IP em `POST /api/blaze/oauth/*` (429 + Retry-After; configuravel via `BEH_RATE_LIMIT_PER_MINUTE`, default 30; chave = ULTIMA entrada de `X-Forwarded-For`, a anexada pelo edge do Render).
 
-Modelo de confianca (auditoria rodada 50): o app e single-tenant "atras da URL". A API key viaja no bundle JS publico (baked em build time via `VITE_NOLLEN_API_KEY`) — qualquer visitante consegue le-la. Ela protege contra CSRF de terceiros (nao ha cookie de sessao; CORS nao configurado; header customizado exige preflight) e contra bots, mas NAO protege contra quem conhece a URL. Aceito por design; segredos reais ficam so no backend. O bloco `server.servlet.session.cookie` em application.yml e config inerte hoje (nenhuma sessao e criada) — armadilha futura: se sessoes forem introduzidas, definir `SESSION_COOKIE_SECURE=true` e `server.forward-headers-strategy`.
+Modelo de confianca (auditoria rodada 50): o app e single-tenant "atras da URL". A API key viaja no bundle JS publico (baked em build time via `VITE_BEH_API_KEY`) — qualquer visitante consegue le-la. Ela protege contra CSRF de terceiros (nao ha cookie de sessao; CORS nao configurado; header customizado exige preflight) e contra bots, mas NAO protege contra quem conhece a URL. Aceito por design; segredos reais ficam so no backend. O bloco `server.servlet.session.cookie` em application.yml e config inerte hoje (nenhuma sessao e criada) — armadilha futura: se sessoes forem introduzidas, definir `SESSION_COOKIE_SECURE=true` e `server.forward-headers-strategy`.
 
 ## OAuth
 

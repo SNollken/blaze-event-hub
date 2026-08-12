@@ -1,176 +1,295 @@
-import { useCallback } from 'react';
+import { useCallback, useState } from 'react';
+import { Link } from 'react-router-dom';
 import { Layout } from '../components/Layout';
-import { StatsCard } from '../components/StatsCard';
-import { StatusDot } from '../components/Badge';
+import { Badge } from '../components/Badge';
+import { Modal } from '../components/Modal';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
-import { getStatus, getEventsStatus, getOAuthSession } from '../api/client';
+import { addToast } from '../components/Toast';
 import { t } from '../i18n';
 import {
-  Server,
-  Key,
-  Radio,
-  Layers,
-  Clock,
-  Zap,
-  Settings,
-} from 'lucide-react';
+  createGiveaway,
+  enterGiveaway,
+  getGiveaways,
+  getStatus,
+  startOAuth,
+} from '../api/client';
+import { Giveaway, GiveawayStatus } from '../api/types';
+import { ArrowRight, KeyRound, Plus, Users } from 'lucide-react';
 
-function formatUptime(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  if (h > 0) return `${h}${t('common.hour')} ${m}${t('common.minute')}`;
-  return `${m}${t('common.minute')}`;
-}
+const statusColors: Record<GiveawayStatus, 'success' | 'warning' | 'error' | 'neutral'> = {
+  DRAFT: 'neutral',
+  OPEN: 'success',
+  CLOSED: 'warning',
+  DRAWING: 'warning',
+  COMPLETED: 'success',
+  CANCELLED: 'error',
+};
 
 export default function Dashboard() {
+  const fetchGiveaways = useCallback(() => getGiveaways(), []);
   const fetchStatus = useCallback(() => getStatus(), []);
-  const fetchEvents = useCallback(() => getEventsStatus(), []);
-  const fetchOAuth = useCallback(() => getOAuthSession(), []);
 
-  const { data: status, loading: statusLoading, error: statusError } = usePolling(fetchStatus, 10000);
-  const { data: events, loading: eventsLoading, error: eventsError } = usePolling(fetchEvents, 8000);
-  const { data: oauth, loading: oauthLoading, error: oauthError } = usePolling(fetchOAuth, 15000);
+  const { data: giveaways, loading, error: giveawaysError, reload: reloadGiveaways } = usePolling(fetchGiveaways, 15000);
+  const { data: status, error: statusError, reload: reloadStatus } = usePolling(fetchStatus, 20000);
 
-  const pollError = statusError || eventsError || oauthError;
+  const pollError = giveawaysError || statusError;
 
-  if (statusLoading && !status) {
+  const [participantName, setParticipantName] = useState('');
+  const [joiningId, setJoiningId] = useState<string | null>(null);
+  const [connecting, setConnecting] = useState(false);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [creating, setCreating] = useState(false);
+  const [createForm, setCreateForm] = useState({ title: '', description: '', maxEntries: 100 });
+
+  const statusLabels: Record<GiveawayStatus, string> = {
+    DRAFT: t('giveaways.statusDraft'),
+    OPEN: t('giveaways.statusOpen'),
+    CLOSED: t('giveaways.statusClosed'),
+    DRAWING: t('giveaways.statusDrawing'),
+    COMPLETED: t('giveaways.statusCompleted'),
+    CANCELLED: t('giveaways.statusCancelled'),
+  };
+
+  const allGiveaways = giveaways || [];
+  const openGiveaways = allGiveaways.filter((g) => g.status === 'OPEN');
+  const recentGiveaways = [...allGiveaways]
+    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
+    .slice(0, 5);
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await startOAuth();
+      window.open(res.authorizationUrl, '_blank', 'noopener,noreferrer');
+      addToast('success', t('blaze.connectSuccess'));
+    } catch (e: unknown) {
+      addToast('error', e instanceof Error ? e.message : t('blaze.connectError'));
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  const handleJoin = async (giveaway: Giveaway) => {
+    const name = participantName.trim();
+    if (!name) return;
+    setJoiningId(giveaway.id);
+    try {
+      await enterGiveaway(giveaway.id, name);
+      addToast('success', t('home.joinSuccess'));
+      await reloadGiveaways();
+    } catch (e: unknown) {
+      addToast('error', e instanceof Error ? e.message : t('home.joinError'));
+    } finally {
+      setJoiningId(null);
+    }
+  };
+
+  const handleCreate = async () => {
+    setCreating(true);
+    try {
+      await createGiveaway({
+        title: createForm.title.trim(),
+        description: createForm.description.trim(),
+        maxEntries: createForm.maxEntries,
+      });
+      addToast('success', t('home.createSuccess'));
+      setShowCreateModal(false);
+      setCreateForm({ title: '', description: '', maxEntries: 100 });
+      await reloadGiveaways();
+    } catch (e: unknown) {
+      addToast('error', e instanceof Error ? e.message : t('home.createError'));
+    } finally {
+      setCreating(false);
+    }
+  };
+
+  if (loading && !giveaways) {
     return (
-      <Layout title={t('dashboard.title')}>
-        <div className="empty-state min-h-[300px]">
-          <div>{t('common.loading')}</div>
-        </div>
+      <Layout title={t('home.title')} subtitle={t('home.subtitle')}>
+        <div className="skeleton-list" />
       </Layout>
     );
   }
 
   return (
-    <Layout title={t('dashboard.title')} subtitle={t('dashboard.subtitle')}>
-      {pollError && <ErrorBanner error={pollError} onRetry={() => window.location.reload()} />}
-      {/* Stats row */}
-      <div className="stats-grid mb-6">
-        <StatsCard
-          title={t('dashboard.backend')}
-          value={status ? t('dashboard.online') : t('dashboard.offline')}
-          icon={<Server size={18} />}
-          color={status ? 'success' : 'error'}
-          subtitle={status ? `${status.appName} ${status.version}` : t('dashboard.unavailable')}
-        />
-        <StatsCard
-          title={t('dashboard.blazeOAuth')}
-          value={status?.oauthConnected ? t('common.connected') : t('common.disconnected')}
-          icon={<Key size={18} />}
-          color={status?.oauthConnected ? 'success' : 'warning'}
-          subtitle={status?.connectedAccountDisplayName || t('dashboard.noAccount')}
-        />
-        <StatsCard
-          title={t('dashboard.eventsSocket')}
-          value={events?.runnerRunning ? t('common.running') : t('common.stopped')}
-          icon={<Radio size={18} />}
-          color={events?.runnerRunning ? 'success' : 'neutral'}
-          subtitle={events?.clientRunning ? t('dashboard.clientConnected') : t('dashboard.clientDisconnected')}
-        />
-        <StatsCard
-          title={t('dashboard.overlays')}
-          value={status?.overlaysCount ?? 0}
-          icon={<Layers size={18} />}
-          color="accent"
-          subtitle={`${status?.activeProfilesCount ?? 0} ${t('dashboard.profiles')}`}
-        />
-        <StatsCard
-          title={t('dashboard.java')}
-          value={status?.javaVersion ?? '-'}
-          icon={<Zap size={18} />}
-          color="primary"
-        />
-        <StatsCard
-          title={t('dashboard.uptime')}
-          value={status ? formatUptime(status.uptimeSeconds) : '-'}
-          icon={<Clock size={18} />}
-          color="primary"
-        />
+    <Layout title={t('home.title')} subtitle={t('home.subtitle')}>
+      {pollError && <ErrorBanner error={pollError} onRetry={() => { reloadGiveaways(); reloadStatus(); }} />}
+
+      {/* Hero: product value + primary actions */}
+      <div className="glass-card p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
+        <div className="max-w-[560px]">
+          <h2 className="text-xl font-bold text-text-primary mb-1.5">{t('home.heroTitle')}</h2>
+          <p className="text-[13px] text-text-secondary leading-relaxed">{t('home.heroSubtitle')}</p>
+        </div>
+        <div className="flex items-center gap-2.5 flex-wrap">
+          {!status?.oauthConnected && (
+            <button className="btn btn-secondary" onClick={handleConnect} disabled={connecting}>
+              <KeyRound size={14} />
+              {connecting ? t('home.connecting') : t('home.connectBlaze')}
+            </button>
+          )}
+          <button className="btn btn-primary" onClick={() => setShowCreateModal(true)} disabled={creating}>
+            <Plus size={14} />
+            {t('home.createGiveaway')}
+          </button>
+        </div>
       </div>
 
-      {/* Status details */}
       <div className="responsive-grid-2 mb-6">
-        {/* System status */}
+        {/* Join: open giveaways from the community */}
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-4">{t('dashboard.systemStatus')}</h3>
-          <div className="flex flex-col gap-3">
-            <StatusItem label={t('dashboard.oauthConfigured')} ok={status?.blazeOAuthConfigured} />
-            <StatusItem label={t('dashboard.blazeApiConfigured')} ok={status?.blazeApiConfigured} />
-            <StatusItem label={t('dashboard.socketConfigured')} ok={status?.socketConfigured} />
-            <StatusItem label={t('dashboard.tokenPresent')} ok={status?.tokenPresent} />
-            <StatusItem label={t('dashboard.refreshCredential')} ok={status?.refreshCredentialPresent} />
-            <StatusItem label={t('dashboard.monitoredChannel')} ok={status?.monitoredChannelConfigured} />
-            <StatusItem label={t('dashboard.sessionId')} ok={status?.sessionIdPresent} />
+          <div className="section-header mb-3">
+            <span className="section-title">{t('home.openGiveaways')}</span>
+            <Badge variant="success">{openGiveaways.length}</Badge>
           </div>
-        </div>
 
-        {/* Account & OAuth */}
-        <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-4">{t('dashboard.accountOAuth')}</h3>
-          {oauth?.connected ? (
-            <div className="flex flex-col gap-3">
-              <div className="flex items-center gap-2.5">
-                {oauth.profile?.avatarUrl && (
-                  <img
-                    src={oauth.profile.avatarUrl}
-                    alt={oauth.profile.displayName ? `${oauth.profile.displayName} ${t('common.avatar')}` : ''}
-                    className="w-9 h-9 rounded-full"
-                  />
-                )}
-                <div>
-                  <div className="font-semibold text-sm">
-                    {oauth.profile?.displayName || oauth.userId}
-                  </div>
-                  <div className="text-xs text-text-muted">
-                    @{oauth.profile?.username || t('common.unknown')}
-                  </div>
-                </div>
-              </div>
-              <div className="flex flex-col gap-1.5 text-xs text-text-secondary">
-                <div>{t('blaze.scopes')} {oauth.scopes?.join(', ') || t('common.none')}</div>
-                <div>{t('dashboard.tokenPresent')}: {oauth.tokenPresent ? t('common.present') : t('common.absent')}</div>
-                <div>{t('dashboard.refreshCredential')}: {oauth.refreshCredentialPresent ? t('common.present') : t('common.absent')}</div>
-                {oauth.tokenExpiredOrUnknown && (
-                  <div className="text-warning">{t('common.expired')}</div>
-                )}
-              </div>
+          {openGiveaways.length === 0 ? (
+            <div className="empty-state py-8">
+              <span>{t('home.noOpenGiveaways')}</span>
+              <button className="btn btn-secondary btn-sm mt-2" onClick={() => setShowCreateModal(true)} disabled={creating}>
+                <Plus size={13} />
+                {t('home.createFirst')}
+              </button>
             </div>
           ) : (
-            <div className="text-[13px] text-text-muted">
-              {t('dashboard.noAccount')}
-              {status?.nextRecommendedAction && (
-                <div className="mt-2 text-accent">
-                  {t('dashboard.nextAction')} {status.nextRecommendedAction}
-                </div>
-              )}
-            </div>
+            <>
+              <div className="mb-3">
+                <label htmlFor="home-participant-name">{t('home.yourName')}</label>
+                <input
+                  id="home-participant-name"
+                  className="input"
+                  value={participantName}
+                  onChange={(e) => setParticipantName(e.target.value)}
+                  placeholder={t('home.yourNamePlaceholder')}
+                />
+              </div>
+              <div className="flex flex-col gap-2">
+                {openGiveaways.map((g) => (
+                  <div
+                    key={g.id}
+                    className="flex items-center justify-between gap-3 p-3 bg-bg-base border border-border-subtle rounded-lg"
+                  >
+                    <div className="min-w-0">
+                      <div className="text-[13px] font-semibold text-text-primary truncate">{g.title}</div>
+                      {g.description && (
+                        <div className="text-[11px] text-text-muted truncate">{g.description}</div>
+                      )}
+                      <div className="text-[11px] text-text-muted flex items-center gap-1 mt-0.5">
+                        <Users size={11} aria-hidden="true" />
+                        {g.entryCount}/{g.maxEntries} {t('home.participants')}
+                      </div>
+                    </div>
+                    <button
+                      className="btn btn-accent btn-sm shrink-0"
+                      onClick={() => handleJoin(g)}
+                      disabled={!participantName.trim() || joiningId !== null}
+                    >
+                      {joiningId === g.id ? t('home.joining') : t('home.join')}
+                    </button>
+                  </div>
+                ))}
+              </div>
+            </>
           )}
+        </div>
+
+        {/* Right column: account + own giveaways */}
+        <div className="flex flex-col gap-4">
+          <div className="glass-card p-5">
+            <div className="section-header mb-2">
+              <span className="section-title">{t('home.blazeAccount')}</span>
+              <Badge variant={status?.oauthConnected ? 'success' : 'neutral'} dot>
+                {status?.oauthConnected ? t('common.connected') : t('common.disconnected')}
+              </Badge>
+            </div>
+            {status?.oauthConnected ? (
+              <div className="text-[13px] text-text-primary">
+                {status.connectedAccountDisplayName || t('common.unknown')}
+              </div>
+            ) : (
+              <>
+                <p className="text-[12px] text-text-muted mb-3">{t('home.blazeAccountHint')}</p>
+                <button className="btn btn-secondary btn-sm" onClick={handleConnect} disabled={connecting}>
+                  <KeyRound size={13} />
+                  {connecting ? t('home.connecting') : t('home.connectBlaze')}
+                </button>
+              </>
+            )}
+          </div>
+
+          <div className="glass-card p-5 flex-1">
+            <div className="section-header mb-3">
+              <span className="section-title">{t('home.recentGiveaways')}</span>
+              <Link to="/giveaways" className="btn btn-ghost btn-sm no-underline" aria-label={t('home.viewAll')}>
+                {t('home.viewAll')}
+                <ArrowRight size={12} aria-hidden="true" />
+              </Link>
+            </div>
+            {recentGiveaways.length === 0 ? (
+              <div className="empty-state py-6">{t('home.noGiveawaysYet')}</div>
+            ) : (
+              <div className="flex flex-col gap-2.5">
+                {recentGiveaways.map((g) => (
+                  <div key={g.id} className="flex items-center justify-between gap-2">
+                    <span className="text-[13px] text-text-primary truncate">{g.title}</span>
+                    <Badge variant={statusColors[g.status]}>{statusLabels[g.status]}</Badge>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
-      {/* Recommended action */}
-      {status?.nextRecommendedAction && (
-        <div
-          className="glass-card p-3.5 px-5 flex items-center gap-2.5 border-accent"
-        >
-          <Settings size={16} className="text-accent shrink-0" />
-          <span className="text-[13px] text-text-secondary">
-            {status.nextRecommendedAction}
-          </span>
+      {/* Create giveaway modal */}
+      <Modal
+        open={showCreateModal}
+        onClose={() => setShowCreateModal(false)}
+        title={t('home.createTitle')}
+        footer={
+          <>
+            <button className="btn btn-secondary" onClick={() => setShowCreateModal(false)} disabled={creating}>
+              {t('common.cancel')}
+            </button>
+            <button className="btn btn-primary" onClick={handleCreate} disabled={!createForm.title.trim() || creating}>
+              {creating ? t('home.creating') : t('home.createGiveaway')}
+            </button>
+          </>
+        }
+      >
+        <div>
+          <label htmlFor="home-giveaway-title">{t('home.giveawayName')}</label>
+          <input
+            id="home-giveaway-title"
+            className="input"
+            value={createForm.title}
+            onChange={(e) => setCreateForm({ ...createForm, title: e.target.value })}
+            placeholder={t('home.giveawayNamePlaceholder')}
+          />
         </div>
-      )}
+        <div>
+          <label htmlFor="home-giveaway-description">{t('home.description')}</label>
+          <input
+            id="home-giveaway-description"
+            className="input"
+            value={createForm.description}
+            onChange={(e) => setCreateForm({ ...createForm, description: e.target.value })}
+            placeholder={t('common.optional')}
+          />
+        </div>
+        <div>
+          <label htmlFor="home-giveaway-max">{t('home.maxEntries')}</label>
+          <input
+            id="home-giveaway-max"
+            className="input"
+            type="number"
+            min={1}
+            value={createForm.maxEntries}
+            onChange={(e) => setCreateForm({ ...createForm, maxEntries: Number(e.target.value) })}
+          />
+        </div>
+      </Modal>
     </Layout>
-  );
-}
-
-function StatusItem({ label, ok }: { label: string; ok?: boolean }) {
-  return (
-    <div className="flex items-center justify-between">
-      <span className="text-[13px] text-text-secondary">{label}</span>
-      <StatusDot status={ok ? 'active' : 'inactive'} label={ok ? t('common.yes') : t('common.no')} />
-    </div>
   );
 }

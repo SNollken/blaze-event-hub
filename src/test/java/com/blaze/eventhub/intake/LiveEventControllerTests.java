@@ -22,8 +22,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @SpringBootTest
 @AutoConfigureMockMvc
 @TestPropertySource(properties = {
-		"nollen.blaze.client-id=",
-		"nollen.blaze.client-secret=",
+		"beh.blaze.client-id=",
+		"beh.blaze.client-secret=",
 })
 class LiveEventControllerTests {
 

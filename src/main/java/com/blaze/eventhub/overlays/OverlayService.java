@@ -44,47 +44,86 @@ public class OverlayService {
 
 	@PostConstruct
 	void seedDevData() {
-		if (repository.countProfiles() > 0) {
-			return;
+		if (repository.countProfiles() == 0) {
+			OverlayProfile profile = createProfile(new CreateOverlayProfileRequest("Demo", "Perfil de demonstracao local"));
+			Instant now = Instant.now(clock);
+			Overlay overlay = repository.saveOverlay(new Overlay(
+					idGenerator.newId(),
+					profile.id(),
+					"Overlay de Teste",
+					"demo",
+					DEMO_PUBLIC_TOKEN,
+					true,
+					OverlayConfig.defaultConfig(),
+					List.of(),
+					List.of(),
+					now,
+					now));
+			createLayer(overlay.id(), new CreateOverlayLayerRequest(
+					OverlayLayerType.TEXT,
+					80,
+					80,
+					760,
+					120,
+					1,
+					true,
+					1.0,
+					"Blaze Event Hub Overlay Demo",
+					null,
+					Map.of("fontSize", 56, "fontWeight", "700", "color", "#ffffff", "textAlign", "left")));
+			createLayer(overlay.id(), new CreateOverlayLayerRequest(
+					OverlayLayerType.SHAPE,
+					80,
+					800,
+					400,
+					8,
+					0,
+					true,
+					0.6,
+					null,
+					null,
+					Map.of("backgroundColor", "#00d4ff", "borderRadius", "4")));
 		}
-		OverlayProfile profile = createProfile(new CreateOverlayProfileRequest("Demo", "Perfil de demonstracao local"));
-		Instant now = Instant.now(clock);
-		Overlay overlay = repository.saveOverlay(new Overlay(
-				idGenerator.newId(),
-				profile.id(),
-				"Overlay de Teste",
-				"demo",
-				DEMO_PUBLIC_TOKEN,
-				true,
-				OverlayConfig.defaultConfig(),
-				List.of(),
-				List.of(),
-				now,
-				now));
-		createLayer(overlay.id(), new CreateOverlayLayerRequest(
-				OverlayLayerType.TEXT,
-				80,
-				80,
-				760,
-				120,
-				1,
-				true,
-				1.0,
-				"Blaze Event Hub Overlay Demo",
-				null,
-				Map.of("fontSize", 56, "fontWeight", "700", "color", "#ffffff", "textAlign", "left")));
-		createLayer(overlay.id(), new CreateOverlayLayerRequest(
-				OverlayLayerType.SHAPE,
-				80,
-				800,
-				400,
-				8,
-				0,
-				true,
-				0.6,
-				null,
-				null,
-				Map.of("backgroundColor", "#00d4ff", "borderRadius", "4")));
+		repairLegacyBranding();
+	}
+
+	/**
+	 * One-time data repair: older builds seeded overlay layer text with a
+	 * deprecated product name ("NollenBlaze"). Rows already persisted in
+	 * production databases keep the old text forever unless rewritten here.
+	 * Idempotent: once no layer mentions the old name this is a no-op.
+	 */
+	private void repairLegacyBranding() {
+		for (OverlayProfile profile : repository.listProfiles()) {
+			for (Overlay overlay : repository.listOverlays(profile.id())) {
+				boolean dirty = false;
+				List<OverlayLayer> layers = new ArrayList<>();
+				for (OverlayLayer layer : overlay.layers()) {
+					if (layer.text() != null && layer.text().contains("NollenBlaze")) {
+						layers.add(new OverlayLayer(
+								layer.id(),
+								layer.overlayId(),
+								layer.type(),
+								layer.x(),
+								layer.y(),
+								layer.width(),
+								layer.height(),
+								layer.zIndex(),
+								layer.visible(),
+								layer.opacity(),
+								layer.text().replace("NollenBlaze", "Blaze Event Hub"),
+								layer.assetId(),
+								layer.style()));
+						dirty = true;
+					} else {
+						layers.add(layer);
+					}
+				}
+				if (dirty) {
+					repository.saveOverlay(copyWithLayers(overlay, layers));
+				}
+			}
+		}
 	}
 
 	public List<OverlayProfile> listProfiles() {

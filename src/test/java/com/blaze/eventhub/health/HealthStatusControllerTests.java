@@ -14,8 +14,8 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest(properties = {
-		"nollen.blaze.client-secret=secret-that-must-not-leak",
-		"nollen.blaze.client-id=test-client"
+		"beh.blaze.client-secret=secret-that-must-not-leak",
+		"beh.blaze.client-id=test-client"
 })
 @AutoConfigureMockMvc
 class HealthStatusControllerTests {

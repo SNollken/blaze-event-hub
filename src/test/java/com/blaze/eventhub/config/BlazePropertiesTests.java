@@ -7,10 +7,10 @@ import org.springframework.boot.test.context.SpringBootTest;
 import static org.assertj.core.api.Assertions.assertThat;
 
 @SpringBootTest(properties = {
-		"nollen.blaze.client-id=test-client",
-		"nollen.blaze.client-secret=super-secret",
-		"nollen.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
-		"nollen.blaze.scopes=users.read,offline.access"
+		"beh.blaze.client-id=test-client",
+		"beh.blaze.client-secret=super-secret",
+		"beh.blaze.redirect-uri=http://localhost:8080/api/blaze/oauth/callback",
+		"beh.blaze.scopes=users.read,offline.access"
 })
 class BlazePropertiesTests {
 
