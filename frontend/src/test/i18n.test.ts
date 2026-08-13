@@ -13,23 +13,23 @@ describe('i18n', () => {
 
   it('returns Portuguese translation', () => {
     setLocale('pt-BR');
-    expect(t('nav.dashboard')).toBe('Visão Geral');
+    expect(t('nav.dashboard')).toBe('Início');
     expect(t('common.yes')).toBe('Sim');
     expect(t('common.no')).toBe('Não');
   });
 
   it('returns English translation when locale is en', () => {
     setLocale('en');
-    expect(t('nav.dashboard')).toBe('Overview');
+    expect(t('nav.dashboard')).toBe('Home');
     expect(t('common.yes')).toBe('Yes');
     expect(t('common.no')).toBe('No');
   });
 
   it('switches back to Portuguese', () => {
     setLocale('en');
-    expect(t('nav.dashboard')).toBe('Overview');
+    expect(t('nav.dashboard')).toBe('Home');
     setLocale('pt-BR');
-    expect(t('nav.dashboard')).toBe('Visão Geral');
+    expect(t('nav.dashboard')).toBe('Início');
   });
 
   it('falls back to key when translation missing', () => {
@@ -44,12 +44,10 @@ describe('i18n', () => {
     expect(t('common.unknownError')).toBe('Unknown error');
   });
 
-  it('translates new keys (alerts status, uptime) in both locales', () => {
+  it('translates alert status keys in both locales', () => {
     setLocale('pt-BR');
     expect(t('alerts.statusActive')).toBe('Ativo');
     expect(t('alerts.statusInactive')).toBe('Inativo');
-    expect(t('common.hour')).toBe('h');
-    expect(t('common.minute')).toBe('min');
     setLocale('en');
     expect(t('alerts.statusActive')).toBe('Active');
     expect(t('alerts.statusInactive')).toBe('Inactive');

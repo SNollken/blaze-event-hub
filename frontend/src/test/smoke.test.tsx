@@ -18,13 +18,16 @@ function renderRoute(path: string) {
 describe('frontend smoke', () => {
   it('renderiza dashboard', async () => {
     renderRoute('/');
-    expect((await screen.findAllByText('Visão Geral')).length).toBeGreaterThan(0);
+    expect((await screen.findAllByText('Início')).length).toBeGreaterThan(0);
   });
 
   it('mostra cards do dashboard', async () => {
     renderRoute('/');
-    expect(await screen.findByText('Backend')).toBeInTheDocument();
-    expect((await screen.findAllByText('Blaze OAuth')).length).toBeGreaterThan(0);
+    expect(await screen.findByText('Sorteios abertos')).toBeInTheDocument();
+    expect(await screen.findByText('Conta Blaze')).toBeInTheDocument();
+    expect(await screen.findByText('Sorteios recentes')).toBeInTheDocument();
+    // mock /api/status: oauthConnected=true, connectedAccountDisplayName='Sofia'
+    expect(await screen.findByText('Sofia')).toBeInTheDocument();
   });
 
   it('renderiza live events', async () => {
