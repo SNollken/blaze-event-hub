@@ -89,4 +89,13 @@ public class GiveawayController {
 	GiveawayResultsResponse results(@PathVariable String id) {
 		return giveawayService.getResults(id);
 	}
+
+	/**
+	 * Participant list for the visual wheel draw (frontend presentation).
+	 * Bounded by the giveaway's maxEntries; ordered by entry time.
+	 */
+	@GetMapping("/{id}/entries")
+	List<GiveawayEntry> entries(@PathVariable String id) {
+		return giveawayService.getEntries(id);
+	}
 }

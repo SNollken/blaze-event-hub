@@ -5,6 +5,7 @@ import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { WheelDraw } from '../components/WheelDraw';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import { t, getLocale } from '../i18n';
@@ -19,7 +20,7 @@ import {
   openGiveaway,
 } from '../api/client';
 import { Giveaway, GiveawayResultsResponse, GiveawayStatus } from '../api/types';
-import { Crown, Gift, Play, Plus, Shuffle, Trophy, Users, X } from 'lucide-react';
+import { Crown, Disc, Gift, Play, Plus, Shuffle, Trophy, Users, X } from 'lucide-react';
 
 const statusColors: Record<GiveawayStatus, 'success' | 'warning' | 'error' | 'neutral'> = {
   DRAFT: 'neutral',
@@ -42,6 +43,7 @@ export default function Giveaways() {
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedGiveaway, setSelectedGiveaway] = useState<Giveaway | null>(null);
   const [selectedResults, setSelectedResults] = useState<GiveawayResultsResponse | null>(null);
+  const [wheelGiveaway, setWheelGiveaway] = useState<Giveaway | null>(null);
   const [participantName, setParticipantName] = useState('');
   const [createForm, setCreateForm] = useState({ title: '', description: '', maxEntries: 100 });
 
@@ -128,6 +130,11 @@ export default function Giveaways() {
           {g.status === 'CLOSED' && (
             <button className="btn btn-accent btn-sm btn-icon" aria-label={`${t('giveaways.drawWinner')} ${g.title}`} disabled={actionLoading !== null} onClick={() => runAction(() => drawGiveaway(g.id, 1), t('giveaways.drawSuccess'), 'draw')}>
               <Shuffle size={12} />
+            </button>
+          )}
+          {g.status === 'CLOSED' && (
+            <button className="btn btn-primary btn-sm btn-icon" aria-label={`${t('giveaways.roletaAria')} ${g.title}`} disabled={actionLoading !== null} onClick={() => setWheelGiveaway(g)}>
+              <Disc size={12} />
             </button>
           )}
           <button className="btn btn-secondary btn-sm" onClick={() => openDetails(g)} disabled={actionLoading !== null}>{t('common.view')}</button>
@@ -237,6 +244,17 @@ export default function Giveaways() {
               )}
             </div>
           </>
+        )}
+      </Modal>
+
+      <Modal
+        open={!!wheelGiveaway}
+        onClose={() => setWheelGiveaway(null)}
+        title={`${t('giveaways.roleta')}: ${wheelGiveaway?.title ?? ''}`}
+        footer={<button className="btn btn-secondary" onClick={() => setWheelGiveaway(null)}>{t('common.close')}</button>}
+      >
+        {wheelGiveaway && (
+          <WheelDraw giveawayId={wheelGiveaway.id} onDrawn={() => { reloadAll(); }} />
         )}
       </Modal>
     </Layout>

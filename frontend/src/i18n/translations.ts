@@ -268,6 +268,14 @@ export const translations: Record<Locale, TranslationMap> = {
     'giveaways.drawSuccess': 'Giveaway drawn',
     'giveaways.enterSuccess': 'Participant added',
     'giveaways.actionError': 'Error executing action',
+    'giveaways.roleta': 'Wheel draw',
+    'giveaways.roletaAria': 'Draw winner with wheel',
+    'giveaways.spin': 'Spin',
+    'giveaways.spinning': 'Spinning...',
+    'giveaways.winner': 'Winner',
+    'giveaways.quickDraw': 'Quick draw',
+    'giveaways.roletaEmpty': 'No participants to draw.',
+    'giveaways.roletaTooMany': 'Too many participants for the wheel (max 32). Use the quick draw.',
 
     // Overlays
     'overlays.subtitle': 'Overlay configuration for OBS',
@@ -573,6 +581,14 @@ export const translations: Record<Locale, TranslationMap> = {
     'giveaways.drawSuccess': 'Sorteio realizado',
     'giveaways.enterSuccess': 'Participante adicionado',
     'giveaways.actionError': 'Erro ao executar ação',
+    'giveaways.roleta': 'Roleta',
+    'giveaways.roletaAria': 'Sortear vencedor com roleta',
+    'giveaways.spin': 'Girar',
+    'giveaways.spinning': 'Girando...',
+    'giveaways.winner': 'Vencedor',
+    'giveaways.quickDraw': 'Sorteio rápido',
+    'giveaways.roletaEmpty': 'Nenhum participante para sortear.',
+    'giveaways.roletaTooMany': 'Participantes demais para a roleta (máximo 32). Use o sorteio rápido.',
 
     // Overlays
     'overlays.subtitle': 'Configuração de overlays para OBS',

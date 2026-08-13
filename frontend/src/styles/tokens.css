@@ -787,3 +787,20 @@ code, .mono {
     min-width: 0;
   }
 }
+/* Wheel draw confetti (r54) — short celebratory burst on winner reveal */
+.wheel-confetti {
+  top: -8px;
+  opacity: 0;
+  animation: wheel-confetti-fall 1.3s ease-out forwards;
+}
+
+@keyframes wheel-confetti-fall {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(340px) rotate(540deg);
+    opacity: 0;
+  }
+}

@@ -151,6 +151,8 @@ export const drawGiveaway = (id: string, winnerCount = 1) =>
   request<import('./types').Giveaway>(`/api/giveaways/${id}/draw?winnerCount=${winnerCount}`, { method: 'POST' });
 export const getGiveawayResults = (id: string) =>
   request<import('./types').GiveawayResultsResponse>(`/api/giveaways/${id}/results`);
+export const getGiveawayEntries = (id: string) =>
+  request<import('./types').GiveawayEntry[]>(`/api/giveaways/${id}/entries`);
 export const getGiveawayStats = () =>
   request<import('./types').GiveawayStatsResponse>('/api/giveaways/stats');
 
@@ -195,5 +197,6 @@ export default {
   enterGiveaway,
   drawGiveaway,
   getGiveawayResults,
+  getGiveawayEntries,
   getGiveawayStats,
 };
