@@ -123,12 +123,6 @@ export default function Dashboard() {
           <p className="text-[13px] text-text-secondary leading-relaxed">{t('home.heroSubtitle')}</p>
         </div>
         <div className="flex items-center gap-2.5 flex-wrap">
-          {!status?.oauthConnected && (
-            <button className="btn btn-secondary" onClick={handleConnect} disabled={connecting}>
-              <KeyRound size={14} />
-              {connecting ? t('home.connecting') : t('home.connectBlaze')}
-            </button>
-          )}
           <button className="btn btn-primary" onClick={() => setShowCreateModal(true)} disabled={creating}>
             <Plus size={14} />
             {t('home.createGiveaway')}
@@ -141,7 +135,7 @@ export default function Dashboard() {
         <div className="glass-card p-5">
           <div className="section-header mb-3">
             <span className="section-title">{t('home.openGiveaways')}</span>
-            <Badge variant="success">{openGiveaways.length}</Badge>
+            <Badge variant={openGiveaways.length > 0 ? 'success' : 'neutral'}>{openGiveaways.length}</Badge>
           </div>
 
           {openGiveaways.length === 0 ? (

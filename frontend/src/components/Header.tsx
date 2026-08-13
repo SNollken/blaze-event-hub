@@ -29,7 +29,9 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       </div>
       <div className="flex items-center gap-3">
         {actions}
-        <StatusDot status={isOnline ? 'active' : 'error'} label={isOnline ? t('common.connected') : t('common.disconnected')} />
+        <span title={isOnline ? t('common.connected') : t('common.disconnected')}>
+          <StatusDot status={isOnline ? 'active' : 'error'} label="API" />
+        </span>
         <button
           className="btn btn-secondary btn-sm"
           onClick={toggleTheme}

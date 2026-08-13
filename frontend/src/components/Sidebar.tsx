@@ -65,7 +65,7 @@ export function Sidebar() {
 
       {/* Footer */}
       <div className="px-4 py-3 border-t border-border-default text-[11px] text-text-muted text-center">
-        {t('app.title')} v0.1
+        {t('app.title')}
       </div>
     </aside>
   );
