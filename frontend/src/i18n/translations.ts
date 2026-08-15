@@ -44,7 +44,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.threshold': 'Threshold',
     'common.optional': 'Optional',
     'common.loading': 'Loading...',
-    'common.present': 'Present',
     'common.absent': 'Absent',
     'common.valid': 'Valid',
     'common.expired': 'Expired',
@@ -52,7 +51,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.disconnected': 'Disconnected',
     'common.configured': 'Configured',
     'common.notConfigured': 'Not configured',
-    'common.ready': 'Ready',
     'common.running': 'Running',
     'common.stopped': 'Stopped',
     'common.yes': 'Yes',
@@ -62,7 +60,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.unknownError': 'Unknown error',
     'common.na': 'N/A',
     'common.recommended': 'Recommended',
-    'common.total': 'total',
     'common.avatar': 'avatar',
 
     // Errors
@@ -87,7 +84,6 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Home
     'home.title': 'Home',
-    'home.subtitle': 'Create and join community giveaways',
     'home.heroTitle': 'Giveaways and events for your community',
     'home.heroSubtitle': 'Create your own giveaway in seconds, or join the ones already open.',
     'home.createGiveaway': 'Create giveaway',
@@ -118,13 +114,10 @@ export const translations: Record<Locale, TranslationMap> = {
     'home.createError': 'Error creating giveaway',
 
     // BlazeChannel
-    'blaze.subtitle': 'Blaze integration setup',
-    'blaze.sync': 'Sync',
     'blaze.syncSuccess': 'Status updated',
     'blaze.syncError': 'Error syncing status',
     'blaze.oauthConnection': 'Blaze Connection',
     'blaze.token': 'Token',
-    'blaze.eventsConfig': 'Events Config',
     'blaze.monitoredChannel': 'Monitored Channel',
     'blaze.checklist': 'Setup Checklist',
     'blaze.oauthAuth': 'OAuth Authentication',
@@ -139,7 +132,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'blaze.scopes': 'Scopes:',
     'blaze.lastSync': 'Last sync:',
     'blaze.copyUri': 'Copy URI',
-    'blaze.noAccount': 'No connected account. Use the button beside to authenticate.',
+    'blaze.noAccount': 'No connected account.',
     'blaze.redirectUri': 'Redirect URI & Docs',
     'blaze.redirectUriLabel': 'Redirect URI',
     'blaze.links': 'Useful Links',
@@ -176,10 +169,8 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Alerts
     'alerts.title': 'Alerts',
-    'alerts.subtitle': 'Rules, triggers and history connected to the backend',
     'alerts.activeRules': 'Active Rules',
     'alerts.pending': 'Pending Alerts',
-    'alerts.history': 'history',
     'alerts.acknowledged': 'Acknowledged',
     'alerts.rulesTab': 'Rules',
     'alerts.historyTab': 'History',
@@ -219,7 +210,6 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Giveaways
     'giveaways.title': 'Giveaways',
-    'giveaways.subtitle': 'Manage giveaways and participants via API',
     'giveaways.openGiveaways': 'Open Giveaways',
     'giveaways.participants': 'Participants',
     'giveaways.completed': 'Completed',
@@ -264,10 +254,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'giveaways.roletaTooMany': 'Too many participants for the wheel (max 32). Use the quick draw.',
 
     // Overlays
-    'overlays.subtitle': 'Overlay configuration for OBS',
-    'overlays.profiles': 'Profiles',
-    'overlays.profileSelected': 'in selected profile',
-    'overlays.noProfileSelected': 'Select a profile',
     'overlays.profileSection': 'Overlay Profiles',
     'overlays.newProfile': 'New Profile',
     'overlays.emptyProfiles': 'No profiles created.',
@@ -343,7 +329,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.threshold': 'Limite',
     'common.optional': 'Opcional',
     'common.loading': 'Carregando...',
-    'common.present': 'Presente',
     'common.absent': 'Ausente',
     'common.valid': 'Válido',
     'common.expired': 'Expirado',
@@ -351,7 +336,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.disconnected': 'Desconectado',
     'common.configured': 'Configurado',
     'common.notConfigured': 'Não configurado',
-    'common.ready': 'Pronto',
     'common.running': 'Rodando',
     'common.stopped': 'Parado',
     'common.yes': 'Sim',
@@ -361,7 +345,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.unknownError': 'Erro desconhecido',
     'common.na': 'N/A',
     'common.recommended': 'Recomendado',
-    'common.total': 'total',
     'common.avatar': 'avatar',
 
     // Errors
@@ -386,7 +369,6 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Home
     'home.title': 'Início',
-    'home.subtitle': 'Crie e participe de sorteios da comunidade',
     'home.heroTitle': 'Sorteios e eventos para a sua comunidade',
     'home.heroSubtitle': 'Crie o seu próprio sorteio em segundos ou participe dos que já estão abertos.',
     'home.createGiveaway': 'Criar sorteio',
@@ -417,13 +399,10 @@ export const translations: Record<Locale, TranslationMap> = {
     'home.createError': 'Erro ao criar sorteio',
 
     // BlazeChannel
-    'blaze.subtitle': 'Configuração da integração com a Blaze',
-    'blaze.sync': 'Sincronizar',
     'blaze.syncSuccess': 'Status atualizado',
     'blaze.syncError': 'Erro ao sincronizar status',
     'blaze.oauthConnection': 'Conexão Blaze',
     'blaze.token': 'Token',
-    'blaze.eventsConfig': 'Events Config',
     'blaze.monitoredChannel': 'Canal Monitorado',
     'blaze.checklist': 'Checklist de Configuração',
     'blaze.oauthAuth': 'Autenticação OAuth',
@@ -438,7 +417,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'blaze.scopes': 'Scopes:',
     'blaze.lastSync': 'Último sync:',
     'blaze.copyUri': 'Copiar URI',
-    'blaze.noAccount': 'Nenhuma conta conectada. Use o botão ao lado para autenticar.',
+    'blaze.noAccount': 'Nenhuma conta conectada.',
     'blaze.redirectUri': 'Redirect URI e Documentação',
     'blaze.redirectUriLabel': 'Redirect URI',
     'blaze.links': 'Links Úteis',
@@ -475,10 +454,8 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Alerts
     'alerts.title': 'Alertas',
-    'alerts.subtitle': 'Regras, disparos e histórico conectados ao backend',
     'alerts.activeRules': 'Regras Ativas',
     'alerts.pending': 'Alertas Pendentes',
-    'alerts.history': 'histórico',
     'alerts.acknowledged': 'Reconhecidos',
     'alerts.rulesTab': 'Regras',
     'alerts.historyTab': 'Histórico',
@@ -518,7 +495,6 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Giveaways
     'giveaways.title': 'Sorteios',
-    'giveaways.subtitle': 'Gerenciar sorteios e participantes via API real',
     'giveaways.openGiveaways': 'Sorteios Abertos',
     'giveaways.participants': 'Participantes',
     'giveaways.completed': 'Finalizados',
@@ -563,10 +539,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'giveaways.roletaTooMany': 'Participantes demais para a roleta (máximo 32). Use o sorteio rápido.',
 
     // Overlays
-    'overlays.subtitle': 'Configuração de overlays para OBS',
-    'overlays.profiles': 'Perfis',
-    'overlays.profileSelected': 'no perfil selecionado',
-    'overlays.noProfileSelected': 'Selecione um perfil',
     'overlays.profileSection': 'Perfis de Overlay',
     'overlays.newProfile': 'Novo Perfil',
     'overlays.emptyProfiles': 'Nenhum perfil criado.',

@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
-import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { Modal } from '../components/Modal';
 import { DataTable, Column } from '../components/DataTable';
@@ -17,14 +16,12 @@ import {
 } from '../api/client';
 import type { OverlayProfile, Overlay, OverlayLayer } from '../api/types';
 import {
-  Layers,
   Plus,
   Trash2,
   ExternalLink,
   Copy,
   Eye,
   Settings,
-  LayoutIcon,
   RefreshCw,
 } from 'lucide-react';
 
@@ -179,23 +176,6 @@ export default function Overlays() {
   return (
     <Layout title={t('nav.overlays')}>
       {profilesError && <ErrorBanner error={profilesError} onRetry={reloadProfiles} />}
-      {/* Stats */}
-      <div className="stats-grid mb-6">
-        <StatsCard
-          title={t('overlays.profiles')}
-          value={profiles?.length ?? 0}
-          icon={<LayoutIcon size={18} />}
-          color="primary"
-        />
-        <StatsCard
-          title={t('nav.overlays')}
-          value={overlays.length}
-          icon={<Layers size={18} />}
-          color="accent"
-          subtitle={selectedProfileId ? `${t('overlays.profileSelected')} ${profiles?.find((p) => p.id === selectedProfileId)?.name ?? ''}`.trim() : t('overlays.noProfileSelected')}
-        />
-      </div>
-
       {/* Profiles */}
       <div className="section-header">
         <span className="section-title">{t('overlays.profileSection')}</span>

@@ -144,20 +144,20 @@ export default function Giveaways() {
   ];
 
   return (
-    <Layout title={t('giveaways.title')}>
-      {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
-      <div className="stats-grid mb-6">
-        <StatsCard title={t('giveaways.openGiveaways')} value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" subtitle={`${stats?.totalGiveaways ?? 0} ${t('common.total')}`} />
-        <StatsCard title={t('giveaways.participants')} value={stats?.totalEntries ?? 0} icon={<Users size={18} />} color="primary" />
-        <StatsCard title={t('giveaways.completed')} value={stats?.completedCount ?? 0} icon={<Trophy size={18} />} color="success" />
-      </div>
-
-      <div className="section-header">
-        <span className="section-title">{t('giveaways.title')}</span>
+    <Layout
+      title={t('giveaways.title')}
+      headerActions={
         <button className="btn btn-primary btn-sm" onClick={() => setShowCreateModal(true)} disabled={actionLoading !== null}>
           <Plus size={14} />
           {t('giveaways.newGiveaway')}
         </button>
+      }
+    >
+      {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
+      <div className="stats-grid mb-6">
+        <StatsCard title={t('giveaways.openGiveaways')} value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" />
+        <StatsCard title={t('giveaways.participants')} value={stats?.totalEntries ?? 0} icon={<Users size={18} />} color="primary" />
+        <StatsCard title={t('giveaways.completed')} value={stats?.completedCount ?? 0} icon={<Trophy size={18} />} color="success" />
       </div>
 
       {loading && !giveaways ? <div className="skeleton-list" /> : (

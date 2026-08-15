@@ -33,8 +33,6 @@ const conditions: AlertCondition[] = ['ALWAYS', 'MIN_AMOUNT', 'RAID_MIN_SIZE'];
 
 const severityFor = (acknowledged: boolean): 'success' | 'warning' => acknowledged ? 'success' : 'warning';
 
-// ponytail: async buttons disabled via actionLoading — no per-button loading spinner yet (1 action at a time)
-
 export default function Alerts() {
   const fetchRules = useCallback(() => getAlertRules(), []);
   const fetchHistory = useCallback(() => getAlertHistory(), []);
@@ -180,8 +178,8 @@ export default function Alerts() {
     <Layout title={t('alerts.title')}>
       {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
       <div className="stats-grid mb-6">
-        <StatsCard title={t('alerts.activeRules')} value={statsLoading ? t('common.loading') : (stats?.enabledRules ?? 0)} icon={<Bell size={18} />} color="primary" subtitle={statsLoading ? '' : `${stats?.totalRules ?? 0} ${t('common.total')}`} />
-        <StatsCard title={t('alerts.pending')} value={activeLoading ? t('common.loading') : (activeAlerts?.length ?? 0)} icon={<BellRing size={18} />} color="warning" subtitle={activeLoading ? '' : `${stats?.totalAlerts ?? 0} ${t('alerts.history')}`} />
+        <StatsCard title={t('alerts.activeRules')} value={statsLoading ? t('common.loading') : (stats?.enabledRules ?? 0)} icon={<Bell size={18} />} color="primary" />
+        <StatsCard title={t('alerts.pending')} value={activeLoading ? t('common.loading') : (activeAlerts?.length ?? 0)} icon={<BellRing size={18} />} color="warning" />
         <StatsCard title={t('alerts.acknowledged')} value={statsLoading ? t('common.loading') : (stats?.acknowledgedAlerts ?? 0)} icon={<Check size={18} />} color="success" />
       </div>
 

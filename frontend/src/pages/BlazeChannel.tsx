@@ -1,6 +1,5 @@
 import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
-import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
@@ -16,11 +15,9 @@ import {
 } from '../api/client';
 import {
   Key,
-  Radio,
   RefreshCw,
   ExternalLink,
   Copy,
-  Shield,
   CheckCircle,
   XCircle,
 } from 'lucide-react';
@@ -101,77 +98,69 @@ export default function BlazeChannel() {
   const isConnected = oauth?.connected;
   const isTokenPresent = oauth?.tokenPresent;
 
+  const tokenLabel = oauthLoading
+    ? t('common.loading')
+    : !isTokenPresent
+      ? t('common.absent')
+      : oauth?.tokenExpiredOrUnknown
+        ? t('common.expired')
+        : t('common.valid');
+  const tokenOk = !oauthLoading && !!isTokenPresent && !oauth?.tokenExpiredOrUnknown;
+  const channelConfigured = !!status?.monitoredChannelConfigured;
+
   return (
-    <Layout
-      title={t('nav.blaze')}
-      headerActions={
-        <button className="btn btn-secondary btn-sm" onClick={handleSync} disabled={actionLoading === 'sync'}>
-          <RefreshCw size={14} className={actionLoading === 'sync' ? 'spin' : ''} />
-          {t('blaze.sync')}
-        </button>
-      }
-    >
+    <Layout title={t('nav.blaze')}>
       {/* Error banner */}
       {firstError && <ErrorBanner error={firstError} onRetry={handleSync} />}
-      {/* Stats */}
-      <div className="stats-grid mb-6">
-        <StatsCard
-          title={t('blaze.oauthConnection')}
-          value={oauthLoading ? t('common.loading') : isConnected ? t('common.connected') : t('common.disconnected')}
-          icon={<Key size={18} />}
-          color={isConnected ? 'success' : 'warning'}
-          subtitle={oauthLoading ? '' : oauth?.profile?.displayName || t('blaze.noAccount')}
-        />
-        <StatsCard
-          title={t('blaze.token')}
-          value={oauthLoading ? t('common.loading') : isTokenPresent ? t('common.present') : t('common.absent')}
-          icon={<Shield size={18} />}
-          color={isTokenPresent ? 'success' : 'error'}
-          subtitle={oauthLoading ? '' : oauth?.tokenExpiredOrUnknown ? t('common.expired') : t('common.valid')}
-        />
-        <StatsCard
-          title={t('blaze.eventsConfig')}
-          value={statusLoading ? t('common.loading') : status?.socketConfigured ? t('common.ready') : t('common.notConfigured')}
-          icon={<Radio size={18} />}
-          color={statusLoading ? 'neutral' : status?.socketConfigured ? 'success' : 'neutral'}
-          subtitle={statusLoading ? '' : setup?.monitoredChannel || ''}
-        />
-        <StatsCard
-          title={t('blaze.monitoredChannel')}
-          value={setupLoading ? t('common.loading') : status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
-          icon={<Radio size={18} />}
-          color={setupLoading ? 'neutral' : status?.monitoredChannelConfigured ? 'success' : 'neutral'}
-          subtitle={setupLoading ? '' : setup?.monitoredChannel || ''}
-        />
+
+      {/* Status */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-5 text-[12px] text-text-secondary">
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`status-dot ${oauthLoading ? 'inactive' : isConnected ? 'active' : 'warning'}`} aria-hidden="true" />
+          {t('blaze.oauthConnection')}: {oauthLoading ? t('common.loading') : isConnected ? t('common.connected') : t('common.disconnected')}
+          {!oauthLoading && isConnected && oauth?.profile?.displayName && (
+            <span className="text-text-muted">({oauth.profile.displayName})</span>
+          )}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`status-dot ${oauthLoading ? 'inactive' : tokenOk ? 'active' : 'error'}`} aria-hidden="true" />
+          {t('blaze.token')}: {tokenLabel}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`status-dot ${statusLoading || setupLoading ? 'inactive' : channelConfigured ? 'active' : 'warning'}`} aria-hidden="true" />
+          {t('blaze.monitoredChannel')}: {statusLoading ? t('common.loading') : channelConfigured ? (setup?.monitoredChannel || t('common.configured')) : t('common.notConfigured')}
+        </span>
       </div>
 
       {/* Setup checklist */}
-      <div className="glass-card p-5 mb-6">
-        <div className="section-header mb-4">
-          <h3 className="text-sm font-semibold">{t('blaze.checklist')}</h3>
-        </div>
-        <div className="flex flex-col gap-2.5">
-          {setup?.checklist?.map((item, i) => (
-            <div
-              key={i}
-              className="flex items-center justify-between p-2.5 px-3.5 bg-bg-base rounded border border-border-subtle"
-            >
-              <div className="flex items-center gap-2.5">
-                {item.configured ? (
-                  <CheckCircle size={16} className="text-success" />
-                ) : (
-                  <XCircle size={16} className="text-text-muted" />
-                )}
-                <div>
-                  <div className="text-[13px] font-medium">{item.name}</div>
-                  <div className="text-[11px] text-text-muted">{item.help}</div>
+      {setup?.checklist && setup.checklist.length > 0 && (
+        <div className="glass-card p-5 mb-6">
+          <div className="section-header mb-4">
+            <h3 className="text-sm font-semibold">{t('blaze.checklist')}</h3>
+          </div>
+          <div className="flex flex-col gap-2.5">
+            {setup.checklist.map((item, i) => (
+              <div
+                key={i}
+                className="flex items-center justify-between p-2.5 px-3.5 bg-bg-base rounded border border-border-subtle"
+              >
+                <div className="flex items-center gap-2.5">
+                  {item.configured ? (
+                    <CheckCircle size={16} className="text-success" />
+                  ) : (
+                    <XCircle size={16} className="text-text-muted" />
+                  )}
+                  <div>
+                    <div className="text-[13px] font-medium">{item.name}</div>
+                    <div className="text-[11px] text-text-muted">{item.help}</div>
+                  </div>
                 </div>
+                <Badge variant={item.configured ? 'success' : 'warning'}>{item.status}</Badge>
               </div>
-              <Badge variant={item.configured ? 'success' : 'warning'}>{item.status}</Badge>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
 
       {/* OAuth & Account */}
       <div className="grid grid-cols-2 gap-4 mb-6">

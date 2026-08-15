@@ -4,7 +4,7 @@ import { translations, type Locale } from './translations';
  * Minimal i18n: module-level locale + pure t() function.
  * No React context needed — components call t() directly.
  * setLocale() reloads the page so all components re-render with new strings.
- * ponytail: page reload on locale switch is acceptable for a streaming tool;
+ * Page reload on locale switch is acceptable for a streaming tool;
  * upgrade path: React context + I18nextProvider for hot-swap without reload.
  */
 
