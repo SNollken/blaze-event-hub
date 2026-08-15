@@ -24,7 +24,6 @@ describe('frontend smoke', () => {
   it('mostra cards do dashboard', async () => {
     renderRoute('/');
     expect(await screen.findByText('Sorteios abertos')).toBeInTheDocument();
-    expect(await screen.findByText('Conta Blaze')).toBeInTheDocument();
     expect(await screen.findByText('Sorteios recentes')).toBeInTheDocument();
     // mock /api/status: oauthConnected=true, connectedAccountDisplayName='Sofia'
     expect(await screen.findByText('Sofia')).toBeInTheDocument();
@@ -104,13 +103,13 @@ describe('frontend smoke', () => {
     await waitFor(() => expect(onClose).toHaveBeenCalledOnce());
   });
 
-  it('header tem botao acessivel de atualizar', async () => {
+  it('header tem botao acessivel de idioma', async () => {
     render(
       <MemoryRouter>
         <Header title="Titulo" />
-      </MemoryRouter>,
+      </MemoryRouter>
     );
-    expect(await screen.findByLabelText('Atualizar status')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Alternar para inglês')).toBeInTheDocument();
   });
 
   it('datatable mostra estado vazio', () => {

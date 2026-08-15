@@ -177,7 +177,7 @@ export default function Alerts() {
   const visibleRules = rules || [];
 
   return (
-    <Layout title={t('alerts.title')} subtitle={t('alerts.subtitle')}>
+    <Layout title={t('alerts.title')}>
       {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
       <div className="stats-grid mb-6">
         <StatsCard title={t('alerts.activeRules')} value={statsLoading ? t('common.loading') : (stats?.enabledRules ?? 0)} icon={<Bell size={18} />} color="primary" subtitle={statsLoading ? '' : `${stats?.totalRules ?? 0} ${t('common.total')}`} />

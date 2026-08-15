@@ -82,7 +82,6 @@ export default function LiveEvents() {
   return (
     <Layout
       title={t('events.title')}
-      subtitle={t('events.subtitle')}
       headerActions={
         isRunning ? (
           <button className="btn btn-danger btn-sm" onClick={handleStop} disabled={stopping}>

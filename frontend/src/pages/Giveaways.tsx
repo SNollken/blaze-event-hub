@@ -144,7 +144,7 @@ export default function Giveaways() {
   ];
 
   return (
-    <Layout title={t('giveaways.title')} subtitle={t('giveaways.subtitle')}>
+    <Layout title={t('giveaways.title')}>
       {pollError && <ErrorBanner error={pollError} onRetry={reloadAll} />}
       <div className="stats-grid mb-6">
         <StatsCard title={t('giveaways.openGiveaways')} value={stats?.openCount ?? 0} icon={<Gift size={18} />} color="accent" subtitle={`${stats?.totalGiveaways ?? 0} ${t('common.total')}`} />

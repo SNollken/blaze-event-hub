@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -7,8 +8,12 @@ import {
   Gift,
   Layers,
   Flame,
+  KeyRound,
 } from 'lucide-react';
 import { t } from '../i18n';
+import { usePolling } from '../hooks/usePolling';
+import { getStatus, startOAuth } from '../api/client';
+import { addToast } from './Toast';
 
 const navItems = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
@@ -18,6 +23,43 @@ const navItems = [
   { to: '/giveaways', labelKey: 'nav.giveaways', icon: Gift },
   { to: '/overlays', labelKey: 'nav.overlays', icon: Layers },
 ];
+
+function AccountFooter() {
+  const { data: status } = usePolling(() => getStatus(), 20000);
+  const [connecting, setConnecting] = useState(false);
+  const connected = !!status?.oauthConnected;
+
+  const handleConnect = async () => {
+    setConnecting(true);
+    try {
+      const res = await startOAuth();
+      window.open(res.authorizationUrl, '_blank', 'noopener,noreferrer');
+      addToast('success', t('blaze.connectSuccess'));
+    } catch (e: unknown) {
+      addToast('error', e instanceof Error ? e.message : t('blaze.connectError'));
+    } finally {
+      setConnecting(false);
+    }
+  };
+
+  return (
+    <div className="px-3 py-3 border-t border-border-default">
+      {connected ? (
+        <div className="flex items-center gap-2 px-2 min-w-0" title={t('home.blazeAccount')}>
+          <span className="status-dot active flex-shrink-0" aria-hidden="true" />
+          <span className="text-[12px] text-text-secondary truncate">
+            {status?.connectedAccountDisplayName || t('common.connected')}
+          </span>
+        </div>
+      ) : (
+        <button className="btn btn-secondary btn-sm w-full" onClick={handleConnect} disabled={connecting}>
+          <KeyRound size={13} />
+          {connecting ? t('home.connecting') : t('home.connectBlaze')}
+        </button>
+      )}
+    </div>
+  );
+}
 
 export function Sidebar() {
   return (
@@ -63,10 +105,8 @@ export function Sidebar() {
         ))}
       </nav>
 
-      {/* Footer */}
-      <div className="px-4 py-3 border-t border-border-default text-[11px] text-text-muted text-center">
-        {t('app.title')}
-      </div>
+      {/* Account */}
+      <AccountFooter />
     </aside>
   );
 }

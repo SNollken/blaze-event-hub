@@ -1,19 +1,13 @@
-import { usePolling } from '../hooks/usePolling';
-import { getStatus } from '../api/client';
-import { StatusDot } from './Badge';
-import { RefreshCw, Globe, Sun, Moon } from 'lucide-react';
+import { Globe, Sun, Moon } from 'lucide-react';
 import { t, setLocale, getLocale } from '../i18n';
 import { useTheme } from '../hooks/useTheme';
 
 interface HeaderProps {
   title: string;
-  subtitle?: string;
   actions?: React.ReactNode;
 }
 
-export function Header({ title, subtitle, actions }: HeaderProps) {
-  const { data: status, reload } = usePolling(() => getStatus(), 15000);
-  const isOnline = !!status;
+export function Header({ title, actions }: HeaderProps) {
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -21,17 +15,9 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
       className="flex items-center justify-between px-6 flex-shrink-0 bg-bg-sidebar border-b border-border-default"
       style={{ height: 'var(--header-height)' }}
     >
-      <div className="flex items-center gap-3">
-        <h1 className="text-base font-semibold text-text-primary">{title}</h1>
-        {subtitle && (
-          <span className="text-xs text-text-muted">{subtitle}</span>
-        )}
-      </div>
+      <h1 className="text-base font-semibold text-text-primary">{title}</h1>
       <div className="flex items-center gap-3">
         {actions}
-        <span title={isOnline ? t('common.connected') : t('common.disconnected')}>
-          <StatusDot status={isOnline ? 'active' : 'error'} label="API" />
-        </span>
         <button
           className="btn btn-secondary btn-sm"
           onClick={toggleTheme}
@@ -39,9 +25,6 @@ export function Header({ title, subtitle, actions }: HeaderProps) {
           aria-label={theme === 'dark' ? t('header.themeLight') : t('header.themeDark')}
         >
           {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
-        </button>
-        <button className="btn btn-secondary btn-sm" onClick={() => reload()} title={t('header.refresh')} aria-label={t('header.refresh')}>
-          <RefreshCw size={14} />
         </button>
         <button
           className="btn btn-secondary btn-sm min-w-[60px]"

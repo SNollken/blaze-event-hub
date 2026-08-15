@@ -177,7 +177,7 @@ export default function Overlays() {
   ];
 
   return (
-    <Layout title={t('nav.overlays')} subtitle={t('overlays.subtitle')}>
+    <Layout title={t('nav.overlays')}>
       {profilesError && <ErrorBanner error={profilesError} onRetry={reloadProfiles} />}
       {/* Stats */}
       <div className="stats-grid mb-6">

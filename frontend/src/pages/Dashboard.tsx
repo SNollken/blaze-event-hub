@@ -11,11 +11,9 @@ import {
   createGiveaway,
   enterGiveaway,
   getGiveaways,
-  getStatus,
-  startOAuth,
 } from '../api/client';
 import { Giveaway, GiveawayStatus } from '../api/types';
-import { ArrowRight, KeyRound, Plus, Users } from 'lucide-react';
+import { ArrowRight, Plus, Users } from 'lucide-react';
 
 const statusColors: Record<GiveawayStatus, 'success' | 'warning' | 'error' | 'neutral'> = {
   DRAFT: 'neutral',
@@ -28,16 +26,13 @@ const statusColors: Record<GiveawayStatus, 'success' | 'warning' | 'error' | 'ne
 
 export default function Dashboard() {
   const fetchGiveaways = useCallback(() => getGiveaways(), []);
-  const fetchStatus = useCallback(() => getStatus(), []);
 
   const { data: giveaways, loading, error: giveawaysError, reload: reloadGiveaways } = usePolling(fetchGiveaways, 15000);
-  const { data: status, error: statusError, reload: reloadStatus } = usePolling(fetchStatus, 20000);
 
-  const pollError = giveawaysError || statusError;
+  const pollError = giveawaysError;
 
   const [participantName, setParticipantName] = useState('');
   const [joiningId, setJoiningId] = useState<string | null>(null);
-  const [connecting, setConnecting] = useState(false);
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [creating, setCreating] = useState(false);
   const [createForm, setCreateForm] = useState({ title: '', description: '', maxEntries: 100 });
@@ -56,19 +51,6 @@ export default function Dashboard() {
   const recentGiveaways = [...allGiveaways]
     .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
     .slice(0, 5);
-
-  const handleConnect = async () => {
-    setConnecting(true);
-    try {
-      const res = await startOAuth();
-      window.open(res.authorizationUrl, '_blank', 'noopener,noreferrer');
-      addToast('success', t('blaze.connectSuccess'));
-    } catch (e: unknown) {
-      addToast('error', e instanceof Error ? e.message : t('blaze.connectError'));
-    } finally {
-      setConnecting(false);
-    }
-  };
 
   const handleJoin = async (giveaway: Giveaway) => {
     const name = participantName.trim();
@@ -106,15 +88,15 @@ export default function Dashboard() {
 
   if (loading && !giveaways) {
     return (
-      <Layout title={t('home.title')} subtitle={t('home.subtitle')}>
+      <Layout title={t('home.title')}>
         <div className="skeleton-list" />
       </Layout>
     );
   }
 
   return (
-    <Layout title={t('home.title')} subtitle={t('home.subtitle')}>
-      {pollError && <ErrorBanner error={pollError} onRetry={() => { reloadGiveaways(); reloadStatus(); }} />}
+    <Layout title={t('home.title')}>
+      {pollError && <ErrorBanner error={pollError} onRetry={() => { reloadGiveaways(); }} />}
 
       {/* Hero: product value + primary actions */}
       <div className="glass-card p-6 mb-6 flex flex-wrap items-center justify-between gap-4">
@@ -188,30 +170,8 @@ export default function Dashboard() {
           )}
         </div>
 
-        {/* Right column: account + own giveaways */}
+        {/* Right column: own giveaways */}
         <div className="flex flex-col gap-4">
-          <div className="glass-card p-5">
-            <div className="section-header mb-2">
-              <span className="section-title">{t('home.blazeAccount')}</span>
-              <Badge variant={status?.oauthConnected ? 'success' : 'neutral'} dot>
-                {status?.oauthConnected ? t('common.connected') : t('common.disconnected')}
-              </Badge>
-            </div>
-            {status?.oauthConnected ? (
-              <div className="text-[13px] text-text-primary">
-                {status.connectedAccountDisplayName || t('common.unknown')}
-              </div>
-            ) : (
-              <>
-                <p className="text-[12px] text-text-muted mb-3">{t('home.blazeAccountHint')}</p>
-                <button className="btn btn-secondary btn-sm" onClick={handleConnect} disabled={connecting}>
-                  <KeyRound size={13} />
-                  {connecting ? t('home.connecting') : t('home.connectBlaze')}
-                </button>
-              </>
-            )}
-          </div>
-
           <div className="glass-card p-5 flex-1">
             <div className="section-header mb-3">
               <span className="section-title">{t('home.recentGiveaways')}</span>

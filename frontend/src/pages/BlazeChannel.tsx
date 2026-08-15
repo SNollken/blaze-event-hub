@@ -104,7 +104,6 @@ export default function BlazeChannel() {
   return (
     <Layout
       title={t('nav.blaze')}
-      subtitle={t('blaze.subtitle')}
       headerActions={
         <button className="btn btn-secondary btn-sm" onClick={handleSync} disabled={actionLoading === 'sync'}>
           <RefreshCw size={14} className={actionLoading === 'sync' ? 'spin' : ''} />

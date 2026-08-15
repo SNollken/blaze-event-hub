@@ -19,16 +19,3 @@ export function Badge({ children, variant = 'neutral', dot = false, className, s
   );
 }
 
-interface StatusDotProps {
-  status: 'active' | 'inactive' | 'error' | 'warning';
-  label?: string;
-}
-
-export function StatusDot({ status, label }: StatusDotProps) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[13px]">
-      <span className={`status-dot ${status}`} aria-hidden="true" />
-      {label && <span className="text-text-secondary">{label}</span>}
-    </span>
-  );
-}

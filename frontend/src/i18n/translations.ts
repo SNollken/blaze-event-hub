@@ -28,7 +28,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'sidebar.controlPanel': 'Control Panel',
 
     // Header
-    'header.refresh': 'Refresh status',
     'header.langSwitch': 'Switch to Portuguese',
     'header.themeLight': 'Switch to light mode',
     'header.themeDark': 'Switch to dark mode',
@@ -341,7 +340,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'sidebar.controlPanel': 'Painel de Controle',
 
     // Header
-    'header.refresh': 'Atualizar status',
     'header.langSwitch': 'Alternar para inglês',
     'header.themeLight': 'Alternar para modo claro',
     'header.themeDark': 'Alternar para modo escuro',

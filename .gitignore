@@ -26,6 +26,10 @@ tmp/
 storageState*
 cookies*
 
+### Local tooling artifacts ###
+maven.zip
+apache-maven-*/
+
 ### STS ###
 .apt_generated
 .classpath
