@@ -14,12 +14,8 @@ import {
 } from '../api/client';
 
 import {
-  Radio,
   Play,
   Square,
-  RefreshCw,
-  Wifi,
-  WifiOff,
   MessageSquare,
   CheckCircle,
   XCircle,
@@ -97,105 +93,43 @@ export default function LiveEvents() {
       }
     >
       {pollError && <ErrorBanner error={pollError} onRetry={() => { void reloadEvents(); void reloadStatus(); }} />}
-      {/* Stats */}
+
+      {/* Status */}
+      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-5 text-[12px] text-text-secondary">
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`status-dot ${!eventsLoading && isRunning ? 'active' : 'inactive'}`} aria-hidden="true" />
+          {t('events.runner')}: {eventsLoading ? t('common.loading') : isRunning ? t('common.running') : t('common.stopped')}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`status-dot ${!eventsLoading && events?.clientRunning ? 'active' : 'inactive'}`} aria-hidden="true" />
+          {t('events.socketClient')}: {eventsLoading ? t('common.loading') : events?.clientRunning ? t('common.connected') : t('common.disconnected')}
+        </span>
+        <span className="inline-flex items-center gap-1.5">
+          <span className={`status-dot ${statusLoading ? 'inactive' : status?.monitoredChannelConfigured ? 'active' : 'warning'}`} aria-hidden="true" />
+          {t('events.channel')}: {statusLoading ? t('common.loading') : status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
+        </span>
+      </div>
+
+      {/* Counters */}
       <div className="stats-grid mb-6">
-        <StatsCard
-          title={t('events.runner')}
-          value={eventsLoading ? t('common.loading') : events?.runnerRunning ? t('common.running') : t('common.stopped')}
-          icon={<Radio size={18} />}
-          color={eventsLoading ? 'neutral' : events?.runnerRunning ? 'success' : 'neutral'}
-        />
-        <StatsCard
-          title={t('events.socketClient')}
-          value={eventsLoading ? t('common.loading') : events?.clientRunning ? t('common.connected') : t('common.disconnected')}
-          icon={events?.clientRunning ? <Wifi size={18} /> : <WifiOff size={18} />}
-          color={eventsLoading ? 'neutral' : events?.clientRunning ? 'success' : 'error'}
-        />
-        <StatsCard
-          title={t('events.lastMessage')}
-          value={eventsLoading ? t('common.loading') : (events?.lastMessageType || '-')}
-          icon={<MessageSquare size={18} />}
-          color="accent"
-        />
-        <StatsCard
-          title={t('events.monitored')}
-          value={statusLoading ? t('common.loading') : status?.monitoredChannelConfigured ? t('common.yes') : t('common.no')}
-          icon={<Radio size={18} />}
-          color={statusLoading ? 'neutral' : status?.monitoredChannelConfigured ? 'success' : 'warning'}
-          subtitle={statusLoading ? '' : status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
-        />
         <StatsCard
           title={t('events.messagesSeen')}
           value={eventsLoading ? t('common.loading') : (events?.messagesSeen ?? 0)}
           icon={<MessageSquare size={18} />}
           color="accent"
-          subtitle={eventsLoading ? '' : events?.runnerRunning ? t('events.sinceStart') : t('events.stopped')}
         />
         <StatsCard
           title={t('events.acceptedEvents')}
           value={eventsLoading ? t('common.loading') : (events?.acceptedEvents ?? 0)}
           icon={<CheckCircle size={18} />}
           color="success"
-          subtitle={eventsLoading ? '' : events?.runnerRunning ? t('events.processed') : t('events.stopped')}
         />
         <StatsCard
           title={t('events.rejectedEvents')}
           value={eventsLoading ? t('common.loading') : (events?.rejectedEvents ?? 0)}
           icon={<XCircle size={18} />}
           color={eventsLoading ? 'neutral' : events?.rejectedEvents && events.rejectedEvents > 0 ? 'warning' : 'neutral'}
-          subtitle={eventsLoading ? '' : events?.runnerRunning ? t('events.ignored') : t('events.stopped')}
         />
-      </div>
-
-      {/* Event status details */}
-      <div className="glass-card p-5 mb-6">
-        <div className="section-header">
-          <h3 className="text-sm font-semibold">{t('events.engineStatus')}</h3>
-          <button className="btn btn-secondary btn-sm" onClick={() => { void reloadEvents(); void reloadStatus(); }}>
-            <RefreshCw size={14} />
-            {t('common.refresh')}
-          </button>
-        </div>
-        <div className="grid grid-cols-3 gap-4 mt-4">
-          <div>
-            <div className="text-xs text-text-muted mb-1">{t('events.runnerStatus')}</div>
-            <Badge variant={events?.runnerRunning ? 'success' : 'neutral'} dot>
-              {events?.runnerRunning ? t('common.running') : t('common.stopped')}
-            </Badge>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted mb-1">{t('events.clientStatus')}</div>
-            <Badge variant={events?.clientRunning ? 'success' : 'error'} dot>
-              {events?.clientRunning ? t('common.connected') : t('common.disconnected')}
-            </Badge>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted mb-1">{t('events.sessionId')}</div>
-            <span className="mono text-xs text-text-secondary">
-              {events?.sessionId || t('common.na')}
-            </span>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted mb-1">{t('events.startedAt')}</div>
-            <span className="text-[13px]">
-              {events?.startedAt
-                ? new Date(events.startedAt).toLocaleString(getLocale())
-                : t('common.na')}
-            </span>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted mb-1">{t('events.lastType')}</div>
-            <span className="mono text-xs text-text-secondary">
-              {events?.lastMessageType || t('common.na')}
-            </span>
-          </div>
-          <div>
-            <div className="text-xs text-text-muted mb-1">{t('events.channel')}</div>
-            <span className="text-[13px]">
-              {status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
-            </span>
-          </div>
-        </div>
       </div>
 
       {/* Log */}
