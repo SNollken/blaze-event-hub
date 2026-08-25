@@ -114,7 +114,7 @@ export default function Giveaways() {
       render: (g) => <span className="mono text-xs">{new Date(g.createdAt).toLocaleString(getLocale())}</span>,
     },
     {
-      key: 'actions', header: '', width: 220,
+      key: 'actions', header: t('common.actions'), width: 220,
       render: (g) => (
         <div className="flex gap-xs flex-wrap">
           {g.status === 'DRAFT' && (

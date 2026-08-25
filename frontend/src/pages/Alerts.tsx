@@ -108,7 +108,7 @@ export default function Alerts() {
     { key: 'threshold', header: t('common.threshold'), sortable: true },
     { key: 'enabled', header: t('common.status'), render: (r) => <Badge variant={r.enabled ? 'success' : 'neutral'} dot>{r.enabled ? t('alerts.statusActive') : t('alerts.statusInactive')}</Badge> },
     {
-      key: 'actions', header: '', width: 80,
+      key: 'actions', header: t('common.actions'), width: 80,
       render: (r) => (
         <button
           className="btn btn-danger btn-sm btn-icon"
@@ -146,7 +146,7 @@ export default function Alerts() {
       render: (a) => <Badge variant={severityFor(a.acknowledged)}>{a.acknowledged ? t('alerts.ackSuccess') : t('alerts.statusPending')}</Badge>,
     },
     {
-      key: 'actions', header: '', width: 80,
+      key: 'actions', header: t('common.actions'), width: 80,
       render: (a) => !a.acknowledged && (
         <button
           className="btn btn-secondary btn-sm btn-icon"

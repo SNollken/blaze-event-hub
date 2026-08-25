@@ -117,7 +117,7 @@ export default function Overlays() {
       render: (p) => <span className="mono text-xs">{new Date(p.createdAt).toLocaleDateString(getLocale())}</span>,
     },
     {
-      key: 'actions', header: '', width: 100,
+      key: 'actions', header: t('common.actions'), width: 100,
       render: (p) => (
         <div className="flex gap-1">
           <button className="btn btn-primary btn-sm btn-icon" aria-label={`${t('overlays.viewOverlays')} ${p.name}`} onClick={() => loadOverlays(p.id)} disabled={actionLoading !== null}>
@@ -159,7 +159,7 @@ export default function Overlays() {
       ),
     },
     {
-      key: 'actions', header: '', width: 80,
+      key: 'actions', header: t('common.actions'), width: 80,
       render: (o) => (
         <div className="flex gap-1">
           <button className="btn btn-secondary btn-sm btn-icon" aria-label={`${t('overlays.viewDetails')} ${o.name}`} onClick={() => setSelectedOverlay(o)} disabled={actionLoading !== null}>

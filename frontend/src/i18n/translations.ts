@@ -57,6 +57,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.no': 'No',
     'common.none': 'none',
     'common.unknownError': 'Unknown error',
+    'common.actions': 'Actions',
     'common.recommended': 'Recommended',
     'common.avatar': 'avatar',
 
@@ -339,6 +340,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.no': 'Não',
     'common.none': 'nenhum',
     'common.unknownError': 'Erro desconhecido',
+    'common.actions': 'Ações',
     'common.recommended': 'Recomendado',
     'common.avatar': 'avatar',
 
