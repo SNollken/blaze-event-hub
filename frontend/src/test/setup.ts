@@ -1,6 +1,9 @@
 import '@testing-library/jest-dom/vitest';
+import * as vitestAxeMatchers from 'vitest-axe/matchers';
 import { cleanup } from '@testing-library/react';
-import { afterEach, beforeEach, vi } from 'vitest';
+import { afterEach, beforeEach, expect, vi } from 'vitest';
+
+expect.extend(vitestAxeMatchers);
 
 const json = (value: unknown) =>
   Promise.resolve(new Response(JSON.stringify(value), {
