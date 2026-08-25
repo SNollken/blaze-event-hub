@@ -67,7 +67,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
         tabIndex={-1}
       >
         <div className="modal-header">
-          <h3 id="modal-title">{title}</h3>
+          <h2 id="modal-title">{title}</h2>
           <button className="btn btn-secondary btn-sm !px-2 !py-1" aria-label={`${t('common.close')} ${title}`} onClick={onClose}>
             {t('common.close')}
           </button>

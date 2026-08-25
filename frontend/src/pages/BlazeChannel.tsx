@@ -136,7 +136,7 @@ export default function BlazeChannel() {
       {setup?.checklist && setup.checklist.length > 0 && (
         <div className="glass-card p-5 mb-6">
           <div className="section-header mb-4">
-            <h3 className="text-sm font-semibold">{t('blaze.checklist')}</h3>
+            <h2 className="text-sm font-semibold">{t('blaze.checklist')}</h2>
           </div>
           <div className="flex flex-col gap-2.5">
             {setup.checklist.map((item, i) => (
@@ -166,7 +166,7 @@ export default function BlazeChannel() {
       <div className="grid grid-cols-2 gap-4 mb-6">
         {/* OAuth controls */}
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-4">{t('blaze.oauthAuth')}</h3>
+          <h2 className="text-sm font-semibold mb-4">{t('blaze.oauthAuth')}</h2>
           <div className="flex flex-col gap-3">
             {!isConnected ? (
               <button
@@ -207,7 +207,7 @@ export default function BlazeChannel() {
 
         {/* Account info */}
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-4">{t('blaze.connectedAccount')}</h3>
+          <h2 className="text-sm font-semibold mb-4">{t('blaze.connectedAccount')}</h2>
           {oauth?.profile ? (
             <div className="flex flex-col gap-3">
               <div className="flex items-center gap-2.5">
@@ -240,7 +240,7 @@ export default function BlazeChannel() {
 
       {/* Redirect URI & Docs */}
       <div className="glass-card p-5 mb-6">
-        <h3 className="text-sm font-semibold mb-4">{t('blaze.redirectUri')}</h3>
+        <h2 className="text-sm font-semibold mb-4">{t('blaze.redirectUri')}</h2>
         <div className="flex flex-col gap-3">
           <div>
             <label>{t('blaze.redirectUriLabel')}</label>
@@ -288,7 +288,7 @@ export default function BlazeChannel() {
       {/* Scopes */}
       {setup?.recommendedScopes && setup.recommendedScopes.length > 0 && (
         <div className="glass-card p-5">
-          <h3 className="text-sm font-semibold mb-4">{t('blaze.recommendedScopes')}</h3>
+          <h2 className="text-sm font-semibold mb-4">{t('blaze.recommendedScopes')}</h2>
           <div className="data-table-wrapper">
             <table className="data-table" aria-label={t('blaze.recommendedScopes')}>
               <thead>

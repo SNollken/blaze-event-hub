@@ -532,7 +532,7 @@ code, .mono {
   padding: 16px 20px;
   border-bottom: 1px solid var(--border);
 }
-.modal-header h3 {
+.modal-header h2 {
   font-size: 15px;
   font-weight: 600;
 }

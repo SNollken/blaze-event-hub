@@ -135,7 +135,7 @@ export default function LiveEvents() {
       {/* Log */}
       <div className="glass-card p-5">
         <div className="section-header mb-3">
-          <h3 className="text-sm font-semibold">{t('events.log')}</h3>
+          <h2 className="text-sm font-semibold">{t('events.log')}</h2>
           <Badge variant="neutral">{logs.length} {t('events.entries')}</Badge>
         </div>
         <div className="log-panel">
