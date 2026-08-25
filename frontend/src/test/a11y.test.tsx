@@ -122,4 +122,24 @@ describe('a11y (axe-core)', () => {
     await screen.findByText('Nenhum perfil criado.');
     expect(await axe(container)).toHaveNoViolations();
   });
+
+  it('pagina Eventos ao Vivo nao tem violacoes', async () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/events']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Mensagens Vistas');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('pagina Blaze Channel nao tem violacoes', async () => {
+    const { container } = render(
+      <MemoryRouter initialEntries={['/blaze']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findAllByText('Blaze Channel');
+    expect(await axe(container)).toHaveNoViolations();
+  });
 });
