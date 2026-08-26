@@ -12,6 +12,13 @@ interface ModalProps {
 export function Modal({ open, onClose, title, children, footer }: ModalProps) {
   const modalRef = useRef<HTMLDivElement>(null);
   const previouslyFocusedRef = useRef<HTMLElement | null>(null);
+  // onClose chega inline em todos os call sites (ex.: () => setShow(false));
+  // colocá-lo nas deps do efeito re-executaria cleanup+setup a cada render do
+  // pai, roubando o foco do que o usuário está digitando nos forms dos modais.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  }, [onClose]);
 
   useEffect(() => {
     if (!open) return;
@@ -29,7 +36,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
     }
 
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') onCloseRef.current();
       if (event.key === 'Tab' && modal) {
         const focusable = modal.querySelectorAll(
           'button, [href], input, select, textarea, [tabindex]:not([tabindex="-1"])',
@@ -52,7 +59,7 @@ export function Modal({ open, onClose, title, children, footer }: ModalProps) {
       // Restore focus to the element that triggered the modal
       previouslyFocusedRef.current?.focus();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   if (!open) return null;
   return (
