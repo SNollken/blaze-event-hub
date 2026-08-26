@@ -787,7 +787,7 @@ code, .mono {
     min-width: 0;
   }
 }
-/* Wheel draw confetti (r54) — short celebratory burst on winner reveal */
+/* Wheel draw confetti (r54): short celebratory burst on winner reveal */
 .wheel-confetti {
   top: -8px;
   opacity: 0;

@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from 'vitest';
 import { getOAuthSession, getHealth } from '../api/client';
 
-/* Tests the error-extraction logic in request() — verifies that
+/* Tests the error-extraction logic in request(): verifies that
    ApiErrorResponse.message is extracted from JSON bodies, and that
    raw text / statusText are used as fallback. */
 describe('API client error handling', () => {

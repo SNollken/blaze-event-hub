@@ -74,7 +74,7 @@ const COLORED_TEXT_ON_CARD = [
 const BUTTON_FILLS = ['color-primary', 'color-primary-hover', 'color-accent'];
 
 for (const [name, palette] of [['dark', dark], ['light', light]] as const) {
-  describe(`tokens.css contrast — ${name} theme (WCAG 2.2 AA)`, () => {
+  describe(`tokens.css contrast: ${name} theme (WCAG 2.2 AA)`, () => {
     it.each(
       TEXT.flatMap((fg) => SURFACES.map((bg) => [fg, bg] as const)),
     )('text %s on %s >= 4.5:1', (fg, bg) => {

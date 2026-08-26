@@ -5,7 +5,7 @@ import { initI18n } from '../i18n';
 
 const mockSetLocale = vi.hoisted(() => vi.fn());
 
-// setLocale real recarrega a pagina (window.location.reload) — em teste
+// setLocale real recarrega a pagina (window.location.reload); em teste
 // mockamos apenas ela; t() e getLocale() continuam reais.
 vi.mock('../i18n', async (importOriginal) => {
   const actual = await importOriginal<typeof import('../i18n')>();

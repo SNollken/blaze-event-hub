@@ -290,7 +290,7 @@ describe('BlazeChannel', () => {
     // forma independente -> cada usePolling dispara seu proprio toast de
     // primeiro erro (2 chamadas de addToast neste seam). A deduplicacao que o
     // usuario ve acontece dentro do Toast (Toast.test.tsx: dedup por
-    // tipo+texto enquanto visivel) — aqui o modulo esta mockado, entao a
+    // tipo+texto enquanto visivel); aqui o modulo esta mockado, entao a
     // caracterizacao e das 2 chamadas.
     await waitFor(() =>
       expect(

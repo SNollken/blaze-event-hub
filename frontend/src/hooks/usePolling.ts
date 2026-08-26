@@ -41,7 +41,7 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
     return () => clearInterval(id);
   }, [load, intervalMs]);
 
-  // Toast on first error only — avoids spam during continued polling failures
+  // Toast on first error only: avoids spam during continued polling failures
   const hasErroredRef = useRef(false);
   useEffect(() => {
     if (error && !hasErroredRef.current) {

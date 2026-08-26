@@ -2,7 +2,7 @@ import { translations, type Locale } from './translations';
 
 /**
  * Minimal i18n: module-level locale + pure t() function.
- * No React context needed — components call t() directly.
+ * No React context needed; components call t() directly.
  * setLocale() reloads the page so all components re-render with new strings.
  * Page reload on locale switch is acceptable for a streaming tool;
  * upgrade path: React context + I18nextProvider for hot-swap without reload.
@@ -19,7 +19,7 @@ export function initI18n() {
   if (saved === 'en' || saved === 'pt-BR') {
     currentLocale = saved;
   } else {
-    // Default to pt-BR — the app's original locale; user can switch to EN
+    // Default to pt-BR, the app's original locale; user can switch to EN
     currentLocale = navigator.language.startsWith('pt') ? 'pt-BR' : 'en';
   }
 }

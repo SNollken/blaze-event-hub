@@ -25,7 +25,7 @@ async function request<T>(url: string, options?: RequestInit): Promise<T> {
         detail = parsed.message;
       }
     } catch {
-      // Not JSON — keep the raw text
+      // Not JSON: keep the raw text
     }
     throw new Error(`API ${res.status}: ${detail}`);
   }

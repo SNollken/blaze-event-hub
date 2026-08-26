@@ -3,7 +3,7 @@ import { t, setLocale, getLocale } from '../i18n';
 
 describe('i18n', () => {
   afterEach(() => {
-    // Reset locale — window.location.reload is a no-op in jsdom
+    // Reset locale: window.location.reload is a no-op in jsdom
     setLocale('pt-BR');
   });
 

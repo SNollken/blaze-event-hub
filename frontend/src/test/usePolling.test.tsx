@@ -25,7 +25,7 @@ describe('usePolling error handling', () => {
     });
     expect(mockAddToast).toHaveBeenCalledTimes(1);
 
-    // Let several polling cycles run — same error, no additional toasts
+    // Let several polling cycles run: same error, no additional toasts
     // act para os setStates dos ciclos de polling nao vazarem como warning
     await act(async () => {
       await new Promise(resolve => setTimeout(resolve, 300));
