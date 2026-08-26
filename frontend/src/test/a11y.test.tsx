@@ -1,6 +1,6 @@
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { DataTable } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
@@ -140,6 +140,47 @@ describe('a11y (axe-core)', () => {
       </MemoryRouter>,
     );
     await screen.findAllByText('Blaze Channel');
+    expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('modal da roleta aberto na pagina Sorteios nao tem violacoes', async () => {
+    const closedGiveaway = {
+      id: 'g1', title: 'Sorteio da Roleta', description: '', status: 'CLOSED',
+      entryCount: 3, maxEntries: 100, createdAt: '2026-08-13T00:00:00Z',
+      openedAt: '2026-08-13T00:01:00Z', closedAt: '2026-08-13T00:02:00Z',
+      drawnAt: null, winnerIds: [],
+    };
+    const wheelEntries = [
+      { id: 'e1', giveawayId: 'g1', participantName: 'alice', enteredAt: '2026-08-13T00:00:00Z', selected: false, eligible: true },
+      { id: 'e2', giveawayId: 'g1', participantName: 'bob', enteredAt: '2026-08-13T00:00:01Z', selected: false, eligible: true },
+      { id: 'e3', giveawayId: 'g1', participantName: 'carol', enteredAt: '2026-08-13T00:00:02Z', selected: false, eligible: true },
+    ];
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const path = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0];
+      const body =
+        path === '/api/giveaways' ? [closedGiveaway]
+        : path === '/api/giveaways/stats' ? {
+            totalGiveaways: 1, draftCount: 0, openCount: 0, closedCount: 1,
+            completedCount: 0, cancelledCount: 0, totalEntries: 3,
+            entriesPerGiveaway: { g1: 3 },
+          }
+        : path === '/api/giveaways/g1/entries' ? wheelEntries
+        : {};
+      return Promise.resolve(new Response(JSON.stringify(body), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      }));
+    }));
+
+    const { container } = render(
+      <MemoryRouter initialEntries={['/giveaways']}>
+        <App />
+      </MemoryRouter>,
+    );
+    await screen.findByText('Sorteio da Roleta');
+    fireEvent.click(screen.getByLabelText('Sortear vencedor com roleta Sorteio da Roleta'));
+    await screen.findByText('Girar');
     expect(await axe(container)).toHaveNoViolations();
   });
 });
