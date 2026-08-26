@@ -286,10 +286,12 @@ describe('BlazeChannel', () => {
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith('error', 'status fora'),
     );
-    // caracterizacao: a pagina E o AccountFooter da Sidebar fazem polling de
-    // getStatus de forma independente -> cada usePolling dispara seu proprio
-    // toast de primeiro erro (2 toasts identicos).
-    expect(mockAddToast).toHaveBeenCalledWith('error', 'status fora');
+    // a pagina E o AccountFooter da Sidebar fazem polling de getStatus de
+    // forma independente -> cada usePolling dispara seu proprio toast de
+    // primeiro erro (2 chamadas de addToast neste seam). A deduplicacao que o
+    // usuario ve acontece dentro do Toast (Toast.test.tsx: dedup por
+    // tipo+texto enquanto visivel) — aqui o modulo esta mockado, entao a
+    // caracterizacao e das 2 chamadas.
     await waitFor(() =>
       expect(
         mockAddToast.mock.calls.filter(

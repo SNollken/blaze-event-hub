@@ -69,4 +69,29 @@ describe('Toast', () => {
     expect(() => act(() => addToast('success', 'Orfao'))).not.toThrow();
     act(() => vi.advanceTimersByTime(4000)); // drena o timer do auto-dismiss
   });
+
+  it('addToast repetido com mesmo tipo+texto nao empilha enquanto visivel (dedup)', () => {
+    vi.useFakeTimers();
+    render(<ToastContainer />);
+    act(() => {
+      addToast('error', 'Falha duplicada');
+      addToast('error', 'Falha duplicada');
+    });
+    expect(screen.getAllByText('Falha duplicada')).toHaveLength(1);
+    // tipo diferente com o mesmo texto segue empilhando
+    act(() => addToast('warning', 'Falha duplicada'));
+    expect(screen.getAllByText('Falha duplicada')).toHaveLength(2);
+    act(() => vi.advanceTimersByTime(4000)); // drena o auto-dismiss
+  });
+
+  it('mesmo toast pode reaparecer depois que o anterior sai (dedup so enquanto visivel)', () => {
+    vi.useFakeTimers();
+    render(<ToastContainer />);
+    act(() => addToast('error', 'Reincidente'));
+    act(() => vi.advanceTimersByTime(4000)); // auto-dismiss do primeiro
+    expect(screen.queryByText('Reincidente')).not.toBeInTheDocument();
+    act(() => addToast('error', 'Reincidente'));
+    expect(screen.getByText('Reincidente')).toBeInTheDocument();
+    act(() => vi.advanceTimersByTime(4000)); // drena o auto-dismiss
+  });
 });

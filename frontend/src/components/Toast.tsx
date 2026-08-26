@@ -17,6 +17,14 @@ function notify() {
 }
 
 export function addToast(type: ToastMessage['type'], text: string) {
+  // Dedup: an identical (type+text) toast already on screen suppresses the
+  // repeat. Happens e.g. on BlazeChannel, where the page and the Sidebar
+  // AccountFooter poll getStatus independently and both fire the first-error
+  // toast. Distinct types or texts still stack; after dismissal the same
+  // toast may reappear.
+  if (toasts.some((toast) => toast.type === type && toast.text === text)) {
+    return;
+  }
   const id = nextId++;
   toasts = [...toasts, { id, type, text }];
   notify();
