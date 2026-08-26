@@ -1,4 +1,4 @@
-import { render, renderHook, waitFor } from '@testing-library/react';
+import { act, render, renderHook, waitFor } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import type { Mock } from 'vitest';
 import { usePolling } from '../hooks/usePolling';
@@ -26,7 +26,10 @@ describe('usePolling error handling', () => {
     expect(mockAddToast).toHaveBeenCalledTimes(1);
 
     // Let several polling cycles run — same error, no additional toasts
-    await new Promise(resolve => setTimeout(resolve, 300));
+    // act para os setStates dos ciclos de polling nao vazarem como warning
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 300));
+    });
 
     // At least a few polls happened, but only ONE toast
     expect(failingFetcher).toHaveBeenCalled();
@@ -79,8 +82,10 @@ describe('usePolling refetch stability', () => {
       usePolling(() => fetcher(), 60000);
       return null;
     }
-    render(<Probe />);
-    await new Promise((resolve) => setTimeout(resolve, 150));
+    await act(async () => {
+      render(<Probe />);
+      await new Promise((resolve) => setTimeout(resolve, 150));
+    });
     expect(fetcher).toHaveBeenCalledTimes(1);
   }, 3000);
 
@@ -91,12 +96,18 @@ describe('usePolling refetch stability', () => {
       usePolling(fetcher, 5000);
       return null;
     }
-    render(<Probe />);
-    await vi.advanceTimersByTimeAsync(0);
+    await act(async () => {
+      render(<Probe />);
+      await vi.advanceTimersByTimeAsync(0);
+    });
     expect(fetcher).toHaveBeenCalledTimes(1);
-    await vi.advanceTimersByTimeAsync(5000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(fetcher).toHaveBeenCalledTimes(2);
-    await vi.advanceTimersByTimeAsync(5000);
+    await act(async () => {
+      await vi.advanceTimersByTimeAsync(5000);
+    });
     expect(fetcher).toHaveBeenCalledTimes(3);
   });
 });

@@ -1,4 +1,4 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -77,7 +77,7 @@ describe('a11y (axe-core)', () => {
 
   it('ToastContainer com mensagem nao tem violacoes', async () => {
     const { container } = render(<ToastContainer />);
-    addToast('success', 'Sorteio criado com sucesso');
+    act(() => addToast('success', 'Sorteio criado com sucesso'));
     expect(await screen.findByText('Sorteio criado com sucesso')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
   });
