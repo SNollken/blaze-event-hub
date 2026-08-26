@@ -49,7 +49,10 @@ class DashboardMvpControllerTests {
 
 	@Test
 	void spaDeepLinkRoutesServeShell() throws Exception {
-		for (String path : new String[] {"/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"}) {
+		for (String path : new String[] {"/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays",
+				// SPA aliases servidas pelos PageControllers (AlertPageController,
+				// LiveEventsPageController, OverlayPageController)
+				"/alerts-dashboard", "/live-events", "/overlays-dashboard"}) {
 			mockMvc.perform(get(path))
 					.andExpect(status().isOk())
 					.andExpect(content().string(containsString("Blaze Event Hub")));
