@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { act, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -75,6 +75,17 @@ describe('frontend smoke', () => {
     expect(screen.queryByText('404')).not.toBeInTheDocument();
   });
 
+  it('rota legada /dashboard redireciona para / (home)', async () => {
+    renderRoute('/dashboard');
+    expect(await screen.findByText('Sorteios abertos')).toBeInTheDocument();
+    expect(screen.queryByText('404')).not.toBeInTheDocument();
+  });
+
+  it('rota desconhecida mostra 404', async () => {
+    renderRoute('/rota-que-nao-existe');
+    expect(await screen.findByText('404')).toBeInTheDocument();
+  });
+
   it('renderiza alerts conectado a API', async () => {
     renderRoute('/alerts');
     expect((await screen.findAllByText('Alertas')).length).toBeGreaterThan(0);
@@ -129,5 +140,34 @@ describe('frontend smoke', () => {
     const btn = screen.getByLabelText('Recarregar página');
     expect(btn).toBeInTheDocument();
     expect(() => btn.click()).not.toThrow();
+  });
+
+  it('Toast real deduplica erros identicos do BlazeChannel + AccountFooter (end-to-end, sem mock do Toast)', async () => {
+    // Bug r60: a pagina BlazeChannel e o AccountFooter da Sidebar mantem
+    // usePolling independentes do mesmo getStatus, cada um com seu
+    // hasErroredRef, e ambos disparam addToast('error', ...) na primeira
+    // falha. Sem o dedup do Toast dois toasts identicos apareciam.
+    // Aqui SO /api/status falha; os demais endpoints seguem o mock do
+    // setup, entao exatamente dois addToast identicos sao disparados.
+    const originalFetch = window.fetch;
+    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
+      const url = typeof input === 'string' ? input : input.toString();
+      const path = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0];
+      if (path === '/api/status') {
+        return Promise.resolve(new Response('nope', { status: 500 }));
+      }
+      return (originalFetch as (i: RequestInfo | URL) => Promise<Response>)(input);
+    }));
+
+    await act(async () => {
+      renderRoute('/blaze');
+    });
+    // flusha a onda inicial de fetch dos dois pollers de getStatus
+    await act(async () => {});
+    await act(async () => {});
+
+    await screen.findAllByText('API 500: nope');
+    // Um unico toast visivel apesar dos dois disparos identicos
+    expect(document.querySelectorAll('.toast')).toHaveLength(1);
   });
 });
