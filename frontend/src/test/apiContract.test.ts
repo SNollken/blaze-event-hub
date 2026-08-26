@@ -16,13 +16,13 @@ import {
  * que os tipos TS aceitam exatamente o formato que o Spring serializa.
  *
  * Records de referência:
- * - oauth/OAuthActionResponse.java (11 campos — NÃO existe "success")
+ * - oauth/OAuthActionResponse.java (11 campos: NÃO existe "success")
  * - oauth/OAuthStartResponse.java (authorizationUrl + scopes)
  * - overlays/OverlayManifestResponse.java (enabled, name, publicToken,
- *   config, layers ManifestLayer[], assets ManifestAsset[] — NÃO existe
+ *   config, layers ManifestLayer[], assets ManifestAsset[]; NÃO existe
  *   "overlayId" nem "type")
  * - overlays/OverlayAsset.java (originalFilename, storedFilename,
- *   mimeType, width/height/checksum nullable — NÃO existe "filename",
+ *   mimeType, width/height/checksum nullable; NÃO existe "filename",
  *   "contentType" nem "publicUrl")
  */
 
