@@ -219,8 +219,12 @@ export default function BlazeChannel() {
                   />
                 )}
                 <div>
-                  <div className="font-semibold">{oauth.profile.displayName}</div>
-                  <div className="text-xs text-text-muted">@{oauth.profile.username}</div>
+                  <div className="font-semibold">
+                    {oauth.profile.displayName || oauth.profile.username || t('common.connected')}
+                  </div>
+                  {oauth.profile.username && (
+                    <div className="text-xs text-text-muted">@{oauth.profile.username}</div>
+                  )}
                 </div>
               </div>
               <div className="text-xs text-text-secondary">

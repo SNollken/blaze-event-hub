@@ -117,7 +117,7 @@ function oauthSession(
   };
 }
 
-function connectedOAuth(): OAuthSessionResponse {
+function connectedOAuth(overrides: Partial<OAuthSessionResponse> = {}): OAuthSessionResponse {
   return oauthSession({
     connected: true,
     tokenPresent: true,
@@ -136,6 +136,7 @@ function connectedOAuth(): OAuthSessionResponse {
     tokenExpiredOrUnknown: false,
     lastConnectedAt: '2026-08-26T00:00:00Z',
     lastProfileSyncAt: '2026-08-26T00:00:00Z',
+    ...overrides,
   });
 }
 
@@ -251,6 +252,30 @@ describe('BlazeChannel', () => {
     expect(
       screen.getByText('Scopes: users.read, offline.access'),
     ).toBeInTheDocument();
+  });
+
+  it('profile sem displayName nem username não renderiza "@" solto (backend pode enviar null nos dois)', async () => {
+    mockGetOAuthSession.mockResolvedValue(
+      connectedOAuth({
+        profile: { id: 'u1', username: null, displayName: null, avatarUrl: null },
+      }),
+    );
+    await renderPage();
+
+    expect(await screen.findByText('Conectado')).toBeInTheDocument();
+    expect(screen.queryByText('@')).not.toBeInTheDocument();
+  });
+
+  it('profile sem displayName usa username como nome visível', async () => {
+    mockGetOAuthSession.mockResolvedValue(
+      connectedOAuth({
+        profile: { id: 'u1', username: 'streamer', displayName: null, avatarUrl: null },
+      }),
+    );
+    await renderPage();
+
+    expect(await screen.findByText('streamer')).toBeInTheDocument();
+    expect(screen.getByText('@streamer')).toBeInTheDocument();
   });
 
   it('disconnects the account and toasts success', async () => {

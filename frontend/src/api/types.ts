@@ -53,9 +53,9 @@ export interface OAuthSessionResponse {
 }
 
 export interface OAuthProfileResponse {
-  id: string;
-  username: string;
-  displayName: string;
+  id: string | null;
+  username: string | null;
+  displayName: string | null;
   avatarUrl: string | null;
 }
 
