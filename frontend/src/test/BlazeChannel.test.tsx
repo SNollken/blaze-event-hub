@@ -3,6 +3,7 @@ import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type {
   BlazeSetupStatusResponse,
+  OAuthActionResponse,
   OAuthSessionResponse,
   StatusResponse,
 } from '../api/types';
@@ -151,6 +152,23 @@ async function renderPage() {
   return utils;
 }
 
+function oauthAction(overrides: Partial<OAuthActionResponse> = {}): OAuthActionResponse {
+  return {
+    status: 'refreshed',
+    refreshed: true,
+    disconnected: false,
+    connected: true,
+    tokenPresent: true,
+    refreshCredentialPresent: true,
+    profilePresent: true,
+    profile: null,
+    expiresAt: null,
+    nextRecommendedAction: 'READY_FOR_EVENTS',
+    message: 'ok',
+    ...overrides,
+  };
+}
+
 describe('BlazeChannel', () => {
   beforeEach(() => {
     mockGetStatus.mockReset().mockResolvedValue(status());
@@ -158,11 +176,11 @@ describe('BlazeChannel', () => {
     mockGetOAuthSession.mockReset().mockResolvedValue(oauthSession());
     mockStartOAuth
       .mockReset()
-      .mockResolvedValue({ authorizationUrl: 'https://id.blaze.test/x' });
+      .mockResolvedValue({ authorizationUrl: 'https://id.blaze.test/x', scopes: ['users.read', 'offline.access'] });
     mockDisconnectOAuth
       .mockReset()
-      .mockResolvedValue({ success: true, message: 'ok' });
-    mockRefreshOAuth.mockReset().mockResolvedValue({ success: true, message: 'ok' });
+      .mockResolvedValue(oauthAction({ status: 'disconnected', refreshed: false, disconnected: true, connected: false }));
+    mockRefreshOAuth.mockReset().mockResolvedValue(oauthAction());
     mockAddToast.mockReset();
   });
 
@@ -191,6 +209,7 @@ describe('BlazeChannel', () => {
     mockGetSetupStatus.mockResolvedValue(setupStatus({ oauthStartReady: true }));
     mockStartOAuth.mockResolvedValue({
       authorizationUrl: 'https://id.blaze.test/x',
+      scopes: ['users.read', 'offline.access'],
     });
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     await renderPage();
@@ -236,7 +255,9 @@ describe('BlazeChannel', () => {
 
   it('disconnects the account and toasts success', async () => {
     mockGetOAuthSession.mockResolvedValue(connectedOAuth());
-    mockDisconnectOAuth.mockResolvedValue({ success: true, message: 'ok' });
+    mockDisconnectOAuth.mockResolvedValue(
+      oauthAction({ status: 'disconnected', refreshed: false, disconnected: true, connected: false }),
+    );
     await renderPage();
 
     fireEvent.click(

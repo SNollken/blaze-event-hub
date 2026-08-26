@@ -42,7 +42,8 @@ export const getSetupStatus = () => request<import('./types').BlazeSetupStatusRe
 
 /* OAuth */
 export const getOAuthSession = () => request<import('./types').OAuthSessionResponse>('/api/blaze/oauth/session');
-export const startOAuth = () => request<import('./types').OAuthStartResponse>('/api/blaze/oauth/start');
+export const startOAuth = () =>
+  request<import('./types').OAuthStartResponse>('/api/blaze/oauth/start', { method: 'POST' });
 export const refreshOAuth = () =>
   request<import('./types').OAuthActionResponse>('/api/blaze/oauth/refresh', { method: 'POST' });
 export const disconnectOAuth = () =>

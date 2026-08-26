@@ -104,7 +104,7 @@ describe('Sidebar', () => {
   });
 
   it('connect click opens the authorization URL and toasts success', async () => {
-    mockStartOAuth.mockResolvedValue({ authorizationUrl: 'https://id.blaze.test/oauth?code=x' });
+    mockStartOAuth.mockResolvedValue({ authorizationUrl: 'https://id.blaze.test/oauth?code=x', scopes: ['users.read', 'offline.access'] });
     const openSpy = vi.spyOn(window, 'open').mockReturnValue(null);
     await renderSidebar();
 

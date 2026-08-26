@@ -61,10 +61,21 @@ export interface OAuthProfileResponse {
 
 export interface OAuthStartResponse {
   authorizationUrl: string;
+  scopes: string[];
 }
 
+/* POST /api/blaze/oauth/refresh|disconnect — espelha OAuthActionResponse.java (11 campos; NAO existe "success") */
 export interface OAuthActionResponse {
-  success: boolean;
+  status: string;
+  refreshed: boolean;
+  disconnected: boolean;
+  connected: boolean;
+  tokenPresent: boolean;
+  refreshCredentialPresent: boolean;
+  profilePresent: boolean;
+  profile: OAuthProfileResponse | null;
+  expiresAt: string | null;
+  nextRecommendedAction: string;
   message: string;
 }
 
@@ -141,13 +152,17 @@ export interface OverlayLayer {
   style: Record<string, unknown>;
 }
 
+/* Espelha OverlayAsset.java: originalFilename/storedFilename/mimeType + width/height/checksum nullable (NAO existe filename/contentType/publicUrl) */
 export interface OverlayAsset {
   id: string;
   overlayId: string;
-  filename: string;
-  contentType: string;
+  originalFilename: string;
+  storedFilename: string;
+  mimeType: string;
   sizeBytes: number;
-  publicUrl: string;
+  width: number | null;
+  height: number | null;
+  checksum: string | null;
   createdAt: string;
 }
 
@@ -175,12 +190,37 @@ export interface Overlay {
   updatedAt: string;
 }
 
-export interface OverlayManifestResponse {
-  overlayId: string;
-  name: string;
+/* Espelha OverlayManifestResponse.ManifestLayer (NAO tem overlayId — diferente de OverlayLayer) */
+export interface OverlayManifestLayer {
+  id: string;
   type: string;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  zIndex: number;
+  visible: boolean;
+  opacity: number;
+  text: string | null;
+  assetId: string | null;
+  style: Record<string, unknown>;
+}
+
+/* Espelha OverlayManifestResponse.ManifestAsset (asset publico do runtime) */
+export interface OverlayManifestAsset {
+  id: string;
+  mimeType: string;
+  publicUrl: string;
+}
+
+/* Espelha OverlayManifestResponse.java: enabled/name/publicToken/config/layers/assets (NAO existe overlayId nem type) */
+export interface OverlayManifestResponse {
+  enabled: boolean;
+  name: string;
+  publicToken: string;
   config: OverlayConfig;
-  layers: OverlayLayer[];
+  layers: OverlayManifestLayer[];
+  assets: OverlayManifestAsset[];
 }
 
 export type BlazeEventType =
