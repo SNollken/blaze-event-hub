@@ -64,7 +64,7 @@ export interface OAuthStartResponse {
   scopes: string[];
 }
 
-/* POST /api/blaze/oauth/refresh|disconnect — espelha OAuthActionResponse.java (11 campos; NAO existe "success") */
+/* POST /api/blaze/oauth/refresh|disconnect: espelha OAuthActionResponse.java (11 campos; NAO existe "success") */
 export interface OAuthActionResponse {
   status: string;
   refreshed: boolean;
@@ -190,7 +190,7 @@ export interface Overlay {
   updatedAt: string;
 }
 
-/* Espelha OverlayManifestResponse.ManifestLayer (NAO tem overlayId — diferente de OverlayLayer) */
+/* Espelha OverlayManifestResponse.ManifestLayer (NAO tem overlayId, diferente de OverlayLayer) */
 export interface OverlayManifestLayer {
   id: string;
   type: string;
