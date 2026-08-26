@@ -38,7 +38,9 @@ class OverlayRuntimeControllerTests {
 				.andExpect(content().string(not(containsString("accessToken"))))
 				.andExpect(content().string(not(containsString("access_token"))))
 				.andExpect(content().string(not(containsString("refreshToken"))))
-				.andExpect(content().string(not(containsString("refresh_token"))));
+				.andExpect(content().string(not(containsString("refresh_token"))))
+				.andExpect(content().string(not(containsString("codeVerifier"))))
+				.andExpect(content().string(not(containsString("code_verifier"))));
 	}
 
 	@Test
@@ -61,7 +63,9 @@ class OverlayRuntimeControllerTests {
 				.andExpect(content().string(not(containsString("accessToken"))))
 				.andExpect(content().string(not(containsString("access_token"))))
 				.andExpect(content().string(not(containsString("refreshToken"))))
-				.andExpect(content().string(not(containsString("refresh_token"))));
+				.andExpect(content().string(not(containsString("refresh_token"))))
+				.andExpect(content().string(not(containsString("codeVerifier"))))
+				.andExpect(content().string(not(containsString("code_verifier"))));
 	}
 
 	@Test
