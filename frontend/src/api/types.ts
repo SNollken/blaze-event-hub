@@ -17,8 +17,8 @@ export interface StatusResponse {
   uptimeSeconds: number;
   oauthConnected: boolean;
   profilePresent: boolean;
-  connectedAccountDisplayName: string;
-  connectedAccountId: string;
+  connectedAccountDisplayName: string | null;
+  connectedAccountId: string | null;
   lastProfileSyncAt: string | null;
   nextRecommendedAction: string | null;
 }

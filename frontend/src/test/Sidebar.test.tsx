@@ -143,4 +143,13 @@ describe('Sidebar', () => {
 
     expect(await screen.findByText('Conectado')).toBeInTheDocument();
   });
+
+  it("falls back to 'Conectado' when displayName is null (backend sem perfil)", async () => {
+    mockGetStatus.mockResolvedValue(
+      status({ oauthConnected: true, connectedAccountDisplayName: null }),
+    );
+    await renderSidebar();
+
+    expect(await screen.findByText('Conectado')).toBeInTheDocument();
+  });
 });
