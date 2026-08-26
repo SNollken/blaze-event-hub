@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useState } from 'react';
 import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
@@ -25,7 +25,8 @@ const navItems = [
 ];
 
 function AccountFooter() {
-  const { data: status } = usePolling(() => getStatus(), 20000);
+  const fetchStatus = useCallback(() => getStatus(), []);
+  const { data: status } = usePolling(fetchStatus, 20000);
   const [connecting, setConnecting] = useState(false);
   const connected = !!status?.oauthConnected;
 

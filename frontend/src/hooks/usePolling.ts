@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import { addToast } from '../components/Toast';
 import { t } from '../i18n';
 
@@ -8,9 +8,16 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // The fetcher is read through a ref so its IDENTITY never drives refetches.
+  // Callers may pass inline arrows (new identity every render); keying the
+  // load effect on such a fetcher retriggered it after every resolved fetch,
+  // and each setData re-rendered the caller -> infinite refetch loop.
+  const fetcherRef = useRef(fetcher);
+  fetcherRef.current = fetcher;
+
   const load = useCallback(async () => {
     try {
-      const result = await fetcher();
+      const result = await fetcherRef.current();
       setData(result);
       setError(null);
     } catch (e: unknown) {
@@ -18,9 +25,9 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
     } finally {
       setLoading(false);
     }
-  }, [fetcher]);
+  }, []);
 
-  // Initial load on mount (and whenever fetcher changes)
+  // Initial load on mount
   useEffect(() => {
     load();
   }, [load]);
