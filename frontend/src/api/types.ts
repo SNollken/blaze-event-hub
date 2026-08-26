@@ -57,7 +57,6 @@ export interface OAuthProfileResponse {
   username: string;
   displayName: string;
   avatarUrl: string | null;
-  rawAvailable: boolean;
 }
 
 export interface OAuthStartResponse {
@@ -100,20 +99,21 @@ export interface BlazeSetupStatusResponse {
 }
 
 export interface BlazeSetupScopeResponse {
-  scope: string;
-  recommended: boolean;
-  description: string;
+  name: string;
+  phase: string;
+  requiredNow: boolean;
+  reason: string;
 }
 
 export interface BlazeSetupItemResponse {
-  name: string;
-  configured: boolean;
+  code: string;
+  label: string;
   status: string;
   help: string;
 }
 
 export interface BlazeSetupDocsLinkResponse {
-  title: string;
+  label: string;
   url: string;
 }
 

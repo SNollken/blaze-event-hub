@@ -127,7 +127,6 @@ function connectedOAuth(): OAuthSessionResponse {
       username: 'streamer',
       displayName: 'Streamer Exemplo',
       avatarUrl: null,
-      rawAvailable: true,
     },
     tokenType: 'Bearer',
     userId: 'u1',
@@ -252,11 +251,11 @@ describe('BlazeChannel', () => {
     mockGetSetupStatus.mockResolvedValue(
       setupStatus({
         checklist: [
-          { name: 'Client ID', configured: true, status: 'OK', help: 'h1' },
-          { name: 'Secret', configured: false, status: 'PENDENTE', help: 'h2' },
+          { code: 'client_id', label: 'Client ID', status: 'ok', help: 'h1' },
+          { code: 'client_secret', label: 'Secret', status: 'missing', help: 'h2' },
         ],
         recommendedScopes: [
-          { scope: 'users.read', recommended: true, description: 'ler usuarios' },
+          { name: 'users.read', phase: 'MVP_3', requiredNow: false, reason: 'ler usuarios' },
         ],
         nextSteps: ['Primeiro passo'],
       }),
@@ -266,13 +265,13 @@ describe('BlazeChannel', () => {
     expect(await screen.findByText('Checklist de Configuração')).toBeInTheDocument();
     expect(screen.getByText('Client ID')).toBeInTheDocument();
     expect(screen.getByText('Secret')).toBeInTheDocument();
-    expect(screen.getByText('OK')).toBeInTheDocument();
-    expect(screen.getByText('PENDENTE')).toBeInTheDocument();
+    expect(screen.getByText('ok')).toBeInTheDocument();
+    expect(screen.getByText('missing')).toBeInTheDocument();
 
     const scopesTable = screen.getByRole('table', { name: 'Scopes Recomendados' });
     const scopeRow = within(scopesTable).getByText('users.read').closest('tr')!;
     expect(within(scopeRow).getByText('ler usuarios')).toBeInTheDocument();
-    expect(within(scopeRow).getByText('Recomendado')).toBeInTheDocument();
+    expect(within(scopeRow).getByText('MVP_3')).toBeInTheDocument();
 
     expect(screen.getByText('Próximos passos:')).toBeInTheDocument();
     expect(screen.getByText('1. Primeiro passo')).toBeInTheDocument();

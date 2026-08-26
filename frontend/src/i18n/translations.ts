@@ -58,7 +58,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.none': 'none',
     'common.unknownError': 'Unknown error',
     'common.actions': 'Actions',
-    'common.recommended': 'Recommended',
     'common.avatar': 'avatar',
 
     // Errors
@@ -74,7 +73,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'table.empty': 'No records found.',
     'table.scope': 'Scope',
     'table.description': 'Description',
-    'table.recommended': 'Recommended',
+    'table.phase': 'Phase',
     'table.ariaAlertRules': 'Alert rules',
     'table.ariaAlertHistory': 'Alert history',
     'table.ariaGiveaways': 'Giveaways',
@@ -341,7 +340,6 @@ export const translations: Record<Locale, TranslationMap> = {
     'common.none': 'nenhum',
     'common.unknownError': 'Erro desconhecido',
     'common.actions': 'Ações',
-    'common.recommended': 'Recomendado',
     'common.avatar': 'avatar',
 
     // Errors
@@ -357,7 +355,7 @@ export const translations: Record<Locale, TranslationMap> = {
     'table.empty': 'Nenhum registro encontrado.',
     'table.scope': 'Scope',
     'table.description': 'Descrição',
-    'table.recommended': 'Recomendado',
+    'table.phase': 'Fase',
     'table.ariaAlertRules': 'Regras de alerta',
     'table.ariaAlertHistory': 'Histórico de alertas',
     'table.ariaGiveaways': 'Sorteios',

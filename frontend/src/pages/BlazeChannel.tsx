@@ -145,17 +145,17 @@ export default function BlazeChannel() {
                 className="flex items-center justify-between p-2.5 px-3.5 bg-bg-base rounded border border-border-subtle"
               >
                 <div className="flex items-center gap-2.5">
-                  {item.configured ? (
+                  {item.status === 'ok' ? (
                     <CheckCircle size={16} className="text-success" />
                   ) : (
                     <XCircle size={16} className="text-text-muted" />
                   )}
                   <div>
-                    <div className="text-[13px] font-medium">{item.name}</div>
+                    <div className="text-[13px] font-medium">{item.label}</div>
                     <div className="text-[11px] text-text-muted">{item.help}</div>
                   </div>
                 </div>
-                <Badge variant={item.configured ? 'success' : 'warning'}>{item.status}</Badge>
+                <Badge variant={item.status === 'ok' ? 'success' : 'warning'}>{item.status}</Badge>
               </div>
             ))}
           </div>
@@ -276,7 +276,7 @@ export default function BlazeChannel() {
                     className="btn btn-secondary btn-sm no-underline"
                   >
                     <ExternalLink size={12} />
-                    {link.title}
+                    {link.label}
                   </a>
                 ))}
               </div>
@@ -295,16 +295,16 @@ export default function BlazeChannel() {
                 <tr>
                   <th>{t('table.scope')}</th>
                   <th>{t('table.description')}</th>
-                  <th>{t('table.recommended')}</th>
+                  <th>{t('table.phase')}</th>
                 </tr>
               </thead>
               <tbody>
                 {setup.recommendedScopes.map((s, i) => (
                   <tr key={i}>
-                    <td><code className="mono">{s.scope}</code></td>
-                    <td>{s.description}</td>
+                    <td><code className="mono">{s.name}</code></td>
+                    <td>{s.reason}</td>
                     <td>
-                      <Badge variant={s.recommended ? 'success' : 'neutral'}>{s.recommended ? t('common.recommended') : t('common.optional')}</Badge>
+                      <Badge variant={s.phase === 'MVP_3' ? 'success' : 'neutral'}>{s.phase}</Badge>
                     </td>
                   </tr>
                 ))}
