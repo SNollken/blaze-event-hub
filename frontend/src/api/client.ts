@@ -65,11 +65,6 @@ export const createOverlayProfile = (data: { name: string; description?: string 
     method: 'POST',
     body: JSON.stringify(data),
   });
-export const updateOverlayProfile = (id: string, data: { name: string; description?: string }) =>
-  request<import('./types').OverlayProfile>(`/api/overlay-profiles/${id}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
 export const deleteOverlayProfile = (id: string) =>
   request<void>(`/api/overlay-profiles/${id}`, { method: 'DELETE' });
 
@@ -78,39 +73,12 @@ export const getOverlays = (profileId: string) =>
   request<import('./types').Overlay[]>(`/api/overlay-profiles/${profileId}/overlays`);
 export const getOverlay = (overlayId: string) =>
   request<import('./types').Overlay>(`/api/overlays/${overlayId}`);
-export const createOverlay = (profileId: string, data: { name: string; type?: string }) =>
-  request<import('./types').Overlay>(`/api/overlay-profiles/${profileId}/overlays`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-export const updateOverlay = (overlayId: string, data: Record<string, unknown>) =>
-  request<import('./types').Overlay>(`/api/overlays/${overlayId}`, {
-    method: 'PUT',
-    body: JSON.stringify(data),
-  });
 export const deleteOverlay = (overlayId: string) =>
   request<void>(`/api/overlays/${overlayId}`, { method: 'DELETE' });
-
-/* Overlay Layers */
-export const getOverlayLayers = (overlayId: string) =>
-  request<import('./types').OverlayLayer[]>(`/api/overlays/${overlayId}/layers`);
-export const createOverlayLayer = (overlayId: string, data: Record<string, unknown>) =>
-  request<import('./types').OverlayLayer>(`/api/overlays/${overlayId}/layers`, {
-    method: 'POST',
-    body: JSON.stringify(data),
-  });
-export const deleteOverlayLayer = (overlayId: string, layerId: string) =>
-  request<void>(`/api/overlays/${overlayId}/layers/${layerId}`, { method: 'DELETE' });
 
 /* Overlay Manifest (public) */
 export const getOverlayManifest = (publicToken: string) =>
   request<import('./types').OverlayManifestResponse>(`/api/public/overlays/${publicToken}/manifest`);
-
-/* Blaze API */
-export const getBlazeProfile = () =>
-  request<Record<string, unknown>>('/api/blaze/users/profile');
-export const getBlazeChannel = (slug: string) =>
-  request<Record<string, unknown>>(`/api/blaze/channels?slug=${encodeURIComponent(slug)}`);
 
 /* Alerts */
 export const getAlertRules = () => request<import('./types').AlertRule[]>('/api/alerts/rules');
@@ -156,48 +124,3 @@ export const getGiveawayEntries = (id: string) =>
   request<import('./types').GiveawayEntry[]>(`/api/giveaways/${id}/entries`);
 export const getGiveawayStats = () =>
   request<import('./types').GiveawayStatsResponse>('/api/giveaways/stats');
-
-export default {
-  getHealth,
-  getStatus,
-  getSetupStatus,
-  getOAuthSession,
-  startOAuth,
-  refreshOAuth,
-  disconnectOAuth,
-  getEventsStatus,
-  startEvents,
-  stopEvents,
-  getOverlayProfiles,
-  createOverlayProfile,
-  updateOverlayProfile,
-  deleteOverlayProfile,
-  getOverlays,
-  getOverlay,
-  createOverlay,
-  updateOverlay,
-  deleteOverlay,
-  getOverlayLayers,
-  createOverlayLayer,
-  deleteOverlayLayer,
-  getOverlayManifest,
-  getBlazeProfile,
-  getBlazeChannel,
-  getAlertRules,
-  createAlertRule,
-  deleteAlertRule,
-  getAlertHistory,
-  getActiveAlerts,
-  getAlertStats,
-  acknowledgeAlert,
-  simulateBlazeEvent,
-  getGiveaways,
-  createGiveaway,
-  openGiveaway,
-  closeGiveaway,
-  enterGiveaway,
-  drawGiveaway,
-  getGiveawayResults,
-  getGiveawayEntries,
-  getGiveawayStats,
-};
