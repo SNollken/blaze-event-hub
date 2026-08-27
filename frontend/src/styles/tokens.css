@@ -698,6 +698,40 @@ code, .mono {
   .toast {
     min-width: 0;
   }
+
+  /* Mobile drawer sidebar */
+  .sidebar-drawer {
+    position: fixed;
+    top: 0;
+    left: 0;
+    z-index: 50;
+    transform: translateX(-100%);
+    transition: transform 0.25s ease;
+    box-shadow: none;
+  }
+  .sidebar-drawer.sidebar-open {
+    transform: translateX(0);
+    box-shadow: 4px 0 24px rgba(0, 0, 0, 0.4);
+  }
+  .sidebar-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 40;
+    background: rgba(0, 0, 0, 0.5);
+  }
+  .mobile-menu-btn {
+    display: inline-flex;
+  }
+}
+
+/* Hide mobile menu button on desktop */
+@media (min-width: 761px) {
+  .mobile-menu-btn {
+    display: none;
+  }
+  .sidebar-overlay {
+    display: none;
+  }
 }
 /* Wheel draw confetti (r54): short celebratory burst on winner reveal */
 .wheel-confetti {

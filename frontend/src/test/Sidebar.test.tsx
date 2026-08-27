@@ -50,7 +50,7 @@ async function renderSidebar(initialPath = '/') {
   await act(async () => {
     utils = render(
       <MemoryRouter initialEntries={[initialPath]}>
-        <Sidebar />
+        <Sidebar open={false} onClose={() => {}} />
       </MemoryRouter>,
     );
   });

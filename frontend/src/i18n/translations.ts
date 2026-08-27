@@ -26,6 +26,7 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Sidebar
     'sidebar.controlPanel': 'Control Panel',
+    'sidebar.openMenu': 'Open menu',
 
     // Header
     'header.langSwitch': 'Switch to Portuguese',
@@ -308,6 +309,7 @@ export const translations: Record<Locale, TranslationMap> = {
 
     // Sidebar
     'sidebar.controlPanel': 'Painel de Controle',
+    'sidebar.openMenu': 'Abrir menu',
 
     // Header
     'header.langSwitch': 'Alternar para inglês',
