@@ -1,9 +1,11 @@
+import { type ReactNode } from 'react';
 import { act, fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import App from '../App';
 import { DataTable } from '../components/DataTable';
 import { ErrorBanner } from '../components/ErrorBanner';
+import { ErrorBoundary } from '../components/ErrorBoundary';
 import { Header } from '../components/Header';
 import { Modal } from '../components/Modal';
 import { StatsCard } from '../components/StatsCard';
@@ -80,6 +82,21 @@ describe('a11y (axe-core)', () => {
     act(() => addToast('success', 'Sorteio criado com sucesso'));
     expect(await screen.findByText('Sorteio criado com sucesso')).toBeInTheDocument();
     expect(await axe(container)).toHaveNoViolations();
+  });
+
+  it('ErrorBoundary em estado de erro nao tem violacoes', async () => {
+    function Boom(): ReactNode {
+      throw new Error('boom controlado para teste de a11y');
+    }
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { container } = render(
+      <ErrorBoundary>
+        <Boom />
+      </ErrorBoundary>,
+    );
+    await screen.findByText('Algo deu errado ao carregar esta tela.');
+    expect(await axe(container)).toHaveNoViolations();
+    errorSpy.mockRestore();
   });
 
   it('pagina Home nao tem violacoes', async () => {
