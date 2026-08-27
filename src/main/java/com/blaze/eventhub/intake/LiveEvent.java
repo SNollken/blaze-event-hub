@@ -11,12 +11,4 @@ public record LiveEvent(
 		Map<String, Object> payload,
 		Instant timestamp,
 		String dedupKey) {
-
-	public LiveEvent withStatus(LiveEventStatus newStatus) {
-		return new LiveEvent(id, type, source, newStatus, payload, timestamp, dedupKey);
-	}
-
-	public LiveEvent withPayload(Map<String, Object> newPayload) {
-		return new LiveEvent(id, type, source, status, newPayload, timestamp, dedupKey);
-	}
 }

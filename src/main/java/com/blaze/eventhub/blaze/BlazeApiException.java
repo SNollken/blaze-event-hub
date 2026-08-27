@@ -27,10 +27,6 @@ public class BlazeApiException extends RuntimeException {
 		return safeMessageOverride != null ? safeMessageOverride : "Blaze API returned HTTP " + status;
 	}
 
-	public BlazeApiError toError() {
-		return new BlazeApiError(status, safeMessage(), sanitize(responseBody));
-	}
-
 	public static BlazeApiException from(RestClientResponseException ex) {
 		return new BlazeApiException(ex.getStatusCode().value(), ex.getStatusText(), ex.getResponseBodyAsString());
 	}
@@ -44,11 +40,5 @@ public class BlazeApiException extends RuntimeException {
 	public static BlazeApiException unreachable(Throwable cause) {
 		return new BlazeApiException(502, "Blaze API unreachable: " + cause.getMessage(), null,
 				"Blaze API is unreachable");
-	}
-
-	private static String sanitize(String body) {
-		return body
-				.replaceAll("(?i)bearer\\s+[A-Za-z0-9._~+/=-]+", "Bearer [REDACTED]")
-				.replaceAll("(?i)(accessToken|access_token|refreshToken|refresh_token|clientSecret|client_secret)\"?\\s*[:=]\\s*\"?[^\"]+", "$1:[REDACTED]");
 	}
 }
