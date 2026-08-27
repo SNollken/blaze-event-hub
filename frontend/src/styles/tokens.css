@@ -71,12 +71,6 @@
   --easing-standard: cubic-bezier(0.2, 0, 0, 1);
   --easing-emphasized: cubic-bezier(0.3, 0, 0, 1);
 
-  --animate-fade-in: fade-in 200ms ease-out;
-  --animate-slide-up: slide-up 300ms ease-out;
-  --animate-slide-down: slide-down 200ms ease-out;
-  --animate-scale-in: scale-in 200ms ease-out;
-  --animate-spin: spin 1s linear infinite;
-  --animate-pulse-soft: pulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite;
 }
 
 @layer base {
@@ -224,14 +218,6 @@
     @apply px-3 py-1.5 text-sm gap-1.5;
   }
 
-  .btn-md {
-    @apply px-4 py-2 text-base gap-2;
-  }
-
-  .btn-lg {
-    @apply px-6 py-3 text-lg gap-2.5;
-  }
-
   .card {
     @apply bg-bg-card border border-border-default rounded-xl shadow-default transition-shadow hover:shadow-lg;
   }
@@ -247,63 +233,9 @@
   .label {
     @apply block text-sm font-medium text-text-secondary mb-1.5;
   }
-
-  .card-header {
-    @apply px-6 py-4 border-b border-border-default;
-  }
-
-  .card-content {
-    @apply p-6;
-  }
-
-  .card-footer {
-    @apply px-6 py-4 border-t border-border-default flex items-center justify-end gap-3;
-  }
 }
 
 @layer utilities {
-  .text-balance {
-    text-wrap: balance;
-  }
-
-  .animate-fade-in {
-    animation: fade-in 200ms ease-out;
-  }
-
-  .animate-slide-up {
-    animation: slide-up 300ms ease-out;
-  }
-
-  .animate-slide-down {
-    animation: slide-down 200ms ease-out;
-  }
-
-  .animate-scale-in {
-    animation: scale-in 200ms ease-out;
-  }
-
-  .scrollbar-thin {
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-border-default) transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar {
-    width: 6px;
-    height: 6px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb {
-    background-color: var(--color-border-default);
-    border-radius: 3px;
-  }
-
-  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
-    background-color: var(--color-text-muted);
-  }
 }
 
 @keyframes fade-in {
@@ -314,26 +246,6 @@
 @keyframes slide-up {
   0% { opacity: 0; transform: translateY(10px); }
   100% { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes slide-down {
-  0% { opacity: 0; transform: translateY(-10px); }
-  100% { opacity: 1; transform: translateY(0); }
-}
-
-@keyframes scale-in {
-  0% { opacity: 0; transform: scale(0.95); }
-  100% { opacity: 1; transform: scale(1); }
-}
-
-@keyframes spin {
-  0% { transform: rotate(0deg); }
-  100% { transform: rotate(360deg); }
-}
-
-@keyframes pulse-soft {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.6; }
 }
 
 /* ===== Component classes (ported from globals.css for backward compatibility) ===== */
