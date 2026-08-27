@@ -49,7 +49,7 @@ class DashboardMvpControllerTests {
 
 	@Test
 	void spaDeepLinkRoutesServeShell() throws Exception {
-		for (String path : new String[] {"/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays",
+		for (String path : new String[] {"/events", "/alerts", "/giveaways", "/overlays",
 				// SPA aliases servidas pelos PageControllers (AlertPageController,
 				// LiveEventsPageController, OverlayPageController)
 				"/alerts-dashboard", "/live-events", "/overlays-dashboard"}) {
@@ -60,12 +60,19 @@ class DashboardMvpControllerTests {
 	}
 
 	@Test
+	void removedBlazeChannelRoutesReturnNotFound() throws Exception {
+		for (String path : new String[] {"/blaze", "/channel"}) {
+			mockMvc.perform(get(path)).andExpect(status().isNotFound());
+		}
+	}
+
+	@Test
 	void spaRoutesServeReactBuildWhenFrontendIsBundled() throws Exception {
 		org.junit.jupiter.api.Assumptions.assumeTrue(
 				new org.springframework.core.io.ClassPathResource("static/index.html").exists(),
 				"frontend/dist not bundled — run `cd frontend && npm run build` and rebuild first");
 
-		for (String path : new String[] {"/", "/events", "/blaze", "/channel", "/alerts", "/giveaways", "/overlays"}) {
+		for (String path : new String[] {"/", "/events", "/alerts", "/giveaways", "/overlays"}) {
 			mockMvc.perform(get(path))
 					.andExpect(status().isOk())
 					.andExpect(content().string(containsString("<div id=\"root\">")))

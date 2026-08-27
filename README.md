@@ -120,9 +120,9 @@ O frontend nao recebe `clientSecret`, `accessToken`, `refreshToken` ou valores r
 
 ## Frontend React
 
-O frontend React + Vite em `frontend/` e a UI principal do produto. Com `npm run build` + `./mvnw clean package`, o `dist` e copiado para `target/classes/static` e o Spring serve o SPA em `/` e em todas as rotas de pagina (`/events`, `/blaze`, `/alerts`, `/giveaways`, `/overlays`) — cada rota de pagina e mapeada explicitamente no `DashboardController`, que entrega o `index.html` da SPA. `/dashboard` e `/dashboard.html` mantem o shell MVP como painel de diagnostico. Se `frontend/dist` nao existir no momento do build, o backend segue funcionando e `/` mostra o shell MVP como fallback.
+O frontend React + Vite em `frontend/` e a UI principal do produto. Com `npm run build` + `./mvnw clean package`, o `dist` e copiado para `target/classes/static` e o Spring serve o SPA em `/` e em todas as rotas de pagina (`/events`, `/alerts`, `/giveaways`, `/overlays`) — cada rota de pagina e mapeada explicitamente no `DashboardController`, que entrega o `index.html` da SPA. `/dashboard` e `/dashboard.html` mantem o shell MVP como painel de diagnostico. Se `frontend/dist` nao existir no momento do build, o backend segue funcionando e `/` mostra o shell MVP como fallback.
 
-- Rotas legadas com redirect no cliente: `/channel` → `/blaze`, `/live-events` → `/events`, `/alerts-dashboard` → `/alerts`, `/giveaways-dashboard` → `/giveaways`, `/overlays-dashboard` → `/overlays`
+- Rotas legadas com redirect no cliente: `/live-events` → `/events`, `/alerts-dashboard` → `/alerts`, `/giveaways-dashboard` → `/giveaways`, `/overlays-dashboard` → `/overlays`
 - Tema escuro unico via CSS custom properties (`src/index.css`), sem dependencia de CDN externa
 - Tipografia: Funnel Display (titulos), Funnel Sans (UI) e JetBrains Mono (codigo) self-hosted
 - Layout responsivo auditado em 375px e 768px sem overflow horizontal

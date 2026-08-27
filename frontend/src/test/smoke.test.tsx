@@ -1,4 +1,4 @@
-import { act, render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { describe, expect, it, vi } from 'vitest';
 import App from '../App';
@@ -34,21 +34,16 @@ describe('frontend smoke', () => {
     expect((await screen.findAllByText('Eventos ao Vivo')).length).toBeGreaterThan(0);
   });
 
+  it('nao oferece mais a pagina Blaze Channel', async () => {
+    renderRoute('/blaze');
+    expect(await screen.findByText('404')).toBeInTheDocument();
+  });
+
   it('exibe metricas de polling na pagina de eventos', async () => {
     renderRoute('/events');
     expect(await screen.findByRole('button', { name: 'Iniciar eventos' })).toBeInTheDocument();
     expect(screen.queryByText('Eventos Aceitos')).not.toBeInTheDocument();
     expect(screen.queryByText('Eventos Rejeitados')).not.toBeInTheDocument();
-  });
-
-  it('renderiza blaze channel', async () => {
-    renderRoute('/blaze');
-    expect((await screen.findAllByText('Blaze Channel')).length).toBeGreaterThan(0);
-  });
-
-  it('rota legada /channel redireciona para /blaze', async () => {
-    renderRoute('/channel');
-    expect((await screen.findAllByText('Blaze Channel')).length).toBeGreaterThan(0);
   });
 
   it('rota legada /live-events redireciona para /events', async () => {
@@ -142,32 +137,4 @@ describe('frontend smoke', () => {
     expect(() => btn.click()).not.toThrow();
   });
 
-  it('Toast real deduplica erros identicos do BlazeChannel + AccountFooter (end-to-end, sem mock do Toast)', async () => {
-    // Bug r60: a pagina BlazeChannel e o AccountFooter da Sidebar mantem
-    // usePolling independentes do mesmo getStatus, cada um com seu
-    // hasErroredRef, e ambos disparam addToast('error', ...) na primeira
-    // falha. Sem o dedup do Toast dois toasts identicos apareciam.
-    // Aqui SO /api/status falha; os demais endpoints seguem o mock do
-    // setup, entao exatamente dois addToast identicos sao disparados.
-    const originalFetch = window.fetch;
-    vi.stubGlobal('fetch', vi.fn((input: RequestInfo | URL) => {
-      const url = typeof input === 'string' ? input : input.toString();
-      const path = url.startsWith('http') ? new URL(url).pathname : url.split('?')[0];
-      if (path === '/api/status') {
-        return Promise.resolve(new Response('nope', { status: 500 }));
-      }
-      return (originalFetch as (i: RequestInfo | URL) => Promise<Response>)(input);
-    }));
-
-    await act(async () => {
-      renderRoute('/blaze');
-    });
-    // flusha a onda inicial de fetch dos dois pollers de getStatus
-    await act(async () => {});
-    await act(async () => {});
-
-    await screen.findAllByText('API 500: nope');
-    // Um unico toast visivel apesar dos dois disparos identicos
-    expect(document.querySelectorAll('.toast')).toHaveLength(1);
-  });
 });

@@ -64,10 +64,10 @@ describe('Sidebar', () => {
     mockAddToast.mockReset();
   });
 
-  it('renders the 6 nav links with i18n labels', async () => {
+  it('renders the 5 nav links with i18n labels', async () => {
     await renderSidebar();
     // locale default pt-BR (initI18n nao chamado em teste)
-    for (const label of ['Início', 'Eventos ao Vivo', 'Blaze Channel', 'Alertas', 'Sorteios', 'Overlays']) {
+    for (const label of ['Início', 'Eventos ao Vivo', 'Alertas', 'Sorteios', 'Overlays']) {
       expect(await screen.findByRole('link', { name: new RegExp(label) })).toBeInTheDocument();
     }
     // prova que as chaves nav.* "mortas" do i18n-audit sao usadas via t() dinamico

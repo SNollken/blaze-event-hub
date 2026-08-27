@@ -150,16 +150,6 @@ describe('a11y (axe-core)', () => {
     expect(await axe(container)).toHaveNoViolations();
   });
 
-  it('pagina Blaze Channel nao tem violacoes', async () => {
-    const { container } = render(
-      <MemoryRouter initialEntries={['/blaze']}>
-        <App />
-      </MemoryRouter>,
-    );
-    await screen.findAllByText('Blaze Channel');
-    expect(await axe(container)).toHaveNoViolations();
-  });
-
   it('modal da roleta aberto na pagina Sorteios nao tem violacoes', async () => {
     const closedGiveaway = {
       id: 'g1', title: 'Sorteio da Roleta', description: '', status: 'CLOSED',

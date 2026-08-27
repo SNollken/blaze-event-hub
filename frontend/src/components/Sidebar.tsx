@@ -3,7 +3,6 @@ import { NavLink } from 'react-router-dom';
 import {
   LayoutDashboard,
   Radio,
-  RadioTower,
   Bell,
   Gift,
   Layers,
@@ -18,7 +17,6 @@ import { addToast } from './Toast';
 const navItems = [
   { to: '/', labelKey: 'nav.dashboard', icon: LayoutDashboard },
   { to: '/events', labelKey: 'nav.events', icon: Radio },
-  { to: '/blaze', labelKey: 'nav.blaze', icon: RadioTower },
   { to: '/alerts', labelKey: 'nav.alerts', icon: Bell },
   { to: '/giveaways', labelKey: 'nav.giveaways', icon: Gift },
   { to: '/overlays', labelKey: 'nav.overlays', icon: Layers },
