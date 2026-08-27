@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from 'react';
 import { X, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { t } from '../i18n';
 
-export interface ToastMessage {
+interface ToastMessage {
   id: number;
   type: 'success' | 'error' | 'warning';
   text: string;

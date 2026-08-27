@@ -52,7 +52,7 @@ export interface OAuthSessionResponse {
   nextRecommendedAction: string | null;
 }
 
-export interface OAuthProfileResponse {
+interface OAuthProfileResponse {
   id: string | null;
   username: string | null;
   displayName: string | null;
@@ -109,21 +109,21 @@ export interface BlazeSetupStatusResponse {
   envExample: string | null;
 }
 
-export interface BlazeSetupScopeResponse {
+interface BlazeSetupScopeResponse {
   name: string;
   phase: string;
   requiredNow: boolean;
   reason: string;
 }
 
-export interface BlazeSetupItemResponse {
+interface BlazeSetupItemResponse {
   code: string;
   label: string;
   status: string;
   help: string;
 }
 
-export interface BlazeSetupDocsLinkResponse {
+interface BlazeSetupDocsLinkResponse {
   label: string;
   url: string;
 }
@@ -166,7 +166,7 @@ export interface OverlayAsset {
   createdAt: string;
 }
 
-export interface OverlayConfig {
+interface OverlayConfig {
   canvasWidth: number;
   canvasHeight: number;
   backgroundMode: string;
@@ -191,7 +191,7 @@ export interface Overlay {
 }
 
 /* Espelha OverlayManifestResponse.ManifestLayer (NAO tem overlayId, diferente de OverlayLayer) */
-export interface OverlayManifestLayer {
+interface OverlayManifestLayer {
   id: string;
   type: string;
   x: number;
@@ -207,7 +207,7 @@ export interface OverlayManifestLayer {
 }
 
 /* Espelha OverlayManifestResponse.ManifestAsset (asset publico do runtime) */
-export interface OverlayManifestAsset {
+interface OverlayManifestAsset {
   id: string;
   mimeType: string;
   publicUrl: string;

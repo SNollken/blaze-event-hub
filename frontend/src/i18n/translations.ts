@@ -6,7 +6,7 @@
 
 export type Locale = 'en' | 'pt-BR';
 
-export interface TranslationMap {
+interface TranslationMap {
   [key: string]: string;
 }
 
