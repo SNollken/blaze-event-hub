@@ -271,6 +271,7 @@ Sorteios:
 - `POST /api/giveaways/{id}/enter`
 - `POST /api/giveaways/{id}/draw`
 - `GET /api/giveaways/{id}/results`
+- `GET /api/giveaways/{id}/entries`
 
 Overlays:
 
