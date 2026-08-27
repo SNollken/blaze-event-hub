@@ -1,4 +1,4 @@
-import { act, fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { act, fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import type { BlazeEventsStatusResponse, StatusResponse } from '../api/types';
@@ -74,17 +74,8 @@ const runningEvents: BlazeEventsStatusResponse = {
   rejectedEvents: 2,
 };
 
-/** Valor exibido no StatsCard cujo título é o texto informado. */
-function statCardValue(title: string): string {
-  const card = screen.getByText(title).closest('.glass-card');
-  if (!card) throw new Error(`stats card com título "${title}" não encontrado`);
-  return within(card as HTMLElement).getByText(/^\d+$/).textContent ?? '';
-}
-
 async function renderLiveEvents() {
   let utils!: ReturnType<typeof render>;
-  // act async dá flush dos fetches iniciais do usePolling (getEventsStatus
-  // da página + getStatus da página e do Sidebar via Layout).
   await act(async () => {
     utils = render(
       <MemoryRouter initialEntries={['/events']}>
@@ -104,49 +95,22 @@ describe('LiveEvents', () => {
     mockAddToast.mockReset();
   });
 
-  it('stopped: status line, Start button, zeroed counters and empty log', async () => {
-    mockGetStatus.mockResolvedValue(status({ monitoredChannelConfigured: false }));
-
+  it('stopped: Start button visible, empty log', async () => {
     await renderLiveEvents();
 
-    // linha de status: runner parado, socket desconectado, canal não configurado
-    expect(await screen.findByText('Runner: Parado')).toBeInTheDocument();
-    expect(screen.getByText('Cliente Socket: Desconectado')).toBeInTheDocument();
-    expect(screen.getByText('Canal: Não configurado')).toBeInTheDocument();
-
-    // Start visível, Stop ausente
-    expect(screen.getByRole('button', { name: 'Iniciar eventos' })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Iniciar eventos' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Parar eventos' })).not.toBeInTheDocument();
-
-    // contadores zerados
-    expect(statCardValue('Mensagens Vistas')).toBe('0');
-    expect(statCardValue('Eventos Aceitos')).toBe('0');
-    expect(statCardValue('Eventos Rejeitados')).toBe('0');
-
-    // log vazio
     expect(screen.getByText('Nenhum log ainda.')).toBeInTheDocument();
     expect(screen.getByText('0 entradas')).toBeInTheDocument();
   });
 
-  it('running: Stop button visible and counters reflect the events status', async () => {
+  it('running: Stop button visible', async () => {
     mockGetEventsStatus.mockResolvedValue(runningEvents);
-    mockGetStatus.mockResolvedValue(status({ monitoredChannelConfigured: true }));
 
     await renderLiveEvents();
 
-    // Stop visível, Start ausente
     expect(await screen.findByRole('button', { name: 'Parar eventos' })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Iniciar eventos' })).not.toBeInTheDocument();
-
-    // linha de status refletindo o estado rodando
-    expect(screen.getByText('Runner: Rodando')).toBeInTheDocument();
-    expect(screen.getByText('Cliente Socket: Conectado')).toBeInTheDocument();
-    expect(screen.getByText('Canal: Configurado')).toBeInTheDocument();
-
-    // contadores 42/7/2
-    expect(statCardValue('Mensagens Vistas')).toBe('42');
-    expect(statCardValue('Eventos Aceitos')).toBe('7');
-    expect(statCardValue('Eventos Rejeitados')).toBe('2');
   });
 
   it('start success: calls startEvents once, appends success line to the log and toasts', async () => {
@@ -156,14 +120,12 @@ describe('LiveEvents', () => {
 
     await waitFor(() => expect(mockStartEvents).toHaveBeenCalledTimes(1));
 
-    // painel de log ganha uma linha com events.startSuccess pt-BR
     expect(await screen.findByText('Events Socket iniciado')).toBeInTheDocument();
     expect(screen.getByText('1 entradas')).toBeInTheDocument();
 
     await waitFor(() =>
       expect(mockAddToast).toHaveBeenCalledWith('success', 'Events Socket iniciado'),
     );
-    // fluxo completo: botão volta a habilitar após o finally
     await waitFor(() =>
       expect(screen.getByRole('button', { name: 'Iniciar eventos' })).toBeEnabled(),
     );
@@ -179,7 +141,6 @@ describe('LiveEvents', () => {
     await waitFor(() => expect(mockStartEvents).toHaveBeenCalledTimes(1));
     await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('error', 'blaze fora'));
 
-    // log ganha linha com events.errorPrefix pt-BR ("ERRO:")
     expect(await screen.findByText('ERRO: blaze fora')).toBeInTheDocument();
 
     await waitFor(() =>
@@ -196,7 +157,6 @@ describe('LiveEvents', () => {
 
     await waitFor(() => expect(mockStopEvents).toHaveBeenCalledTimes(1));
 
-    // linha de log com events.stopSuccess pt-BR
     expect(await screen.findByText('Events Socket parado')).toBeInTheDocument();
 
     await waitFor(() =>
@@ -213,7 +173,6 @@ describe('LiveEvents', () => {
     await renderLiveEvents();
 
     expect(await screen.findByText('status fora')).toBeInTheDocument();
-    // usePolling também dispara toast de erro na primeira falha
     await waitFor(() => expect(mockAddToast).toHaveBeenCalledWith('error', 'status fora'));
   });
 });

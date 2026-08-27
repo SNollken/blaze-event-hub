@@ -1,13 +1,11 @@
 import { useCallback, useState } from 'react';
 import { Layout } from '../components/Layout';
-import { StatsCard } from '../components/StatsCard';
 import { Badge } from '../components/Badge';
 import { ErrorBanner } from '../components/ErrorBanner';
 import { usePolling } from '../hooks/usePolling';
 import { addToast } from '../components/Toast';
 import { t, getLocale } from '../i18n';
 import {
-  getStatus,
   getEventsStatus,
   startEvents,
   stopEvents,
@@ -16,19 +14,14 @@ import {
 import {
   Play,
   Square,
-  MessageSquare,
-  CheckCircle,
-  XCircle,
 } from 'lucide-react';
 
 export default function LiveEvents() {
   const fetchEvents = useCallback(() => getEventsStatus(), []);
-  const fetchStatus = useCallback(() => getStatus(), []);
 
-  const { data: events, loading: eventsLoading, error: eventsError, reload: reloadEvents } = usePolling(fetchEvents, 5000);
-  const { data: status, loading: statusLoading, error: statusError, reload: reloadStatus } = usePolling(fetchStatus, 15000);
+  const { data: events, error: eventsError, reload: reloadEvents } = usePolling(fetchEvents, 5000);
 
-  const pollError = eventsError || statusError;
+  const pollError = eventsError;
 
   const [logs, setLogs] = useState<{ time: string; message: string }[]>([]);
   const [starting, setStarting] = useState(false);
@@ -44,7 +37,6 @@ export default function LiveEvents() {
     try {
       await startEvents();
       await reloadEvents();
-      await reloadStatus();
       addLog(t('events.startSuccess'));
       addToast('success', t('events.startSuccess'));
     } catch (e: unknown) {
@@ -61,7 +53,6 @@ export default function LiveEvents() {
     try {
       await stopEvents();
       await reloadEvents();
-      await reloadStatus();
       addLog(t('events.stopSuccess'));
       addToast('success', t('events.stopSuccess'));
     } catch (e: unknown) {
@@ -92,45 +83,7 @@ export default function LiveEvents() {
         )
       }
     >
-      {pollError && <ErrorBanner error={pollError} onRetry={() => { void reloadEvents(); void reloadStatus(); }} />}
-
-      {/* Status */}
-      <div className="flex flex-wrap items-center gap-x-5 gap-y-1.5 mb-5 text-[12px] text-text-secondary">
-        <span className="inline-flex items-center gap-1.5">
-          <span className={`status-dot ${!eventsLoading && isRunning ? 'active' : 'inactive'}`} aria-hidden="true" />
-          {t('events.runner')}: {eventsLoading ? t('common.loading') : isRunning ? t('common.running') : t('common.stopped')}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className={`status-dot ${!eventsLoading && events?.clientRunning ? 'active' : 'inactive'}`} aria-hidden="true" />
-          {t('events.socketClient')}: {eventsLoading ? t('common.loading') : events?.clientRunning ? t('common.connected') : t('common.disconnected')}
-        </span>
-        <span className="inline-flex items-center gap-1.5">
-          <span className={`status-dot ${statusLoading ? 'inactive' : status?.monitoredChannelConfigured ? 'active' : 'warning'}`} aria-hidden="true" />
-          {t('events.channel')}: {statusLoading ? t('common.loading') : status?.monitoredChannelConfigured ? t('common.configured') : t('common.notConfigured')}
-        </span>
-      </div>
-
-      {/* Counters */}
-      <div className="stats-grid mb-6">
-        <StatsCard
-          title={t('events.messagesSeen')}
-          value={eventsLoading ? t('common.loading') : (events?.messagesSeen ?? 0)}
-          icon={<MessageSquare size={18} />}
-          color="accent"
-        />
-        <StatsCard
-          title={t('events.acceptedEvents')}
-          value={eventsLoading ? t('common.loading') : (events?.acceptedEvents ?? 0)}
-          icon={<CheckCircle size={18} />}
-          color="success"
-        />
-        <StatsCard
-          title={t('events.rejectedEvents')}
-          value={eventsLoading ? t('common.loading') : (events?.rejectedEvents ?? 0)}
-          icon={<XCircle size={18} />}
-          color={eventsLoading ? 'neutral' : events?.rejectedEvents && events.rejectedEvents > 0 ? 'warning' : 'neutral'}
-        />
-      </div>
+      {pollError && <ErrorBanner error={pollError} onRetry={() => { void reloadEvents(); }} />}
 
       {/* Log */}
       <div className="glass-card p-5">

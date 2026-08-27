@@ -146,7 +146,7 @@ describe('a11y (axe-core)', () => {
         <App />
       </MemoryRouter>,
     );
-    await screen.findByText('Mensagens Vistas');
+    await screen.findByRole('button', { name: 'Iniciar eventos' });
     expect(await axe(container)).toHaveNoViolations();
   });
 

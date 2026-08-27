@@ -36,9 +36,9 @@ describe('frontend smoke', () => {
 
   it('exibe metricas de polling na pagina de eventos', async () => {
     renderRoute('/events');
-    expect(await screen.findByText('Mensagens Vistas')).toBeInTheDocument();
-    expect(await screen.findByText('Eventos Aceitos')).toBeInTheDocument();
-    expect(await screen.findByText('Eventos Rejeitados')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Iniciar eventos' })).toBeInTheDocument();
+    expect(screen.queryByText('Eventos Aceitos')).not.toBeInTheDocument();
+    expect(screen.queryByText('Eventos Rejeitados')).not.toBeInTheDocument();
   });
 
   it('renderiza blaze channel', async () => {
@@ -53,7 +53,7 @@ describe('frontend smoke', () => {
 
   it('rota legada /live-events redireciona para /events', async () => {
     renderRoute('/live-events');
-    expect(await screen.findByText('Mensagens Vistas')).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: 'Iniciar eventos' })).toBeInTheDocument();
     expect(screen.queryByText('404')).not.toBeInTheDocument();
   });
 
