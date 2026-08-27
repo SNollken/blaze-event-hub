@@ -37,10 +37,12 @@ Invoke-WebRequest http://localhost:8080/api/alerts/stats -Headers $headers -UseB
 
 Para o frontend React:
 
-```powershell
+```bash
 cd frontend
 npm install
-npm run dev
+npm run dev   # Vite em http://localhost:5173
+npm test      # vitest (232 testes: unit, a11y axe, contraste, contrato)
+npm run lint  # ESLint flat config (js + typescript-eslint + react-hooks)
 ```
 
 O Vite roda em `http://localhost:5173` e faz proxy de `/api` para `http://localhost:8080`.
