@@ -6,8 +6,11 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import com.blaze.eventhub.InMemoryStoreTestConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -22,6 +25,7 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 		"beh.blaze.monitored-channel-id=channel-1234567890"
 })
 @AutoConfigureMockMvc
+@Import(InMemoryStoreTestConfig.class)
 class BlazeSetupConfiguredControllerTests {
 
 	private static final List<String> FORBIDDEN_PUBLIC_NAMES = List.of(

@@ -128,3 +128,25 @@ CREATE INDEX IF NOT EXISTS idx_live_events_dedup_key ON live_events (dedup_key);
 CREATE INDEX IF NOT EXISTS idx_live_events_occurred_at ON live_events (occurred_at);
 CREATE INDEX IF NOT EXISTS idx_alerts_rule_triggered ON alerts (rule_id, triggered_at);
 CREATE INDEX IF NOT EXISTS idx_blaze_events_log_received_at ON blaze_events_log (received_at);
+
+-- OAuth token persistence (survives restarts/deploys)
+CREATE TABLE IF NOT EXISTS oauth_token (
+	id INT PRIMARY KEY,
+	type VARCHAR(40),
+	user_id VARCHAR(255),
+	token_type VARCHAR(40),
+	access_token TEXT,
+	refresh_token TEXT,
+	expires_at TIMESTAMP WITH TIME ZONE,
+	scopes TEXT,
+	updated_at TIMESTAMP WITH TIME ZONE
+);
+
+CREATE TABLE IF NOT EXISTS oauth_profile (
+	id INT PRIMARY KEY,
+	user_id VARCHAR(255),
+	username VARCHAR(255),
+	display_name VARCHAR(255),
+	avatar_url TEXT,
+	updated_at TIMESTAMP WITH TIME ZONE
+);

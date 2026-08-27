@@ -3,9 +3,10 @@ package com.blaze.eventhub.oauth;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.springframework.stereotype.Repository;
-
-@Repository
+/**
+ * In-memory fallback profile store. Only used when no JdbcTemplate is available
+ * (e.g., tests without a database). In production, {@link JdbcOAuthProfileStore} is used.
+ */
 public class InMemoryOAuthProfileStore implements OAuthProfileStore {
 
 	private final AtomicReference<OAuthProfileSummary> current = new AtomicReference<>();

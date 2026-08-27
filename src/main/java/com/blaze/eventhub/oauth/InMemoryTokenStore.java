@@ -3,9 +3,10 @@ package com.blaze.eventhub.oauth;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.springframework.stereotype.Repository;
-
-@Repository
+/**
+ * In-memory fallback token store. Only used when no JdbcTemplate is available
+ * (e.g., tests without a database). In production, {@link JdbcTokenStore} is used.
+ */
 public class InMemoryTokenStore implements TokenStore {
 
 	private final AtomicReference<TokenSnapshot> current = new AtomicReference<>();

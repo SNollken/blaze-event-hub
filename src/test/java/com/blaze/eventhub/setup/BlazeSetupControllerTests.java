@@ -6,21 +6,26 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.context.SpringBootTest;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.MvcResult;
+
+import com.blaze.eventhub.InMemoryStoreTestConfig;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.Matchers.greaterThan;
 import static org.hamcrest.Matchers.hasSize;
 import static org.hamcrest.Matchers.not;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.result.MockMvcResultHandlers.print;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @SpringBootTest
 @AutoConfigureMockMvc
+@Import(InMemoryStoreTestConfig.class)
 @TestPropertySource(properties = {
 		"beh.blaze.client-id=",
 		"beh.blaze.client-secret=",
@@ -43,6 +48,7 @@ class BlazeSetupControllerTests {
 	@Test
 	void setupEndpointReturnsSafeChecklistWithoutRealCredentials() throws Exception {
 		MvcResult result = mockMvc.perform(get("/api/blaze/setup"))
+				.andDo(print())
 				.andExpect(status().isOk())
 				.andExpect(jsonPath("$.appName").value("Blaze Event Hub"))
 				.andExpect(jsonPath("$.environment").value("local"))
