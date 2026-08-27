@@ -67,7 +67,6 @@ export function WheelDraw({ giveawayId, onDrawn }: WheelDrawProps) {
   const drawnRef = useRef(false);
 
   const loadEntries = useCallback(async () => {
-    setPhase('loading');
     try {
       const list = await getGiveawayEntries(giveawayId);
       setEntries(list);
@@ -80,9 +79,22 @@ export function WheelDraw({ giveawayId, onDrawn }: WheelDrawProps) {
     }
   }, [giveawayId]);
 
+  // Initial load: the loader runs inside an async continuation so the
+  // effect body itself performs no synchronous setState
+  // (react-hooks/set-state-in-effect). phase starts as 'loading'
+  // (useState initializer), so no loading reset is needed here.
   useEffect(() => {
-    loadEntries();
+    void (async () => {
+      await loadEntries();
+    })();
   }, [loadEntries]);
+
+  // Retry from the error state: reset to loading via the event handler
+  // (not inside the effect) for the same reason.
+  const retryLoad = () => {
+    setPhase('loading');
+    loadEntries();
+  };
 
   const finishDraw = useCallback(
     (result: GiveawayEntry, finalRotation: number, animate: boolean) => {
@@ -150,7 +162,7 @@ export function WheelDraw({ giveawayId, onDrawn }: WheelDrawProps) {
     return (
       <div className="empty-state p-6">
         <span>{t('common.unknownError')}</span>
-        <button className="btn btn-secondary btn-sm mt-2" onClick={loadEntries}>{t('error.retry')}</button>
+        <button className="btn btn-secondary btn-sm mt-2" onClick={retryLoad}>{t('error.retry')}</button>
       </div>
     );
   }

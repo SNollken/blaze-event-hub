@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect } from 'react';
 import { X, CheckCircle, AlertTriangle, XCircle } from 'lucide-react';
 import { t } from '../i18n';
 
@@ -44,11 +44,12 @@ const icons = {
 
 export function ToastContainer() {
   const [items, setItems] = useState<ToastMessage[]>([]);
-  const listenerRef = useRef(setItems);
-  listenerRef.current = setItems;
 
   useEffect(() => {
-    const listener = (toastList: ToastMessage[]) => listenerRef.current(toastList);
+    // setItems from useState has a stable identity, so no ref indirection
+    // is needed (the previous listenerRef write during render tripped
+    // react-hooks/refs and was redundant).
+    const listener = (toastList: ToastMessage[]) => setItems(toastList);
     listeners.push(listener);
     return () => {
       const idx = listeners.indexOf(listener);

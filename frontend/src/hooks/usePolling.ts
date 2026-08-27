@@ -12,8 +12,12 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
   // Callers may pass inline arrows (new identity every render); keying the
   // load effect on such a fetcher retriggered it after every resolved fetch,
   // and each setData re-rendered the caller -> infinite refetch loop.
+  // The ref is refreshed in an effect (not during render) to stay
+  // concurrent-safe (react-hooks/refs).
   const fetcherRef = useRef(fetcher);
-  fetcherRef.current = fetcher;
+  useEffect(() => {
+    fetcherRef.current = fetcher;
+  });
 
   const load = useCallback(async () => {
     try {
@@ -27,7 +31,7 @@ export function usePolling<T>(fetcher: () => Promise<T>, intervalMs = 10000) {
     }
   }, []);
 
-  // Initial load on mount
+  // Initial load on mount (load is stable, so this runs once)
   useEffect(() => {
     load();
   }, [load]);
